@@ -1,4 +1,5 @@
 import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, OneToMany } from 'typeorm';
+import { Exclude } from 'class-transformer';
 import { Lead } from '../../leads/entities/lead.entity';
 
 export enum UserRole {
@@ -17,6 +18,7 @@ export class User {
   @Column({ unique: true })
   email: string;
 
+  @Exclude()
   @Column()
   passwordHash: string;
 
