@@ -1,10 +1,19 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { EventEmitterModule } from '@nestjs/event-emitter';
+import { AuthModule } from './auth/auth.module';
+import { UsersModule } from './users/users.module';
+import { ContactsModule } from './contacts/contacts.module';
+import { PipelinesModule } from './pipelines/pipelines.module';
+import { StagesModule } from './stages/stages.module';
+import { LeadsModule } from './leads/leads.module';
+import { TemplatesModule } from './templates/templates.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
+    EventEmitterModule.forRoot(),
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
       useFactory: (config: ConfigService) => ({
@@ -18,6 +27,13 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
       }),
       inject: [ConfigService],
     }),
+    AuthModule,
+    UsersModule,
+    ContactsModule,
+    PipelinesModule,
+    StagesModule,
+    LeadsModule,
+    TemplatesModule,
   ],
 })
 export class AppModule {}
