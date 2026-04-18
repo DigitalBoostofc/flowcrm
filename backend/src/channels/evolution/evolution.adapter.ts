@@ -37,4 +37,42 @@ export class EvolutionAdapter implements ChannelAdapter {
       return { externalMessageId: '', status: 'failed', error: err.message };
     }
   }
+
+  async getQrCode(channelConfigId: string): Promise<{ base64: string; pairingCode?: string }> {
+    const channel = await this.repo.findOneByOrFail({ id: channelConfigId });
+    const instance = channel.config.instance;
+    const apiKey = channel.config.apiKey;
+    const baseUrl = this.config.getOrThrow<string>('EVOLUTION_API_URL');
+
+    const res = await axios.get(
+      `${baseUrl}/instance/connect/${instance}`,
+      { headers: { apikey: apiKey }, timeout: 15000 },
+    );
+    return {
+      base64: res.data?.base64 ?? res.data?.qrcode?.base64 ?? '',
+      pairingCode: res.data?.pairingCode,
+    };
+  }
+
+  async createInstance(channelConfigId: string, webhookUrl: string): Promise<void> {
+    const channel = await this.repo.findOneByOrFail({ id: channelConfigId });
+    const instance = channel.config.instance;
+    const apiKey = this.config.getOrThrow<string>('EVOLUTION_GLOBAL_API_KEY');
+    const baseUrl = this.config.getOrThrow<string>('EVOLUTION_API_URL');
+
+    await axios.post(
+      `${baseUrl}/instance/create`,
+      {
+        instanceName: instance,
+        qrcode: true,
+        integration: 'WHATSAPP-BAILEYS',
+        webhook: {
+          url: webhookUrl,
+          byEvents: true,
+          events: ['MESSAGES_UPSERT', 'CONNECTION_UPDATE'],
+        },
+      },
+      { headers: { apikey: apiKey }, timeout: 20000 },
+    );
+  }
 }

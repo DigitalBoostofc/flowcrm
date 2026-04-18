@@ -49,4 +49,22 @@ export class ChannelsService {
   async remove(id: string): Promise<void> {
     await this.repo.update(id, { active: false });
   }
+
+  async getQrCode(id: string): Promise<{ base64: string; pairingCode?: string }> {
+    const channel = await this.findById(id);
+    if (channel.type !== 'evolution') {
+      throw new BadRequestException('QR code só disponível para canais Evolution');
+    }
+    const adapter = this.adapters.get('evolution') as EvolutionAdapter;
+    return adapter.getQrCode(id);
+  }
+
+  async provisionInstance(id: string, webhookUrl: string): Promise<void> {
+    const channel = await this.findById(id);
+    if (channel.type !== 'evolution') {
+      throw new BadRequestException('Provisionamento só disponível para canais Evolution');
+    }
+    const adapter = this.adapters.get('evolution') as EvolutionAdapter;
+    await adapter.createInstance(id, webhookUrl);
+  }
 }
