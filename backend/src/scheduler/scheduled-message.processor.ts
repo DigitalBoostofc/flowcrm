@@ -22,13 +22,13 @@ export class ScheduledMessageProcessor extends WorkerHost {
     super();
   }
 
-  async process(job: Job<{ scheduledMessageId: string; channelConfigId: string }>): Promise<void> {
+  async process(job: Job<{ scheduledMessageId: string }>): Promise<void> {
     const record = await this.repo.findOneByOrFail({ id: job.data.scheduledMessageId });
     if (record.status !== 'pending') return;
 
     const conv = await this.conversations.findOne(record.conversationId);
     const result = await this.channels.send({
-      channelConfigId: job.data.channelConfigId,
+      channelConfigId: record.channelConfigId,
       to: conv.externalId ?? '',
       body: record.body,
     });

@@ -64,6 +64,7 @@ export class MessagingSchema1714100000000 implements MigrationInterface {
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         "conversationId" UUID NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
         body TEXT NOT NULL,
+        "channelConfigId" UUID NOT NULL REFERENCES channel_configs(id),
         "scheduledAt" TIMESTAMPTZ NOT NULL,
         status VARCHAR(20) NOT NULL DEFAULT 'pending',
         "createdById" UUID REFERENCES users(id),

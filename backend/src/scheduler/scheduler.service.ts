@@ -20,6 +20,7 @@ export class SchedulerService {
       this.repo.create({
         conversationId: dto.conversationId,
         body: dto.body,
+        channelConfigId: dto.channelConfigId,
         scheduledAt,
         status: 'pending',
         createdById,
@@ -29,7 +30,7 @@ export class SchedulerService {
     const delay = Math.max(0, scheduledAt.getTime() - Date.now());
     const job = await this.queue.add(
       'send',
-      { scheduledMessageId: record.id, channelConfigId: dto.channelConfigId },
+      { scheduledMessageId: record.id },
       { delay },
     );
     await this.repo.update(record.id, { bullJobId: job.id ?? undefined });

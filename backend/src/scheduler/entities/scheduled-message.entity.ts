@@ -20,6 +20,9 @@ export class ScheduledMessage {
   @Column({ type: 'text' })
   body: string;
 
+  @Column()
+  channelConfigId: string;
+
   @Column({ type: 'timestamptz' })
   scheduledAt: Date;
 
