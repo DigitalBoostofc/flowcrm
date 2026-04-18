@@ -6,6 +6,10 @@ services:
       dockerfile: Dockerfile
     environment:
       DATABASE_URL: postgresql://flowcrm:flowcrm@db:5432/flowcrm
+      REDIS_URL: redis://redis:6379
+      EVOLUTION_API_URL: http://evolution-api:8080
+      META_APP_SECRET: change-me-in-prod
+      META_VERIFY_TOKEN: change-me-in-prod
       JWT_SECRET: dev-secret-change-in-prod
       JWT_EXPIRES_IN: 7d
       PORT: 3001
@@ -15,6 +19,7 @@ services:
       - "3001:3001"
     depends_on:
       - db
+      - redis
     restart: unless-stopped
 
   db:
@@ -27,6 +32,22 @@ services:
       - flowcrm_db:/var/lib/postgresql/data
     ports:
       - "5433:5432"
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6380:6379"
+    restart: unless-stopped
+
+  evolution-api:
+    image: atendai/evolution-api:latest
+    environment:
+      AUTHENTICATION_API_KEY: dev-evolution-key
+      DATABASE_ENABLED: 'false'
+      AUTHENTICATION_EXPOSE_IN_FETCH_INSTANCES: 'true'
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
 
 volumes:
   flowcrm_db:
