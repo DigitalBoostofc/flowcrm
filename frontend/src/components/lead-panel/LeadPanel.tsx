@@ -3,6 +3,7 @@ import FocusTrap from 'focus-trap-react';
 import { X, MessageCircle, FileText } from 'lucide-react';
 import { usePanelStore } from '@/store/panel.store';
 import LeadInfo from './LeadInfo';
+import LeadChat from './LeadChat';
 
 type Tab = 'chat' | 'info';
 
@@ -49,7 +50,7 @@ export default function LeadPanel() {
             </button>
           </div>
           <div className="flex-1 overflow-auto">
-            {tab === 'chat' && <div className="p-4 text-slate-500 text-sm">Chat — Task 9</div>}
+            {tab === 'chat' && <LeadChat leadId={selectedLeadId} />}
             {tab === 'info' && <LeadInfo leadId={selectedLeadId} />}
           </div>
         </aside>
