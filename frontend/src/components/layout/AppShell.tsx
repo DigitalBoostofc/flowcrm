@@ -19,7 +19,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
   return (
     <div className="h-screen flex overflow-hidden" style={{ backgroundColor: 'var(--canvas)' }}>
       <Sidebar />
-      <main className="flex-1 overflow-auto">{children}</main>
+      <main className="flex-1 overflow-auto min-w-0">{children}</main>
       <LeadPanel />
       <Toaster />
     </div>
