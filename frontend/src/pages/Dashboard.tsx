@@ -105,7 +105,7 @@ export default function Dashboard() {
         setAgentId={setAgentId}
         agents={agents}
       />
-      <KanbanBoard stages={stages} leadsByStage={leadsByStage} />
+      <KanbanBoard stages={stages} leadsByStage={leadsByStage} pipelineId={effectivePipelineId} />
     </div>
   );
 }

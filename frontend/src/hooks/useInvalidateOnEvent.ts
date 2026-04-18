@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useWs } from './useWebSocket';
+import { wasRecentlyMoved } from '@/components/kanban/KanbanBoard';
 import type { Message, Lead } from '@/types/api';
 
 export function useInvalidateOnEvent() {
@@ -18,7 +19,8 @@ export function useInvalidateOnEvent() {
       queryClient.invalidateQueries({ queryKey: ['leads'] });
     };
 
-    const onLeadMoved = (_evt: { lead: Lead; newStageId: string }) => {
+    const onLeadMoved = (evt: { lead: Lead; newStageId: string }) => {
+      if (wasRecentlyMoved(evt.lead.id)) return;
       queryClient.invalidateQueries({ queryKey: ['leads'] });
     };
 

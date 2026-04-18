@@ -1,19 +1,37 @@
+import { useSortable } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import type { Lead } from '@/types/api';
 import { formatBRL } from '@/lib/format';
 import { MessageSquare, User as UserIcon } from 'lucide-react';
 import { usePanelStore } from '@/store/panel.store';
 
-interface Props {
-  lead: Lead;
-}
+interface Props { lead: Lead; }
 
 export default function LeadCard({ lead }: Props) {
   const open = usePanelStore((s) => s.open);
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: lead.id,
+    data: { type: 'lead', lead },
+  });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.4 : 1,
+  };
 
   return (
-    <button
-      onClick={() => open(lead.id)}
-      className="w-full text-left bg-slate-700/60 hover:bg-slate-700 rounded-lg p-3 transition-colors border border-slate-600/50"
+    <div
+      ref={setNodeRef}
+      style={style}
+      {...attributes}
+      {...listeners}
+      onClick={(e) => {
+        if (isDragging) return;
+        e.stopPropagation();
+        open(lead.id);
+      }}
+      className="cursor-grab active:cursor-grabbing bg-slate-700/60 hover:bg-slate-700 rounded-lg p-3 transition-colors border border-slate-600/50"
     >
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0 flex-1">
@@ -35,6 +53,6 @@ export default function LeadCard({ lead }: Props) {
           </span>
         )}
       </div>
-    </button>
+    </div>
   );
 }
