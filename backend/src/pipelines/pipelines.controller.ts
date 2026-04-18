@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, Delete, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Delete, UseGuards, HttpCode } from '@nestjs/common';
 import { PipelinesService } from './pipelines.service';
 import { CreatePipelineDto } from './dto/create-pipeline.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -43,7 +43,16 @@ export class PipelinesController {
   @Delete(':id')
   @UseGuards(RolesGuard)
   @Roles(UserRole.OWNER)
+  @HttpCode(204)
   remove(@Param('id') id: string) {
     return this.pipelinesService.remove(id);
+  }
+
+  @Delete(':pipelineId/stages/:stageId')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.OWNER)
+  @HttpCode(204)
+  removeStage(@Param('stageId') stageId: string) {
+    return this.stagesService.remove(stageId);
   }
 }

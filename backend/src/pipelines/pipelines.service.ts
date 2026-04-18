@@ -13,7 +13,7 @@ export class PipelinesService {
 
   async create(dto: CreatePipelineDto): Promise<Pipeline> {
     if (dto.isDefault) {
-      await this.repo.update({}, { isDefault: false });
+      await this.repo.update({ isDefault: true }, { isDefault: false });
     }
     const pipeline = this.repo.create(dto);
     return this.repo.save(pipeline);

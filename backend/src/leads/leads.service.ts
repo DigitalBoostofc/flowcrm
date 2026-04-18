@@ -56,4 +56,9 @@ export class LeadsService {
     lead.assignedToId = userId;
     return this.repo.save(lead);
   }
+
+  async remove(id: string): Promise<void> {
+    const result = await this.repo.delete(id);
+    if (result.affected === 0) throw new NotFoundException('Lead não encontrado');
+  }
 }

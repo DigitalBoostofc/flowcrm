@@ -36,4 +36,9 @@ export class ContactsService {
     if (existing) return existing;
     return this.create({ name, phone });
   }
+
+  async remove(id: string): Promise<void> {
+    const result = await this.repo.delete(id);
+    if (result.affected === 0) throw new NotFoundException('Contato não encontrado');
+  }
 }

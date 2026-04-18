@@ -1,7 +1,10 @@
-import { Controller, Get, Post, Body, Param, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Delete, Body, Param, Query, UseGuards, HttpCode } from '@nestjs/common';
 import { ContactsService } from './contacts.service';
 import { CreateContactDto } from './dto/create-contact.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { RolesGuard } from '../auth/roles.guard';
+import { Roles } from '../auth/roles.decorator';
+import { UserRole } from '../users/entities/user.entity';
 
 @Controller('contacts')
 @UseGuards(JwtAuthGuard)
@@ -21,5 +24,13 @@ export class ContactsController {
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.contactsService.findOne(id);
+  }
+
+  @Delete(':id')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.OWNER)
+  @HttpCode(204)
+  remove(@Param('id') id: string) {
+    return this.contactsService.remove(id);
   }
 }
