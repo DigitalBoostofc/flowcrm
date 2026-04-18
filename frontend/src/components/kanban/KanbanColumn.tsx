@@ -18,22 +18,25 @@ export default function KanbanColumn({ stage, leads }: Props) {
 
   return (
     <div
-      className="w-68 flex-shrink-0 flex flex-col max-h-full rounded-xl overflow-hidden border border-white/[0.06]"
-      style={{ background: 'linear-gradient(180deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.01) 100%)', minWidth: '272px' }}
+      className="w-68 flex-shrink-0 flex flex-col max-h-full rounded-xl overflow-hidden glass transition-shadow duration-150"
+      style={{ minWidth: '272px', boxShadow: isOver ? `0 0 0 2px ${stage.color}55` : undefined }}
     >
       {/* Column header */}
       <div
-        className="px-4 py-3 flex items-center justify-between border-b border-white/[0.06]"
-        style={{ borderTopWidth: 2, borderTopColor: stage.color, borderTopStyle: 'solid' }}
+        className="px-4 py-3 flex items-center justify-between"
+        style={{
+          borderBottom: '1px solid var(--edge)',
+          borderTop: `2px solid ${stage.color}`,
+        }}
       >
         <div className="flex items-center gap-2.5">
           <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: stage.color }} />
-          <span className="font-medium text-sm text-slate-300">{stage.name}</span>
+          <span className="font-medium text-sm" style={{ color: 'var(--ink-1)' }}>{stage.name}</span>
         </div>
         <div className="flex items-center gap-2">
-          <span className="text-xs font-mono text-slate-500">{leads.length}</span>
+          <span className="text-xs font-mono" style={{ color: 'var(--ink-3)' }}>{leads.length}</span>
           {total > 0 && (
-            <span className="text-xs font-mono text-brand-500/80">{formatBRL(total)}</span>
+            <span className="text-xs font-mono text-brand-500">{formatBRL(total)}</span>
           )}
         </div>
       </div>
@@ -50,7 +53,7 @@ export default function KanbanColumn({ stage, leads }: Props) {
         </SortableContext>
         {leads.length === 0 && (
           <div className="flex items-center justify-center h-20">
-            <p className="text-xs text-slate-700 select-none">Solte aqui</p>
+            <p className="text-xs select-none" style={{ color: 'var(--ink-3)' }}>Solte aqui</p>
           </div>
         )}
       </div>

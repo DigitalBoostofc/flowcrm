@@ -11,21 +11,18 @@ export default function StageSummary({ stage, leads }: Props) {
   const total = leads.reduce((sum, l) => sum + Number(l.value ?? 0), 0);
 
   return (
-    <div
-      className="rounded-xl p-4 border border-white/[0.07] relative overflow-hidden group hover:border-white/[0.12] transition-all duration-200"
-      style={{ background: 'linear-gradient(135deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.02) 100%)' }}
-    >
+    <div className="glass rounded-xl p-4 relative overflow-hidden group hover:shadow-md transition-all duration-200">
       {/* Color accent top bar */}
       <div
         className="absolute top-0 inset-x-0 h-0.5 opacity-70"
         style={{ background: `linear-gradient(90deg, transparent, ${stage.color}, transparent)` }}
       />
 
-      <div className="text-[10px] font-medium text-slate-500 uppercase tracking-widest truncate mb-2">
+      <div className="text-[10px] font-medium uppercase tracking-widest truncate mb-2" style={{ color: 'var(--ink-3)' }}>
         {stage.name}
       </div>
 
-      <div className="font-mono text-3xl font-semibold text-slate-100 leading-none">
+      <div className="font-mono text-3xl font-semibold leading-none" style={{ color: 'var(--ink-1)' }}>
         {count}
       </div>
 

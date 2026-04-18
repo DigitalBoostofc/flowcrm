@@ -36,11 +36,20 @@ export default function GlobalSearch() {
     return (
       <button
         onClick={() => { setOpen(true); setTimeout(() => inputRef.current?.focus(), 50); }}
-        className="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-slate-500 hover:bg-slate-800 hover:text-slate-300 text-sm transition-colors"
+        className="btn-ghost w-full justify-start"
       >
-        <Search className="w-4 h-4" />
+        <Search className="w-4 h-4 flex-shrink-0" />
         <span>Buscar</span>
-        <kbd className="ml-auto text-xs bg-slate-800 px-1.5 py-0.5 rounded border border-slate-700">⌘K</kbd>
+        <kbd
+          className="ml-auto text-xs px-1.5 py-0.5 rounded"
+          style={{
+            background: 'var(--surface-raised)',
+            border: '1px solid var(--edge)',
+            color: 'var(--ink-3)',
+          }}
+        >
+          ⌘K
+        </kbd>
       </button>
     );
   }
@@ -48,19 +57,31 @@ export default function GlobalSearch() {
   const hasResults = data && (data.contacts.length > 0 || data.leads.length > 0);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center pt-20 bg-black/50" onClick={() => setOpen(false)}>
-      <div className="bg-slate-800 border border-slate-700 rounded-xl shadow-2xl w-full max-w-md mx-4" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center gap-2 px-4 py-3 border-b border-slate-700">
-          <Search className="w-4 h-4 text-slate-500 flex-shrink-0" />
+    <div
+      className="fixed inset-0 z-50 flex items-start justify-center pt-20"
+      style={{ background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(4px)' }}
+      onClick={() => setOpen(false)}
+    >
+      <div
+        className="glass-raised rounded-xl shadow-2xl w-full max-w-md mx-4"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center gap-2 px-4 py-3" style={{ borderBottom: '1px solid var(--edge)' }}>
+          <Search className="w-4 h-4 flex-shrink-0" style={{ color: 'var(--ink-3)' }} />
           <input
             ref={inputRef}
             type="text"
             placeholder="Buscar contatos, leads..."
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            className="flex-1 bg-transparent text-slate-100 text-sm focus:outline-none placeholder:text-slate-500"
+            className="flex-1 bg-transparent text-sm focus:outline-none"
+            style={{ color: 'var(--ink-1)' }}
           />
-          <button onClick={() => setOpen(false)} className="text-slate-500 hover:text-slate-300">
+          <button
+            onClick={() => setOpen(false)}
+            className="transition-colors hover:text-[var(--ink-1)]"
+            style={{ color: 'var(--ink-3)' }}
+          >
             <X className="w-4 h-4" />
           </button>
         </div>
@@ -68,21 +89,26 @@ export default function GlobalSearch() {
         {q.trim().length >= 2 && (
           <div className="max-h-80 overflow-auto py-2">
             {!hasResults ? (
-              <div className="px-4 py-6 text-center text-slate-500 text-sm">Nenhum resultado</div>
+              <div className="px-4 py-6 text-center text-sm" style={{ color: 'var(--ink-2)' }}>
+                Nenhum resultado
+              </div>
             ) : (
               <>
                 {(data?.contacts ?? []).map((c) => (
                   <button
                     key={c.id}
                     onClick={() => { navigate('/contacts'); setOpen(false); setQ(''); }}
-                    className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-slate-700 transition-colors text-left"
+                    className="w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors hover:bg-[var(--surface-hover)]"
                   >
-                    <div className="w-7 h-7 rounded-full bg-slate-700 text-slate-300 flex items-center justify-center text-xs font-bold flex-shrink-0">
+                    <div
+                      className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0"
+                      style={{ background: 'var(--surface-raised)', color: 'var(--ink-2)', border: '1px solid var(--edge)' }}
+                    >
                       <User className="w-3.5 h-3.5" />
                     </div>
                     <div>
-                      <div className="text-sm text-slate-200">{c.name}</div>
-                      {c.phone && <div className="text-xs text-slate-500">{c.phone}</div>}
+                      <div className="text-sm" style={{ color: 'var(--ink-1)' }}>{c.name}</div>
+                      {c.phone && <div className="text-xs" style={{ color: 'var(--ink-3)' }}>{c.phone}</div>}
                     </div>
                   </button>
                 ))}
@@ -90,14 +116,14 @@ export default function GlobalSearch() {
                   <button
                     key={l.id}
                     onClick={() => { openPanel(l.id); setOpen(false); setQ(''); }}
-                    className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-slate-700 transition-colors text-left"
+                    className="w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors hover:bg-[var(--surface-hover)]"
                   >
-                    <div className="w-7 h-7 rounded-full bg-brand-600/20 text-brand-400 flex items-center justify-center text-xs flex-shrink-0">
+                    <div className="w-7 h-7 rounded-full bg-brand-500/15 text-brand-500 flex items-center justify-center text-xs flex-shrink-0">
                       <Briefcase className="w-3.5 h-3.5" />
                     </div>
                     <div>
-                      <div className="text-sm text-slate-200">{l.title || l.contact?.name}</div>
-                      <div className="text-xs text-slate-500">{l.pipeline?.name} · {l.stage?.name}</div>
+                      <div className="text-sm" style={{ color: 'var(--ink-1)' }}>{l.title || l.contact?.name}</div>
+                      <div className="text-xs" style={{ color: 'var(--ink-3)' }}>{l.pipeline?.name} · {l.stage?.name}</div>
                     </div>
                   </button>
                 ))}

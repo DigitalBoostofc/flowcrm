@@ -13,9 +13,9 @@ export default function Toaster() {
       {toasts.map((t) => (
         <div
           key={t.id}
-          className="bg-slate-800 border border-slate-700 rounded-xl shadow-2xl p-4 flex items-start gap-3"
+          className="glass-raised rounded-xl p-4 flex items-start gap-3 animate-fade-up"
         >
-          <div className="w-8 h-8 rounded-full bg-brand-600/20 text-brand-400 flex items-center justify-center flex-shrink-0">
+          <div className="w-8 h-8 rounded-full bg-brand-500/15 text-brand-500 flex items-center justify-center flex-shrink-0">
             <MessageCircle className="w-4 h-4" />
           </div>
           <div
@@ -25,10 +25,14 @@ export default function Toaster() {
               dismiss(t.id);
             }}
           >
-            <p className="text-sm font-medium text-slate-100 truncate">{t.title}</p>
-            {t.body && <p className="text-xs text-slate-400 mt-0.5 line-clamp-2">{t.body}</p>}
+            <p className="text-sm font-medium truncate" style={{ color: 'var(--ink-1)' }}>{t.title}</p>
+            {t.body && <p className="text-xs mt-0.5 line-clamp-2" style={{ color: 'var(--ink-2)' }}>{t.body}</p>}
           </div>
-          <button onClick={() => dismiss(t.id)} className="text-slate-500 hover:text-slate-300 flex-shrink-0">
+          <button
+            onClick={() => dismiss(t.id)}
+            className="flex-shrink-0 transition-colors hover:text-[var(--ink-1)]"
+            style={{ color: 'var(--ink-3)' }}
+          >
             <X className="w-4 h-4" />
           </button>
         </div>

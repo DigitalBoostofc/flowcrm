@@ -19,16 +19,24 @@ export default function Modal({ open, onClose, title, children, maxWidth = 'max-
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60" onClick={onClose}>
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)' }}
+      onClick={onClose}
+    >
       <div
-        className={`bg-slate-800 border border-slate-700 rounded-xl shadow-2xl ${maxWidth} w-full`}
+        className={`glass-raised rounded-xl shadow-2xl ${maxWidth} w-full animate-fade-up`}
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
       >
-        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-700">
-          <h2 className="font-semibold text-slate-100">{title}</h2>
-          <button onClick={onClose} className="text-slate-400 hover:text-white p-1">
+        <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: '1px solid var(--edge)' }}>
+          <h2 className="font-semibold" style={{ color: 'var(--ink-1)' }}>{title}</h2>
+          <button
+            onClick={onClose}
+            className="p-1 rounded-lg transition-colors hover:bg-[var(--surface-hover)]"
+            style={{ color: 'var(--ink-2)' }}
+          >
             <X className="w-5 h-5" />
           </button>
         </div>

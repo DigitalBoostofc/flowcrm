@@ -2,55 +2,191 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ── Design Tokens ─────────────────────────────────────── */
+:root {
+  /* Light mode defaults */
+  --canvas: #eef2f7;
+  --surface: rgba(255, 255, 255, 0.82);
+  --surface-hover: rgba(255, 255, 255, 0.96);
+  --surface-raised: rgba(255, 255, 255, 0.95);
+  --surface-overlay: rgba(248, 250, 252, 0.97);
+  --edge: rgba(15, 23, 42, 0.09);
+  --edge-strong: rgba(15, 23, 42, 0.16);
+  --ink-1: #0f172a;
+  --ink-2: #475569;
+  --ink-3: #94a3b8;
+  --shadow-card: 0 2px 12px rgba(15, 23, 42, 0.07), 0 1px 3px rgba(15, 23, 42, 0.05);
+  --shadow-elevated: 0 8px 32px rgba(15, 23, 42, 0.10), 0 2px 8px rgba(15, 23, 42, 0.07);
+}
+
+.dark {
+  /* Dark mode */
+  --canvas: #07070f;
+  --surface: rgba(255, 255, 255, 0.04);
+  --surface-hover: rgba(255, 255, 255, 0.07);
+  --surface-raised: rgba(255, 255, 255, 0.06);
+  --surface-overlay: rgba(10, 10, 20, 0.96);
+  --edge: rgba(255, 255, 255, 0.08);
+  --edge-strong: rgba(255, 255, 255, 0.14);
+  --ink-1: #f1f5f9;
+  --ink-2: #94a3b8;
+  --ink-3: #334155;
+  --shadow-card: 0 2px 12px rgba(0, 0, 0, 0.30), 0 1px 3px rgba(0, 0, 0, 0.20);
+  --shadow-elevated: 0 8px 40px rgba(0, 0, 0, 0.50), 0 2px 8px rgba(0, 0, 0, 0.30);
+}
+
 @layer base {
   html {
-    background-color: #07070f;
+    background-color: var(--canvas);
   }
 
   body {
     font-family: 'Outfit', system-ui, sans-serif;
-    background-color: #07070f;
+    background-color: var(--canvas);
+    color: var(--ink-1);
+    min-height: 100vh;
+    transition: background-color 0.25s ease, color 0.25s ease;
+  }
+
+  .dark body {
     background-image:
       radial-gradient(ellipse 80% 50% at 50% -20%, rgba(245, 158, 11, 0.04) 0%, transparent 60%),
       radial-gradient(#1a1a2e 1px, transparent 1px);
     background-size: 100% 100%, 28px 28px;
-    min-height: 100vh;
   }
 
-  /* Monospace for numeric data */
   .font-mono {
     font-family: 'JetBrains Mono', monospace;
     font-variant-numeric: tabular-nums;
   }
 }
 
-/* Refined scrollbar */
-::-webkit-scrollbar {
-  width: 3px;
-  height: 3px;
+/* ── Component Styles ─────────────────────────────────── */
+@layer components {
+  /* Glass surfaces */
+  .glass {
+    background: var(--surface);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid var(--edge);
+    box-shadow: var(--shadow-card);
+  }
+
+  .glass-raised {
+    background: var(--surface-raised);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid var(--edge-strong);
+    box-shadow: var(--shadow-elevated);
+  }
+
+  /* Sidebar background */
+  .sidebar-bg {
+    background: var(--surface-raised);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+  }
+
+  .dark .sidebar-bg {
+    background: linear-gradient(180deg, #0c0c1a 0%, #08081a 100%);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+
+  /* Inputs */
+  .input-base {
+    width: 100%;
+    padding: 0.625rem 0.875rem;
+    border-radius: 0.75rem;
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    background: var(--surface);
+    border: 1px solid var(--edge);
+    color: var(--ink-1);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+  }
+
+  .input-base::placeholder {
+    color: var(--ink-3);
+  }
+
+  .input-base:focus {
+    outline: none;
+    border-color: rgba(245, 158, 11, 0.55);
+    box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.10);
+  }
+
+  /* Select */
+  .select-base {
+    padding: 0.5rem 0.75rem;
+    border-radius: 0.5rem;
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+    transition: border-color 0.15s ease;
+    background: var(--surface);
+    border: 1px solid var(--edge);
+    color: var(--ink-1);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+  }
+
+  .select-base:focus {
+    outline: none;
+    border-color: rgba(245, 158, 11, 0.55);
+  }
+
+  /* Ghost button */
+  .btn-ghost {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    border-radius: 0.5rem;
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+    transition: color 0.15s ease, background 0.15s ease;
+    color: var(--ink-2);
+    cursor: pointer;
+  }
+
+  .btn-ghost:hover {
+    color: var(--ink-1);
+    background: var(--surface-hover);
+  }
+
+  /* Page header */
+  .page-title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--ink-1);
+    letter-spacing: -0.025em;
+  }
 }
-::-webkit-scrollbar-track {
-  background: transparent;
-}
+
+/* ── Scrollbar ─────────────────────────────────────────── */
+::-webkit-scrollbar { width: 3px; height: 3px; }
+::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb {
-  background: #2a2a45;
+  background: rgba(100, 116, 139, 0.3);
   border-radius: 99px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #3d3d60;
+  background: rgba(100, 116, 139, 0.5);
 }
 
-/* Selection */
+/* ── Selection ─────────────────────────────────────────── */
 ::selection {
   background: rgba(245, 158, 11, 0.25);
   color: #fcd34d;
 }
 
-/* Input autofill override */
+/* ── Input autofill ────────────────────────────────────── */
 input:-webkit-autofill,
 input:-webkit-autofill:hover,
 input:-webkit-autofill:focus {
-  -webkit-box-shadow: 0 0 0 100px #101020 inset;
-  -webkit-text-fill-color: #f1f5f9;
-  caret-color: #f1f5f9;
+  -webkit-box-shadow: 0 0 0 100px var(--surface-overlay) inset;
+  -webkit-text-fill-color: var(--ink-1);
+  caret-color: var(--ink-1);
 }

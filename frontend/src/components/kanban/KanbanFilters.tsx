@@ -24,19 +24,20 @@ export default function KanbanFilters({
   return (
     <div className="flex items-center gap-3 flex-wrap">
       <div className="relative flex-1 max-w-xs">
-        <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+        <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--ink-3)' }} />
         <input
           type="text"
           placeholder="Buscar por nome ou telefone"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="w-full pl-9 pr-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm text-slate-100 focus:outline-none focus:border-brand-500"
+          className="input-base pl-9"
+          style={{ paddingLeft: '2.25rem' }}
         />
       </div>
       <select
         value={agentId ?? ''}
         onChange={(e) => setAgentId(e.target.value || null)}
-        className="bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100"
+        className="select-base"
       >
         <option value="">Todos os agentes</option>
         {agents.map((a) => (
@@ -46,7 +47,7 @@ export default function KanbanFilters({
       <select
         value={staleDays ?? ''}
         onChange={(e) => setStaleDays(e.target.value ? Number(e.target.value) : null)}
-        className="bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100"
+        className="select-base"
       >
         {STALE_OPTIONS.map((o) => (
           <option key={String(o.value)} value={o.value ?? ''}>{o.label}</option>

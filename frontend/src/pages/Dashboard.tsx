@@ -64,13 +64,17 @@ export default function Dashboard() {
     return map;
   }, [filteredLeads, stages]);
 
-  if (loadingPipelines) return <div className="p-8 text-slate-400">Carregando...</div>;
+  if (loadingPipelines) return (
+    <div className="p-8 text-sm" style={{ color: 'var(--ink-2)' }}>Carregando...</div>
+  );
 
   if (pipelines.length === 0) {
     return (
       <div className="p-8">
-        <h1 className="text-2xl font-bold">Nenhum pipeline configurado</h1>
-        <p className="text-slate-400 mt-2">Vá em Configurações para criar seu primeiro pipeline de vendas.</p>
+        <h1 className="page-title">Nenhum pipeline configurado</h1>
+        <p className="text-sm mt-2" style={{ color: 'var(--ink-2)' }}>
+          Vá em Configurações para criar seu primeiro pipeline de vendas.
+        </p>
       </div>
     );
   }
@@ -79,12 +83,12 @@ export default function Dashboard() {
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Dashboard</h1>
-          <p className="text-slate-400 text-sm mt-1">{pipeline?.name}</p>
+          <h1 className="page-title">Dashboard</h1>
+          <p className="text-sm mt-1" style={{ color: 'var(--ink-2)' }}>{pipeline?.name}</p>
         </div>
         {pipelines.length > 1 && (
           <select
-            className="bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-slate-100"
+            className="select-base"
             value={effectivePipelineId ?? ''}
             onChange={(e) => setSelectedPipelineId(e.target.value)}
           >
