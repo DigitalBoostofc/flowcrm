@@ -9,11 +9,13 @@ import { PipelinesModule } from './pipelines/pipelines.module';
 import { StagesModule } from './stages/stages.module';
 import { LeadsModule } from './leads/leads.module';
 import { TemplatesModule } from './templates/templates.module';
+import { QueuesModule } from './common/queues/queues.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     EventEmitterModule.forRoot(),
+    QueuesModule,
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
       useFactory: (config: ConfigService) => ({
