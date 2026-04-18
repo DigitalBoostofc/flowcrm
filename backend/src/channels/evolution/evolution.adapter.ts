@@ -67,7 +67,7 @@ export class EvolutionAdapter implements ChannelAdapter {
     const apiKey = this.config.getOrThrow<string>('EVOLUTION_GLOBAL_API_KEY');
     const baseUrl = this.config.getOrThrow<string>('EVOLUTION_API_URL');
 
-    await axios.post(
+    const res = await axios.post(
       `${baseUrl}/instance/create`,
       {
         instanceName: instance,
@@ -81,6 +81,14 @@ export class EvolutionAdapter implements ChannelAdapter {
       },
       { headers: { apikey: apiKey }, timeout: 20000 },
     );
+
+    const initialQr: string | undefined = res.data?.qrcode?.base64 ?? res.data?.qr?.base64 ?? res.data?.base64;
+    if (initialQr) {
+      await this.saveQrCode(channelConfigId, initialQr);
+      this.logger.log(`Initial QR saved for channel ${channelConfigId}`);
+    } else {
+      this.logger.log(`Instance ${instance} created; waiting for qrcode.updated webhook`);
+    }
   }
 
   async updateWebhook(channelConfigId: string, webhookUrl: string): Promise<void> {
