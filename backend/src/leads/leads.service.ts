@@ -35,6 +35,13 @@ export class LeadsService {
     return lead;
   }
 
+  findByContactAndPipeline(contactId: string, pipelineId: string): Promise<Lead | null> {
+    return this.repo.findOne({
+      where: { contactId, pipelineId },
+      relations: ['contact', 'stage', 'pipeline', 'assignedTo'],
+    });
+  }
+
   async move(id: string, stageId: string): Promise<Lead> {
     const lead = await this.findOne(id);
     const previousStageId = lead.stageId;

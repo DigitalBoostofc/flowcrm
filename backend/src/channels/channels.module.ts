@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ChannelsController } from './channels.controller';
 import { ChannelsService } from './channels.service';
@@ -8,11 +8,24 @@ import { EvolutionWebhookController } from './evolution/evolution-webhook.contro
 import { MetaAdapter } from './meta/meta.adapter';
 import { MetaWebhookController } from './meta/meta-webhook.controller';
 import { MetaSignatureGuard } from './meta/meta-signature.guard';
+import { InboundListener } from './inbound.listener';
+import { ContactsModule } from '../contacts/contacts.module';
+import { LeadsModule } from '../leads/leads.module';
+import { PipelinesModule } from '../pipelines/pipelines.module';
+import { ConversationsModule } from '../conversations/conversations.module';
+import { MessagesModule } from '../messages/messages.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([ChannelConfig])],
+  imports: [
+    TypeOrmModule.forFeature([ChannelConfig]),
+    ContactsModule,
+    LeadsModule,
+    PipelinesModule,
+    ConversationsModule,
+    forwardRef(() => MessagesModule),
+  ],
   controllers: [ChannelsController, EvolutionWebhookController, MetaWebhookController],
-  providers: [ChannelsService, EvolutionAdapter, MetaAdapter, MetaSignatureGuard],
+  providers: [ChannelsService, EvolutionAdapter, MetaAdapter, MetaSignatureGuard, InboundListener],
   exports: [ChannelsService],
 })
 export class ChannelsModule {}
