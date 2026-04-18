@@ -5,6 +5,7 @@ import { listConversations } from '@/api/conversations';
 import { listMessages } from '@/api/messages';
 import { listChannels } from '@/api/channels';
 import MessageComposer from './MessageComposer';
+import ScheduledMessagesList from './ScheduledMessagesList';
 import type { Message } from '@/types/api';
 
 export default function LeadChat({ leadId }: { leadId: string }) {
@@ -69,6 +70,7 @@ export default function LeadChat({ leadId }: { leadId: string }) {
           <div className="text-center text-slate-500 text-sm py-10">Sem mensagens</div>
         )}
       </div>
+      <ScheduledMessagesList conversationId={conversation.id} />
       <MessageComposer conversationId={conversation.id} channels={activeChannels} />
     </div>
   );
