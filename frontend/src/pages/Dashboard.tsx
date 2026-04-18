@@ -6,7 +6,9 @@ import { listUsers } from '@/api/users';
 import StageSummary from '@/components/kanban/StageSummary';
 import KanbanBoard from '@/components/kanban/KanbanBoard';
 import KanbanFilters from '@/components/kanban/KanbanFilters';
+import { StageSummarySkeleton } from '@/components/ui/Skeleton';
 import { useAuthStore } from '@/store/auth.store';
+import { GitBranch } from 'lucide-react';
 
 export default function Dashboard() {
   const user = useAuthStore((s) => s.user);
@@ -31,7 +33,7 @@ export default function Dashboard() {
     ?? pipelines[0]?.id
     ?? null;
 
-  const { data: leads = [] } = useQuery({
+  const { data: leads = [], isLoading: loadingLeads } = useQuery({
     queryKey: ['leads', effectivePipelineId, staleDays],
     queryFn: () => listLeads(effectivePipelineId!, staleDays ?? undefined),
     enabled: !!effectivePipelineId,
@@ -64,15 +66,34 @@ export default function Dashboard() {
     return map;
   }, [filteredLeads, stages]);
 
-  if (loadingPipelines) return (
-    <div className="p-8 text-sm" style={{ color: 'var(--ink-2)' }}>Carregando...</div>
-  );
+  const sortedStages = [...stages].sort((a, b) => a.position - b.position);
+
+  if (loadingPipelines) {
+    return (
+      <div className="p-6 space-y-6 animate-fade-up">
+        <div className="flex items-center justify-between">
+          <div className="space-y-2">
+            <div className="skeleton h-7 w-32" />
+            <div className="skeleton h-4 w-24" />
+          </div>
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {[...Array(4)].map((_, i) => <StageSummarySkeleton key={i} />)}
+        </div>
+      </div>
+    );
+  }
 
   if (pipelines.length === 0) {
     return (
-      <div className="p-8">
-        <h1 className="page-title">Nenhum pipeline configurado</h1>
-        <p className="text-sm mt-2" style={{ color: 'var(--ink-2)' }}>
+      <div className="flex flex-col items-center justify-center h-full p-8 text-center animate-fade-up">
+        <div className="w-16 h-16 rounded-2xl glass flex items-center justify-center mb-4">
+          <GitBranch className="w-8 h-8" style={{ color: 'var(--ink-3)' }} />
+        </div>
+        <h1 className="text-xl font-bold mb-2" style={{ color: 'var(--ink-1)' }}>
+          Nenhum pipeline configurado
+        </h1>
+        <p className="text-sm max-w-xs" style={{ color: 'var(--ink-2)' }}>
           Vá em Configurações para criar seu primeiro pipeline de vendas.
         </p>
       </div>
@@ -84,7 +105,7 @@ export default function Dashboard() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="page-title">Dashboard</h1>
-          <p className="text-sm mt-1" style={{ color: 'var(--ink-2)' }}>{pipeline?.name}</p>
+          <p className="text-sm mt-1 font-medium" style={{ color: 'var(--ink-2)' }}>{pipeline?.name}</p>
         </div>
         {pipelines.length > 1 && (
           <select
@@ -98,11 +119,24 @@ export default function Dashboard() {
           </select>
         )}
       </div>
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {[...stages].sort((a, b) => a.position - b.position).map((s) => (
-          <StageSummary key={s.id} stage={s} leads={leadsByStage[s.id] ?? []} />
-        ))}
-      </div>
+
+      {loadingLeads ? (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {[...Array(sortedStages.length || 4)].map((_, i) => <StageSummarySkeleton key={i} />)}
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {sortedStages.map((s) => (
+            <StageSummary
+              key={s.id}
+              stage={s}
+              leads={leadsByStage[s.id] ?? []}
+              totalLeads={filteredLeads.length}
+            />
+          ))}
+        </div>
+      )}
+
       <KanbanFilters
         search={search}
         setSearch={setSearch}

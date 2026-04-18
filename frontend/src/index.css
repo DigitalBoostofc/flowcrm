@@ -17,6 +17,14 @@
   --ink-3: #94a3b8;
   --shadow-card: 0 2px 12px rgba(15, 23, 42, 0.07), 0 1px 3px rgba(15, 23, 42, 0.05);
   --shadow-elevated: 0 8px 32px rgba(15, 23, 42, 0.10), 0 2px 8px rgba(15, 23, 42, 0.07);
+  /* Panel tokens */
+  --panel-bg: #ffffff;
+  --panel-border: rgba(15, 23, 42, 0.10);
+  --panel-surface: rgba(15, 23, 42, 0.04);
+  --panel-surface-hover: rgba(15, 23, 42, 0.07);
+  /* Skeleton */
+  --skeleton-base: rgba(15, 23, 42, 0.06);
+  --skeleton-shine: rgba(15, 23, 42, 0.10);
 }
 
 .dark {
@@ -33,6 +41,14 @@
   --ink-3: #334155;
   --shadow-card: 0 2px 12px rgba(0, 0, 0, 0.30), 0 1px 3px rgba(0, 0, 0, 0.20);
   --shadow-elevated: 0 8px 40px rgba(0, 0, 0, 0.50), 0 2px 8px rgba(0, 0, 0, 0.30);
+  /* Panel tokens */
+  --panel-bg: #111827;
+  --panel-border: rgba(255, 255, 255, 0.08);
+  --panel-surface: rgba(255, 255, 255, 0.05);
+  --panel-surface-hover: rgba(255, 255, 255, 0.09);
+  /* Skeleton */
+  --skeleton-base: rgba(255, 255, 255, 0.05);
+  --skeleton-shine: rgba(255, 255, 255, 0.10);
 }
 
 @layer base {
@@ -41,7 +57,7 @@
   }
 
   body {
-    font-family: 'Outfit', system-ui, sans-serif;
+    font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
     background-color: var(--canvas);
     color: var(--ink-1);
     min-height: 100vh;
@@ -162,6 +178,37 @@
     font-weight: 700;
     color: var(--ink-1);
     letter-spacing: -0.025em;
+  }
+
+  /* Panel (lead drawer) — theme-safe */
+  .panel-bg {
+    background: var(--panel-bg);
+    border-left: 1px solid var(--panel-border);
+  }
+
+  .panel-border {
+    border-color: var(--panel-border);
+  }
+
+  .panel-surface {
+    background: var(--panel-surface);
+  }
+
+  .panel-surface-hover:hover {
+    background: var(--panel-surface-hover);
+  }
+
+  /* Skeleton shimmer */
+  .skeleton {
+    background: linear-gradient(
+      90deg,
+      var(--skeleton-base) 25%,
+      var(--skeleton-shine) 50%,
+      var(--skeleton-base) 75%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.8s ease-in-out infinite;
+    border-radius: 0.5rem;
   }
 }
 

@@ -5,6 +5,7 @@ import { TrendingUp, Trophy, XCircle, CircleDot, DollarSign, Clock } from 'lucid
 import { getAnalyticsSummary } from '@/api/analytics';
 import { listPipelines } from '@/api/pipelines';
 import { formatBRL } from '@/lib/format';
+import { Skeleton } from '@/components/ui/Skeleton';
 
 const COLORS = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
 
@@ -12,15 +13,19 @@ function MetricCard({ icon, label, value, sub, valueStyle }: {
   icon: React.ReactNode; label: string; value: string | number; sub?: string; valueStyle?: string;
 }) {
   return (
-    <div className="glass rounded-xl p-4">
-      <div className="flex items-center gap-2 mb-2">
+    <div
+      className="glass rounded-xl p-4 group transition-all duration-200"
+      onMouseEnter={(e) => { (e.currentTarget as HTMLDivElement).style.transform = 'translateY(-1px)'; }}
+      onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.transform = ''; }}
+    >
+      <div className="flex items-center gap-1.5 mb-3">
         <div style={{ color: 'var(--ink-3)' }}>{icon}</div>
-        <span className="text-xs uppercase tracking-wide" style={{ color: 'var(--ink-3)' }}>{label}</span>
+        <span className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: 'var(--ink-3)' }}>{label}</span>
       </div>
-      <div className={`text-2xl font-bold ${valueStyle ?? ''}`} style={!valueStyle ? { color: 'var(--ink-1)' } : undefined}>
+      <div className={`text-2xl font-bold leading-none ${valueStyle ?? ''}`} style={!valueStyle ? { color: 'var(--ink-1)' } : undefined}>
         {value}
       </div>
-      {sub && <div className="text-xs mt-0.5" style={{ color: 'var(--ink-3)' }}>{sub}</div>}
+      {sub && <div className="text-xs mt-1 font-medium" style={{ color: 'var(--ink-3)' }}>{sub}</div>}
     </div>
   );
 }
@@ -69,7 +74,26 @@ export default function Analytics() {
       </div>
 
       {isLoading || !data ? (
-        <div className="text-sm" style={{ color: 'var(--ink-2)' }}>Carregando...</div>
+        <div className="space-y-6 animate-fade-up">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+            {[...Array(6)].map((_, i) => (
+              <div key={i} className="glass rounded-xl p-4 space-y-3">
+                <Skeleton className="h-3 w-20" />
+                <Skeleton className="h-7 w-12" />
+              </div>
+            ))}
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="glass lg:col-span-2 rounded-xl p-4 space-y-3">
+              <Skeleton className="h-4 w-40" />
+              <Skeleton className="h-[200px] w-full rounded-lg" />
+            </div>
+            <div className="glass rounded-xl p-4 space-y-3">
+              <Skeleton className="h-4 w-32" />
+              <Skeleton className="h-[150px] w-full rounded-lg" />
+            </div>
+          </div>
+        </div>
       ) : (
         <>
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">

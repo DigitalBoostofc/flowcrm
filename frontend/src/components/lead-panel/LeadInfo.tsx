@@ -5,6 +5,7 @@ import { getLead, updateLead, archiveLead, unarchiveLead } from '@/api/leads';
 import { formatBRL } from '@/lib/format';
 import StageProgress from './StageProgress';
 import StatusToggle from './StatusToggle';
+import { LeadInfoSkeleton } from '@/components/ui/Skeleton';
 import type { Lead, Stage } from '@/types/api';
 
 interface Props {
@@ -30,10 +31,15 @@ function InlineEdit({
     return (
       <button
         onClick={() => { setDraft(value); setEditing(true); }}
-        className="text-sm text-slate-100 hover:text-brand-400 text-left w-full flex items-center gap-1 group"
+        className="text-sm text-left w-full flex items-center gap-1 group transition-colors duration-150"
+        style={{ color: 'var(--ink-1)' }}
+        onMouseEnter={(e) => (e.currentTarget as HTMLButtonElement).style.color = '#f59e0b'}
+        onMouseLeave={(e) => (e.currentTarget as HTMLButtonElement).style.color = 'var(--ink-1)'}
       >
-        <span className={value ? '' : 'text-slate-500 italic'}>{value || placeholder || '—'}</span>
-        <Edit2 className="w-3 h-3 opacity-0 group-hover:opacity-50" />
+        <span style={!value ? { color: 'var(--ink-3)', fontStyle: 'italic' } : {}}>
+          {value || placeholder || '—'}
+        </span>
+        <Edit2 className="w-3 h-3 opacity-0 group-hover:opacity-40 flex-shrink-0" />
       </button>
     );
   }
@@ -49,12 +55,26 @@ function InlineEdit({
           if (e.key === 'Enter') { onSave(draft); setEditing(false); }
           if (e.key === 'Escape') setEditing(false);
         }}
-        className="flex-1 px-2 py-0.5 bg-slate-700 border border-slate-600 rounded text-sm text-slate-100 focus:outline-none"
+        className="flex-1 px-2 py-1 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/40 transition-all"
+        style={{
+          background: 'var(--panel-surface)',
+          border: '1px solid var(--panel-border)',
+          color: 'var(--ink-1)',
+        }}
       />
-      <button onClick={() => { onSave(draft); setEditing(false); }} className="text-emerald-400 hover:text-emerald-300">
+      <button
+        onClick={() => { onSave(draft); setEditing(false); }}
+        className="p-1 rounded text-emerald-500 hover:text-emerald-400 transition-colors"
+      >
         <Check className="w-4 h-4" />
       </button>
-      <button onClick={() => setEditing(false)} className="text-slate-500 hover:text-slate-300">
+      <button
+        onClick={() => setEditing(false)}
+        className="p-1 rounded transition-colors"
+        style={{ color: 'var(--ink-3)' }}
+        onMouseEnter={(e) => (e.currentTarget as HTMLButtonElement).style.color = 'var(--ink-2)'}
+        onMouseLeave={(e) => (e.currentTarget as HTMLButtonElement).style.color = 'var(--ink-3)'}
+      >
         <X className="w-4 h-4" />
       </button>
     </div>
@@ -85,14 +105,24 @@ export default function LeadInfo({ leadId, stages = [] }: Props) {
     },
   });
 
-  if (isLoading || !lead) return <div className="text-slate-500 text-sm p-4">Carregando...</div>;
+  if (isLoading || !lead) return <LeadInfoSkeleton />;
 
   const row = (icon: React.ReactNode, label: string, value: React.ReactNode) => (
-    <div className="flex items-start gap-3 py-3 border-b border-slate-700/50 last:border-0">
-      <div className="text-slate-500 mt-0.5">{icon}</div>
+    <div
+      className="flex items-start gap-3 py-3 last:border-0"
+      style={{ borderBottom: '1px solid var(--panel-border)' }}
+    >
+      <div className="mt-0.5 flex-shrink-0" style={{ color: 'var(--ink-3)' }}>{icon}</div>
       <div className="flex-1 min-w-0">
-        <div className="text-xs text-slate-500 uppercase tracking-wide mb-0.5">{label}</div>
-        <div className="text-sm text-slate-100">{value ?? <span className="text-slate-600">—</span>}</div>
+        <div
+          className="text-[10px] font-semibold uppercase tracking-wider mb-1"
+          style={{ color: 'var(--ink-3)' }}
+        >
+          {label}
+        </div>
+        <div className="text-sm" style={{ color: 'var(--ink-1)' }}>
+          {value ?? <span style={{ color: 'var(--ink-3)' }}>—</span>}
+        </div>
       </div>
     </div>
   );
@@ -100,8 +130,9 @@ export default function LeadInfo({ leadId, stages = [] }: Props) {
   const pipelineStages = stages.length > 0 ? stages : (lead.pipeline?.stages ?? []);
 
   return (
-    <div className="flex flex-col">
-      <div className="px-4 pt-4 pb-3 border-b border-slate-700/50">
+    <div className="flex flex-col animate-fade-up">
+      {/* Header */}
+      <div className="px-4 pt-4 pb-3" style={{ borderBottom: '1px solid var(--panel-border)' }}>
         <div className="mb-1">
           <InlineEdit
             value={lead.title ?? ''}
@@ -109,37 +140,51 @@ export default function LeadInfo({ leadId, stages = [] }: Props) {
             onSave={(v) => mutation.mutate({ title: v })}
           />
         </div>
-        <p className="text-xs text-slate-500">
-          {lead.contact?.name} · {lead.pipeline?.name}
+        <p className="text-xs font-medium" style={{ color: 'var(--ink-3)' }}>
+          {lead.contact?.name}
+          {lead.pipeline?.name && <> · {lead.pipeline.name}</>}
         </p>
       </div>
 
-      <div className="px-4 py-3 border-b border-slate-700/50">
+      {/* Status */}
+      <div className="px-4 py-3" style={{ borderBottom: '1px solid var(--panel-border)' }}>
         <StatusToggle lead={lead} />
         {lead.status === 'lost' && lead.lossReason && (
-          <p className="text-xs text-red-400/80 mt-2 pl-1">Motivo: {lead.lossReason}</p>
+          <p className="text-xs mt-2 pl-1" style={{ color: '#f87171' }}>Motivo: {lead.lossReason}</p>
         )}
       </div>
 
-      <div className="px-4 pb-3 border-b border-slate-700/50">
+      {/* Archive */}
+      <div className="px-4 py-3" style={{ borderBottom: '1px solid var(--panel-border)' }}>
         <button
           onClick={() => archiveMutation.mutate()}
           disabled={archiveMutation.isPending}
-          className={`flex items-center gap-2 text-xs px-3 py-1.5 rounded-lg border transition-colors ${
+          className="flex items-center gap-2 text-xs px-3 py-1.5 rounded-lg border transition-all duration-150 disabled:opacity-50"
+          style={
             lead.archivedAt
-              ? 'text-brand-400 border-brand-400/30 hover:bg-brand-400/10'
-              : 'text-slate-500 border-slate-700 hover:text-slate-300 hover:border-slate-600'
-          }`}
+              ? { color: '#f59e0b', borderColor: 'rgba(245,158,11,0.3)', background: 'transparent' }
+              : { color: 'var(--ink-3)', borderColor: 'var(--panel-border)', background: 'transparent' }
+          }
+          onMouseEnter={(e) => {
+            if (!lead.archivedAt)
+              (e.currentTarget as HTMLButtonElement).style.color = 'var(--ink-2)';
+          }}
+          onMouseLeave={(e) => {
+            if (!lead.archivedAt)
+              (e.currentTarget as HTMLButtonElement).style.color = 'var(--ink-3)';
+          }}
         >
           {lead.archivedAt ? <ArchiveRestore className="w-3.5 h-3.5" /> : <Archive className="w-3.5 h-3.5" />}
           {lead.archivedAt ? 'Desarquivar lead' : 'Arquivar lead'}
         </button>
       </div>
 
+      {/* Stage progress */}
       {pipelineStages.length > 0 && (
         <StageProgress lead={lead} stages={pipelineStages} />
       )}
 
+      {/* Fields */}
       <div className="px-4">
         {row(<Phone className="w-4 h-4" />, 'Telefone', lead.contact?.phone)}
         {row(<Mail className="w-4 h-4" />, 'Email', lead.contact?.email)}
@@ -163,11 +208,7 @@ export default function LeadInfo({ leadId, stages = [] }: Props) {
             onSave={(v) => mutation.mutate({ conclusionDate: v || undefined })}
           />,
         )}
-        {row(
-          <MapPin className="w-4 h-4" />,
-          'Origem',
-          lead.contact?.origin ?? <span className="text-slate-600">—</span>,
-        )}
+        {row(<MapPin className="w-4 h-4" />, 'Origem', lead.contact?.origin)}
         {row(<Users className="w-4 h-4" />, 'Agente responsável', lead.assignedTo?.name)}
       </div>
     </div>

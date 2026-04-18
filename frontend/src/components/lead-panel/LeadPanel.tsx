@@ -44,35 +44,69 @@ export default function LeadPanel() {
 
   return (
     <FocusTrap focusTrapOptions={{ escapeDeactivates: false, allowOutsideClick: true }}>
-      <div className="fixed inset-0 z-40 flex">
-        <div className="flex-1 bg-black/40" onClick={close} aria-hidden />
+      <div className="fixed inset-0 z-40 flex animate-fade-up" style={{ animationDuration: '0.2s' }}>
+        <div
+          className="flex-1"
+          style={{ background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(2px)' }}
+          onClick={close}
+          aria-hidden
+        />
         <aside
-          className="w-full max-w-md bg-slate-800 border-l border-slate-700 shadow-2xl flex flex-col"
+          className="w-full max-w-md shadow-2xl flex flex-col animate-slide-in panel-bg"
           role="dialog"
           aria-modal="true"
           aria-label="Detalhes do lead"
         >
-          <div className="flex items-center justify-between px-4 py-3 border-b border-slate-700 flex-shrink-0">
-            <div className="flex gap-1">
+          {/* Tab bar */}
+          <div
+            className="flex items-center justify-between px-4 py-3 flex-shrink-0"
+            style={{ borderBottom: '1px solid var(--panel-border)' }}
+          >
+            <div className="flex gap-0.5 p-0.5 rounded-xl" style={{ background: 'var(--panel-surface)' }}>
               {TABS.map(({ id, label, icon: Icon }) => (
                 <button
                   key={id}
                   onClick={() => setTab(id)}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm ${
-                    tab === id ? 'bg-slate-700 text-white' : 'text-slate-400 hover:text-white'
-                  }`}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-150"
+                  style={
+                    tab === id
+                      ? {
+                          background: 'var(--panel-bg)',
+                          color: 'var(--ink-1)',
+                          boxShadow: '0 1px 3px rgba(0,0,0,0.12)',
+                        }
+                      : { color: 'var(--ink-3)' }
+                  }
+                  onMouseEnter={(e) => {
+                    if (tab !== id) (e.currentTarget as HTMLButtonElement).style.color = 'var(--ink-2)';
+                  }}
+                  onMouseLeave={(e) => {
+                    if (tab !== id) (e.currentTarget as HTMLButtonElement).style.color = 'var(--ink-3)';
+                  }}
                 >
-                  <Icon className="w-4 h-4" /> {label}
+                  <Icon className="w-3.5 h-3.5" />
+                  {label}
                 </button>
               ))}
             </div>
             <button
               onClick={close}
-              className="p-1.5 hover:bg-slate-700 rounded-lg text-slate-400 hover:text-white"
+              className="p-1.5 rounded-lg transition-all duration-150"
+              style={{ color: 'var(--ink-3)' }}
+              onMouseEnter={(e) => {
+                (e.currentTarget as HTMLButtonElement).style.color = 'var(--ink-1)';
+                (e.currentTarget as HTMLButtonElement).style.background = 'var(--panel-surface)';
+              }}
+              onMouseLeave={(e) => {
+                (e.currentTarget as HTMLButtonElement).style.color = 'var(--ink-3)';
+                (e.currentTarget as HTMLButtonElement).style.background = 'transparent';
+              }}
+              aria-label="Fechar painel"
             >
               <X className="w-5 h-5" />
             </button>
           </div>
+
           <div className="flex-1 overflow-auto">
             {tab === 'chat' && <LeadChat leadId={selectedLeadId} />}
             {tab === 'activities' && <LeadActivities leadId={selectedLeadId} />}
