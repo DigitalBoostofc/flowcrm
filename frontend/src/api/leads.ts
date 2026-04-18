@@ -10,3 +10,13 @@ export async function moveLead(id: string, stageId: string): Promise<Lead> {
   const res = await api.patch<Lead>(`/leads/${id}/move`, { stageId });
   return res.data;
 }
+
+export async function getLead(id: string): Promise<Lead> {
+  const res = await api.get<Lead>(`/leads/${id}`);
+  return res.data;
+}
+
+export async function assignLead(id: string, userId: string): Promise<Lead> {
+  const res = await api.patch<Lead>(`/leads/${id}/assign/${userId}`);
+  return res.data;
+}
