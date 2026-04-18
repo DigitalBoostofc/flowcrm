@@ -1,13 +1,100 @@
 import { useState, useRef } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Search, Phone, Mail, User, ExternalLink, Upload, X } from 'lucide-react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { Search, Phone, Mail, User, ExternalLink, Upload, X, Plus } from 'lucide-react';
 import Papa from 'papaparse';
-import { listContacts } from '@/api/contacts';
+import { listContacts, createContact } from '@/api/contacts';
 import { usePanelStore } from '@/store/panel.store';
 import { api } from '@/api/client';
+import Modal from '@/components/ui/Modal';
+
+function AddContactModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const qc = useQueryClient();
+  const [form, setForm] = useState({ name: '', phone: '', email: '', origin: '' });
+  const [error, setError] = useState('');
+
+  const mutation = useMutation({
+    mutationFn: createContact,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['contacts'] });
+      setForm({ name: '', phone: '', email: '', origin: '' });
+      setError('');
+      onClose();
+    },
+    onError: () => setError('Erro ao criar contato. Verifique os dados e tente novamente.'),
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!form.name.trim()) { setError('Nome é obrigatório.'); return; }
+    setError('');
+    mutation.mutate({
+      name: form.name.trim(),
+      phone: form.phone.trim() || undefined,
+      email: form.email.trim() || undefined,
+      origin: form.origin.trim() || undefined,
+    });
+  };
+
+  const field = (
+    label: string,
+    key: keyof typeof form,
+    opts?: { type?: string; required?: boolean; placeholder?: string },
+  ) => (
+    <div>
+      <label className="block text-xs font-semibold uppercase tracking-wide mb-1.5" style={{ color: 'var(--ink-3)' }}>
+        {label}{opts?.required && <span className="text-red-500 ml-0.5">*</span>}
+      </label>
+      <input
+        type={opts?.type ?? 'text'}
+        value={form[key]}
+        onChange={(e) => setForm((f) => ({ ...f, [key]: e.target.value }))}
+        placeholder={opts?.placeholder}
+        className="input-base"
+        autoComplete="off"
+      />
+    </div>
+  );
+
+  return (
+    <Modal open={open} onClose={onClose} title="Novo contato">
+      <form onSubmit={handleSubmit} className="p-5 space-y-4">
+        {field('Nome', 'name', { required: true, placeholder: 'Ex: João Silva' })}
+        {field('Telefone', 'phone', { type: 'tel', placeholder: 'Ex: +55 11 91234-5678' })}
+        {field('Email', 'email', { type: 'email', placeholder: 'Ex: joao@email.com' })}
+        {field('Origem', 'origin', { placeholder: 'Ex: Instagram, Indicação...' })}
+
+        {error && (
+          <p className="text-xs text-red-500">{error}</p>
+        )}
+
+        <div className="flex gap-2 justify-end pt-1">
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-4 py-2 text-sm rounded-lg transition-colors"
+            style={{ color: 'var(--ink-2)' }}
+            onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--ink-1)')}
+            onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--ink-2)')}
+          >
+            Cancelar
+          </button>
+          <button
+            type="submit"
+            disabled={mutation.isPending}
+            className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-lg bg-brand-500 hover:bg-brand-600 text-white transition-colors disabled:opacity-50"
+          >
+            <Plus className="w-4 h-4" />
+            {mutation.isPending ? 'Salvando...' : 'Criar contato'}
+          </button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
 
 export default function Contacts() {
   const [search, setSearch] = useState('');
+  const [showAdd, setShowAdd] = useState(false);
   const openPanel = usePanelStore((s) => s.open);
   const qc = useQueryClient();
   const [importing, setImporting] = useState(false);
@@ -48,7 +135,7 @@ export default function Contacts() {
     <div className="p-6 space-y-5">
       <div className="flex items-center justify-between">
         <h1 className="page-title">Contatos</h1>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
           <span className="text-sm" style={{ color: 'var(--ink-2)' }}>
             {contacts.length} contato{contacts.length !== 1 ? 's' : ''}
           </span>
@@ -72,6 +159,13 @@ export default function Contacts() {
             className="hidden"
             onChange={(e) => { if (e.target.files?.[0]) handleImport(e.target.files[0]); }}
           />
+          <button
+            onClick={() => setShowAdd(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium bg-brand-500 hover:bg-brand-600 text-white transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            Novo contato
+          </button>
         </div>
       </div>
 
@@ -105,7 +199,16 @@ export default function Contacts() {
       ) : contacts.length === 0 ? (
         <div className="text-center py-16" style={{ color: 'var(--ink-3)' }}>
           <User className="w-12 h-12 mx-auto mb-3 opacity-30" />
-          <p>{search ? 'Nenhum contato encontrado.' : 'Nenhum contato cadastrado ainda.'}</p>
+          <p className="mb-4">{search ? 'Nenhum contato encontrado.' : 'Nenhum contato cadastrado ainda.'}</p>
+          {!search && (
+            <button
+              onClick={() => setShowAdd(true)}
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium bg-brand-500 hover:bg-brand-600 text-white transition-colors"
+            >
+              <Plus className="w-4 h-4" />
+              Criar primeiro contato
+            </button>
+          )}
         </div>
       ) : (
         <div className="glass rounded-xl overflow-hidden">
@@ -201,6 +304,8 @@ export default function Contacts() {
           </table>
         </div>
       )}
+
+      <AddContactModal open={showAdd} onClose={() => setShowAdd(false)} />
     </div>
   );
 }

@@ -11,6 +11,16 @@ export async function getContact(id: string): Promise<Contact> {
   return res.data;
 }
 
+export async function createContact(data: {
+  name: string;
+  phone?: string;
+  email?: string;
+  origin?: string;
+}): Promise<Contact> {
+  const res = await api.post<Contact>('/contacts', data);
+  return res.data;
+}
+
 export async function updateContact(
   id: string,
   data: { name?: string; phone?: string; email?: string; origin?: string },
