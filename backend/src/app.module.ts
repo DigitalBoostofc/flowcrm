@@ -12,6 +12,8 @@ import { TemplatesModule } from './templates/templates.module';
 import { ChannelsModule } from './channels/channels.module';
 import { ConversationsModule } from './conversations/conversations.module';
 import { MessagesModule } from './messages/messages.module';
+import { AutomationsModule } from './automations/automations.module';
+import { SchedulerModule } from './scheduler/scheduler.module';
 import { QueuesModule } from './common/queues/queues.module';
 
 @Module({
@@ -42,6 +44,8 @@ import { QueuesModule } from './common/queues/queues.module';
     ChannelsModule,
     ConversationsModule,
     MessagesModule,
+    AutomationsModule,
+    SchedulerModule,
   ],
 })
 export class AppModule {}
