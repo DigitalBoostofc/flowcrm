@@ -2,15 +2,28 @@ import { useQuery } from '@tanstack/react-query';
 import { useState, useMemo } from 'react';
 import { listPipelines } from '@/api/pipelines';
 import { listLeads } from '@/api/leads';
+import { listUsers } from '@/api/users';
 import StageSummary from '@/components/kanban/StageSummary';
+import KanbanBoard from '@/components/kanban/KanbanBoard';
+import KanbanFilters from '@/components/kanban/KanbanFilters';
+import { useAuthStore } from '@/store/auth.store';
 
 export default function Dashboard() {
+  const user = useAuthStore((s) => s.user);
   const { data: pipelines = [], isLoading: loadingPipelines } = useQuery({
     queryKey: ['pipelines'],
     queryFn: listPipelines,
   });
 
+  const { data: agents = [] } = useQuery({
+    queryKey: ['users'],
+    queryFn: listUsers,
+    enabled: user?.role === 'owner',
+  });
+
   const [selectedPipelineId, setSelectedPipelineId] = useState<string | null>(null);
+  const [search, setSearch] = useState('');
+  const [agentId, setAgentId] = useState<string | null>(null);
 
   const effectivePipelineId = selectedPipelineId
     ?? pipelines.find((p) => p.isDefault)?.id
@@ -28,14 +41,27 @@ export default function Dashboard() {
     [pipelines, effectivePipelineId],
   );
   const stages = pipeline?.stages ?? [];
+
+  const filteredLeads = useMemo(() => {
+    let result = leads;
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      result = result.filter((l) =>
+        l.contact?.name?.toLowerCase().includes(q) || l.contact?.phone?.includes(q),
+      );
+    }
+    if (agentId) result = result.filter((l) => l.assignedToId === agentId);
+    return result;
+  }, [leads, search, agentId]);
+
   const leadsByStage = useMemo(() => {
-    const map: Record<string, typeof leads> = {};
+    const map: Record<string, typeof filteredLeads> = {};
     for (const s of stages) map[s.id] = [];
-    for (const l of leads) {
+    for (const l of filteredLeads) {
       if (map[l.stageId]) map[l.stageId].push(l);
     }
     return map;
-  }, [leads, stages]);
+  }, [filteredLeads, stages]);
 
   if (loadingPipelines) return <div className="p-8 text-slate-400">Carregando...</div>;
 
@@ -72,9 +98,14 @@ export default function Dashboard() {
           <StageSummary key={s.id} stage={s} leads={leadsByStage[s.id] ?? []} />
         ))}
       </div>
-      <div className="bg-slate-800 rounded-xl p-6 text-slate-400 text-sm">
-        Kanban (colunas + cards) — Task 6
-      </div>
+      <KanbanFilters
+        search={search}
+        setSearch={setSearch}
+        agentId={agentId}
+        setAgentId={setAgentId}
+        agents={agents}
+      />
+      <KanbanBoard stages={stages} leadsByStage={leadsByStage} />
     </div>
   );
 }
