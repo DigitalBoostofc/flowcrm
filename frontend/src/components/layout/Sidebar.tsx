@@ -38,12 +38,18 @@ export default function Sidebar() {
         transition: 'width 0.22s cubic-bezier(0.4, 0, 0.2, 1)',
       }}
     >
-      {/* Toggle button */}
+      {/* Toggle button — vertically centered, half outside the sidebar */}
       <button
         onClick={toggle}
         title={collapsed ? 'Expandir sidebar' : 'Recolher sidebar'}
-        className="absolute top-4 -right-3 z-20 w-6 h-6 rounded-full flex items-center justify-center shadow-md transition-all duration-150 hover:scale-110"
+        className="absolute z-20 flex items-center justify-center shadow-md transition-all duration-150 hover:scale-110 active:scale-95"
         style={{
+          top: '50%',
+          right: '-12px',
+          transform: 'translateY(-50%)',
+          width: '24px',
+          height: '24px',
+          borderRadius: '50%',
           background: 'var(--surface-raised)',
           border: '1px solid var(--edge-strong)',
           color: 'var(--ink-2)',
