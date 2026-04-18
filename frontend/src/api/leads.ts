@@ -39,3 +39,9 @@ export async function updateLeadStatus(
   const res = await api.patch<Lead>(`/leads/${id}/status`, { status, lossReason });
   return res.data;
 }
+
+export const archiveLead = (id: string): Promise<Lead> =>
+  api.patch(`/leads/${id}/archive`).then((r) => r.data);
+
+export const unarchiveLead = (id: string): Promise<Lead> =>
+  api.patch(`/leads/${id}/unarchive`).then((r) => r.data);

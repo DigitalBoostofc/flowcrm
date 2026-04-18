@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Patch, Delete, Body, Param, Query, UseGuards, HttpCode } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Delete, Body, Param, Query, UseGuards, HttpCode, ParseUUIDPipe } from '@nestjs/common';
 import { LeadsService } from './leads.service';
 import { CreateLeadDto } from './dto/create-lead.dto';
 import { MoveLeadDto } from './dto/move-lead.dto';
@@ -50,6 +50,16 @@ export class LeadsController {
   @Patch(':id/assign/:userId')
   assign(@Param('id') id: string, @Param('userId') userId: string) {
     return this.leadsService.assign(id, userId);
+  }
+
+  @Patch(':id/archive')
+  archive(@Param('id', new ParseUUIDPipe()) id: string) {
+    return this.leadsService.archive(id);
+  }
+
+  @Patch(':id/unarchive')
+  unarchive(@Param('id', new ParseUUIDPipe()) id: string) {
+    return this.leadsService.unarchive(id);
   }
 
   @Delete(':id')

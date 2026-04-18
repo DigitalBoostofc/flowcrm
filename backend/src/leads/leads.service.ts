@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { LessThan, Repository } from 'typeorm';
+import { IsNull, LessThan, Repository } from 'typeorm';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { Lead, LeadStatus } from './entities/lead.entity';
 import { CreateLeadDto } from './dto/create-lead.dto';
@@ -21,7 +21,7 @@ export class LeadsService {
   }
 
   findByPipeline(pipelineId: string, staleDays?: number): Promise<Lead[]> {
-    const where: any = { pipelineId };
+    const where: any = { pipelineId, archivedAt: IsNull() };
     if (staleDays) {
       const cutoff = new Date();
       cutoff.setDate(cutoff.getDate() - staleDays);
@@ -87,5 +87,17 @@ export class LeadsService {
   async remove(id: string): Promise<void> {
     const result = await this.repo.delete(id);
     if (result.affected === 0) throw new NotFoundException('Lead não encontrado');
+  }
+
+  async archive(id: string): Promise<Lead> {
+    const lead = await this.findOne(id);
+    lead.archivedAt = new Date();
+    return this.repo.save(lead);
+  }
+
+  async unarchive(id: string): Promise<Lead> {
+    const lead = await this.findOne(id);
+    lead.archivedAt = null;
+    return this.repo.save(lead);
   }
 }

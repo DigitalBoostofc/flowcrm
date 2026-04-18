@@ -22,6 +22,13 @@ export class ContactsController {
     return this.contactsService.findAll(search);
   }
 
+  @Post('import')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.OWNER)
+  bulkImport(@Body() body: { rows: { name: string; phone?: string; email?: string; origin?: string }[] }) {
+    return this.contactsService.bulkCreate(body.rows);
+  }
+
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.contactsService.findOne(id);

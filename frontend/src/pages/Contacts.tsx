@@ -1,12 +1,18 @@
-import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { Search, Phone, Mail, User, ExternalLink } from 'lucide-react';
+import { useState, useRef } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { Search, Phone, Mail, User, ExternalLink, Upload, X } from 'lucide-react';
+import Papa from 'papaparse';
 import { listContacts } from '@/api/contacts';
 import { usePanelStore } from '@/store/panel.store';
+import { api } from '@/api/client';
 
 export default function Contacts() {
   const [search, setSearch] = useState('');
   const openPanel = usePanelStore((s) => s.open);
+  const qc = useQueryClient();
+  const [importing, setImporting] = useState(false);
+  const [importResult, setImportResult] = useState<{ created: number; skipped: number } | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
 
   const { data: contacts = [], isLoading } = useQuery({
     queryKey: ['contacts', search],
@@ -14,12 +20,66 @@ export default function Contacts() {
     staleTime: 30_000,
   });
 
+  const handleImport = (file: File) => {
+    Papa.parse(file, {
+      header: true,
+      skipEmptyLines: true,
+      complete: async (results) => {
+        setImporting(true);
+        try {
+          const rows = (results.data as Record<string, string>[]).map((r) => ({
+            name: r.nome || r.name || r.Name || '',
+            phone: r.telefone || r.phone || r.Phone || '',
+            email: r.email || r.Email || '',
+            origin: r.origem || r.origin || '',
+          }));
+          const res = await api.post('/contacts/import', { rows });
+          setImportResult(res.data);
+          qc.invalidateQueries({ queryKey: ['contacts'] });
+        } finally {
+          setImporting(false);
+          if (fileRef.current) fileRef.current.value = '';
+        }
+      },
+    });
+  };
+
   return (
     <div className="p-6 space-y-5">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Contatos</h1>
-        <span className="text-sm text-slate-400">{contacts.length} contato{contacts.length !== 1 ? 's' : ''}</span>
+        <div className="flex items-center gap-3">
+          <span className="text-sm text-slate-400">
+            {contacts.length} contato{contacts.length !== 1 ? 's' : ''}
+          </span>
+          <button
+            onClick={() => fileRef.current?.click()}
+            disabled={importing}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-slate-200 rounded-lg text-sm transition-colors disabled:opacity-50"
+          >
+            <Upload className="w-3.5 h-3.5" />
+            {importing ? 'Importando...' : 'Importar CSV'}
+          </button>
+          <input
+            ref={fileRef}
+            type="file"
+            accept=".csv"
+            className="hidden"
+            onChange={(e) => { if (e.target.files?.[0]) handleImport(e.target.files[0]); }}
+          />
+        </div>
       </div>
+
+      {importResult && (
+        <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-lg px-4 py-3 text-sm text-emerald-300 flex items-center justify-between">
+          <span>
+            {importResult.created} contato{importResult.created !== 1 ? 's' : ''} importado{importResult.created !== 1 ? 's' : ''}, {importResult.skipped} ignorado{importResult.skipped !== 1 ? 's' : ''} (duplicatas ou sem nome).
+          </span>
+          <button onClick={() => setImportResult(null)} className="text-emerald-400 hover:text-emerald-200 ml-3 flex-shrink-0">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
 
       <div className="relative max-w-sm">
         <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />

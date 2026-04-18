@@ -50,4 +50,24 @@ export class ContactsService {
     const result = await this.repo.delete(id);
     if (result.affected === 0) throw new NotFoundException('Contato não encontrado');
   }
+
+  async bulkCreate(rows: { name: string; phone?: string; email?: string; origin?: string }[]): Promise<{ created: number; skipped: number }> {
+    let created = 0;
+    let skipped = 0;
+    for (const row of rows) {
+      if (!row.name?.trim()) { skipped++; continue; }
+      if (row.phone?.trim()) {
+        const existing = await this.repo.findOne({ where: { phone: row.phone.trim() } });
+        if (existing) { skipped++; continue; }
+      }
+      await this.create({
+        name: row.name.trim(),
+        phone: row.phone?.trim() || undefined,
+        email: row.email?.trim() || undefined,
+        channelOrigin: row.origin?.trim() || undefined,
+      });
+      created++;
+    }
+    return { created, skipped };
+  }
 }

@@ -3,6 +3,7 @@ import Login from '@/pages/Login';
 import Dashboard from '@/pages/Dashboard';
 import Contacts from '@/pages/Contacts';
 import Settings from '@/pages/Settings';
+import Analytics from '@/pages/Analytics';
 import NotFound from '@/pages/NotFound';
 import ProtectedRoute from '@/components/layout/ProtectedRoute';
 import AppShell from '@/components/layout/AppShell';
@@ -21,6 +22,7 @@ function AuthedLayout() {
       <Routes>
         <Route index element={<Dashboard />} />
         <Route path="contacts" element={<Contacts />} />
+        <Route path="analytics" element={<Analytics />} />
         <Route path="settings" element={<Settings />} />
         <Route path="*" element={<NotFound />} />
       </Routes>

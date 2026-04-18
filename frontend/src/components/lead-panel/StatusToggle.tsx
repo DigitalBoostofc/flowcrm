@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Trophy, CircleDot, XCircle } from 'lucide-react';
 import { updateLeadStatus } from '@/api/leads';
+import { listLossReasons } from '@/api/loss-reasons';
 import type { Lead, LeadStatus } from '@/types/api';
 import Modal from '@/components/ui/Modal';
 
@@ -19,6 +20,12 @@ export default function StatusToggle({ lead }: Props) {
   const qc = useQueryClient();
   const [showLossModal, setShowLossModal] = useState(false);
   const [lossReason, setLossReason] = useState('');
+
+  const { data: reasons = [] } = useQuery({
+    queryKey: ['loss-reasons'],
+    queryFn: listLossReasons,
+    enabled: showLossModal,
+  });
 
   const mutation = useMutation({
     mutationFn: ({ status, reason }: { status: LeadStatus; reason?: string }) =>
@@ -40,7 +47,7 @@ export default function StatusToggle({ lead }: Props) {
   };
 
   const confirmLoss = () => {
-    mutation.mutate({ status: 'lost', reason: lossReason });
+    mutation.mutate({ status: 'lost', reason: lossReason || undefined });
     setShowLossModal(false);
   };
 
@@ -69,21 +76,35 @@ export default function StatusToggle({ lead }: Props) {
 
       <Modal open={showLossModal} onClose={() => setShowLossModal(false)} title="Motivo da perda">
         <div className="p-4 space-y-4">
-          <p className="text-sm text-slate-400">Descreva brevemente por que este lead foi perdido.</p>
+          <p className="text-sm text-slate-400">Selecione ou digite o motivo da perda.</p>
+          {reasons.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              {reasons.map((r) => (
+                <button
+                  key={r.id}
+                  onClick={() => setLossReason(r.label)}
+                  className={`px-2.5 py-1 rounded-full text-xs border transition-colors ${
+                    lossReason === r.label
+                      ? 'bg-red-500/20 border-red-500/50 text-red-300'
+                      : 'bg-slate-700 border-slate-600 text-slate-300 hover:border-slate-500'
+                  }`}
+                >
+                  {r.label}
+                </button>
+              ))}
+            </div>
+          )}
           <input
-            autoFocus
+            autoFocus={reasons.length === 0}
             type="text"
-            placeholder="Ex: Preço, concorrente, sem interesse..."
+            placeholder="Ou descreva o motivo..."
             value={lossReason}
             onChange={(e) => setLossReason(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && confirmLoss()}
             className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-sm text-slate-100 focus:outline-none focus:border-brand-500"
           />
           <div className="flex gap-2 justify-end">
-            <button
-              onClick={() => setShowLossModal(false)}
-              className="px-4 py-2 text-sm text-slate-400 hover:text-white"
-            >
+            <button onClick={() => setShowLossModal(false)} className="px-4 py-2 text-sm text-slate-400 hover:text-white">
               Cancelar
             </button>
             <button

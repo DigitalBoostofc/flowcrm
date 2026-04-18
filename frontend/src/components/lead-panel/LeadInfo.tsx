@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Phone, Mail, DollarSign, Users, MapPin, Calendar, Edit2, Check, X } from 'lucide-react';
-import { getLead, updateLead } from '@/api/leads';
+import { Phone, Mail, DollarSign, Users, MapPin, Calendar, Edit2, Check, X, Archive, ArchiveRestore } from 'lucide-react';
+import { getLead, updateLead, archiveLead, unarchiveLead } from '@/api/leads';
 import { formatBRL } from '@/lib/format';
 import StageProgress from './StageProgress';
 import StatusToggle from './StatusToggle';
@@ -77,6 +77,14 @@ export default function LeadInfo({ leadId, stages = [] }: Props) {
     },
   });
 
+  const archiveMutation = useMutation({
+    mutationFn: () => lead?.archivedAt ? unarchiveLead(leadId) : archiveLead(leadId),
+    onSuccess: (updated) => {
+      qc.setQueryData<Lead>(['lead', leadId], updated);
+      qc.invalidateQueries({ queryKey: ['leads'] });
+    },
+  });
+
   if (isLoading || !lead) return <div className="text-slate-500 text-sm p-4">Carregando...</div>;
 
   const row = (icon: React.ReactNode, label: string, value: React.ReactNode) => (
@@ -111,6 +119,21 @@ export default function LeadInfo({ leadId, stages = [] }: Props) {
         {lead.status === 'lost' && lead.lossReason && (
           <p className="text-xs text-red-400/80 mt-2 pl-1">Motivo: {lead.lossReason}</p>
         )}
+      </div>
+
+      <div className="px-4 pb-3 border-b border-slate-700/50">
+        <button
+          onClick={() => archiveMutation.mutate()}
+          disabled={archiveMutation.isPending}
+          className={`flex items-center gap-2 text-xs px-3 py-1.5 rounded-lg border transition-colors ${
+            lead.archivedAt
+              ? 'text-brand-400 border-brand-400/30 hover:bg-brand-400/10'
+              : 'text-slate-500 border-slate-700 hover:text-slate-300 hover:border-slate-600'
+          }`}
+        >
+          {lead.archivedAt ? <ArchiveRestore className="w-3.5 h-3.5" /> : <Archive className="w-3.5 h-3.5" />}
+          {lead.archivedAt ? 'Desarquivar lead' : 'Arquivar lead'}
+        </button>
       </div>
 
       {pipelineStages.length > 0 && (

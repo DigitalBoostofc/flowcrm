@@ -1,0 +1,15 @@
+import { api } from './client';
+
+export interface AnalyticsSummary {
+  totals: { active: number; won: number; lost: number; total: number };
+  values: { active: number; won: number; lost: number; forecast: number };
+  conversionRate: number;
+  avgDaysToWin: number;
+  byStage: { stageId: string; stageName: string; count: number; value: number }[];
+  byAgent: { agentId: string; name: string; active: number; won: number; lost: number; value: number }[];
+  topLossReasons: { reason: string; count: number }[];
+  leadsByDay: Record<string, number>;
+}
+
+export const getAnalyticsSummary = (pipelineId?: string): Promise<AnalyticsSummary> =>
+  api.get('/analytics/summary', { params: pipelineId ? { pipelineId } : {} }).then((r) => r.data);

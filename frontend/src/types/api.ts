@@ -62,6 +62,7 @@ export interface Lead {
   conclusionDate?: string | null;
   stageEnteredAt: string;
   value?: number | null;
+  archivedAt?: string | null;
   createdAt: string;
   updatedAt: string;
 }

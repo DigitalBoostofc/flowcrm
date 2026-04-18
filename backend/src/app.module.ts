@@ -17,6 +17,9 @@ import { SchedulerModule } from './scheduler/scheduler.module';
 import { QueuesModule } from './common/queues/queues.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { LeadActivitiesModule } from './lead-activities/lead-activities.module';
+import { LossReasonsModule } from './loss-reasons/loss-reasons.module';
+import { AnalyticsModule } from './analytics/analytics.module';
+import { SearchModule } from './search/search.module';
 
 @Module({
   imports: [
@@ -50,6 +53,9 @@ import { LeadActivitiesModule } from './lead-activities/lead-activities.module';
     SchedulerModule,
     NotificationsModule,
     LeadActivitiesModule,
+    LossReasonsModule,
+    AnalyticsModule,
+    SearchModule,
   ],
 })
 export class AppModule {}

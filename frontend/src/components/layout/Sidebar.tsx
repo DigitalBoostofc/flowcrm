@@ -1,7 +1,8 @@
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import { LayoutDashboard, Users, Settings as SettingsIcon, LogOut, ListChecks } from 'lucide-react';
+import { LayoutDashboard, Users, Settings as SettingsIcon, LogOut, ListChecks, BarChart2 } from 'lucide-react';
 import { useAuthStore } from '@/store/auth.store';
+import GlobalSearch from './GlobalSearch';
 
 export default function Sidebar() {
   const navigate = useNavigate();
@@ -26,6 +27,9 @@ export default function Sidebar() {
         <h1 className="text-xl font-bold text-emerald-400">FlowCRM</h1>
         <p className="text-xs text-slate-500 mt-0.5">{user?.name}</p>
       </div>
+      <div className="px-3 py-2 border-b border-slate-800">
+        <GlobalSearch />
+      </div>
       <nav className="flex-1 p-3 space-y-1">
         <NavLink to="/" end className={navClass}>
           <LayoutDashboard className="w-4 h-4" />
@@ -34,6 +38,10 @@ export default function Sidebar() {
         <NavLink to="/contacts" className={navClass}>
           <Users className="w-4 h-4" />
           Contatos
+        </NavLink>
+        <NavLink to="/analytics" className={navClass}>
+          <BarChart2 className="w-4 h-4" />
+          Analytics
         </NavLink>
         <NavLink to="/settings" className={navClass}>
           <SettingsIcon className="w-4 h-4" />
