@@ -9,6 +9,7 @@ import { PipelinesModule } from './pipelines/pipelines.module';
 import { StagesModule } from './stages/stages.module';
 import { LeadsModule } from './leads/leads.module';
 import { TemplatesModule } from './templates/templates.module';
+import { ChannelsModule } from './channels/channels.module';
 import { QueuesModule } from './common/queues/queues.module';
 
 @Module({
@@ -36,6 +37,7 @@ import { QueuesModule } from './common/queues/queues.module';
     StagesModule,
     LeadsModule,
     TemplatesModule,
+    ChannelsModule,
   ],
 })
 export class AppModule {}

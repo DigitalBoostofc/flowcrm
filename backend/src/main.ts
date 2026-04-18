@@ -3,7 +3,7 @@ import { ValidationPipe, Logger, ClassSerializerInterceptor } from '@nestjs/comm
 import { AppModule } from './app.module';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, { rawBody: true });
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
   app.useGlobalInterceptors(new ClassSerializerInterceptor(app.get(Reflector)));
   const allowedOrigin = process.env.FRONTEND_URL || (process.env.NODE_ENV !== 'production' ? '*' : undefined);
