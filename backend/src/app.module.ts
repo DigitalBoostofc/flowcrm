@@ -15,6 +15,7 @@ import { MessagesModule } from './messages/messages.module';
 import { AutomationsModule } from './automations/automations.module';
 import { SchedulerModule } from './scheduler/scheduler.module';
 import { QueuesModule } from './common/queues/queues.module';
+import { NotificationsModule } from './notifications/notifications.module';
 
 @Module({
   imports: [
@@ -46,6 +47,7 @@ import { QueuesModule } from './common/queues/queues.module';
     MessagesModule,
     AutomationsModule,
     SchedulerModule,
+    NotificationsModule,
   ],
 })
 export class AppModule {}

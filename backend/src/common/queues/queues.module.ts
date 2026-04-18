@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { BullModule } from '@nestjs/bullmq';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { AutomationFailedListener, ScheduledFailedListener, OutboundFailedListener } from './failed-jobs.listener';
 
 export const QUEUE_AUTOMATION = 'automation';
 export const QUEUE_SCHEDULED = 'scheduled-message';
@@ -27,6 +28,7 @@ export const QUEUE_OUTBOUND = 'outbound-message';
       { name: QUEUE_OUTBOUND },
     ),
   ],
+  providers: [AutomationFailedListener, ScheduledFailedListener, OutboundFailedListener],
   exports: [BullModule],
 })
 export class QueuesModule {}
