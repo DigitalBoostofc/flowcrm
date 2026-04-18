@@ -1,6 +1,7 @@
-import { Body, Controller, Headers, Logger, Param, Post, UnauthorizedException } from '@nestjs/common';
+import { Body, Controller, Logger, Param, Post, UnauthorizedException } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { ChannelsService } from '../channels.service';
+import { EvolutionAdapter } from './evolution.adapter';
 
 @Controller('webhooks/evolution')
 export class EvolutionWebhookController {
@@ -9,24 +10,46 @@ export class EvolutionWebhookController {
   constructor(
     private channels: ChannelsService,
     private events: EventEmitter2,
+    private evolution: EvolutionAdapter,
   ) {}
 
   @Post(':channelConfigId/:secret')
   async receive(
     @Param('channelConfigId') channelConfigId: string,
     @Param('secret') secret: string,
-    @Headers('apikey') apikey: string,
     @Body() payload: any,
   ) {
+    return this.handle(channelConfigId, secret, payload);
+  }
+
+  @Post(':channelConfigId/:secret/:event')
+  async receiveByEvent(
+    @Param('channelConfigId') channelConfigId: string,
+    @Param('secret') secret: string,
+    @Body() payload: any,
+  ) {
+    return this.handle(channelConfigId, secret, payload);
+  }
+
+  private async handle(channelConfigId: string, secret: string, payload: any) {
     const channel = await this.channels.findById(channelConfigId);
-    const expectedSecret = channel.config.webhookSecret;
-    const expectedApikey = channel.config.apiKey;
-    if (secret !== expectedSecret || apikey !== expectedApikey) {
+    if (secret !== channel.config.webhookSecret) {
       this.logger.warn(`Unauthorized webhook for channel ${channelConfigId}`);
       throw new UnauthorizedException();
     }
 
-    if (payload.event === 'connection.update') {
+    const event: string = payload?.event ?? '';
+
+    if (event === 'qrcode.updated') {
+      const base64 = payload.data?.qrcode?.base64 ?? payload.data?.base64 ?? '';
+      if (base64) {
+        await this.evolution.saveQrCode(channelConfigId, base64);
+        this.logger.log(`QR code updated for channel ${channelConfigId}`);
+      }
+      return { ok: true };
+    }
+
+    if (event === 'connection.update') {
       const state = payload.data?.state;
       const status = state === 'open' ? 'connected' : state === 'close' ? 'disconnected' : 'error';
       await this.channels.updateStatus(channelConfigId, status);
@@ -34,7 +57,7 @@ export class EvolutionWebhookController {
       return { ok: true };
     }
 
-    if (payload.event === 'messages.upsert' && payload.data?.key && !payload.data.key.fromMe) {
+    if (event === 'messages.upsert' && payload.data?.key && !payload.data.key.fromMe) {
       const text = payload.data.message?.conversation ?? payload.data.message?.extendedTextMessage?.text ?? '';
       if (!text) return { ok: true };
       this.events.emit('message.inbound.received', {

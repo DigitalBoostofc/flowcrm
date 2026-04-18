@@ -44,13 +44,20 @@ export class EvolutionAdapter implements ChannelAdapter {
     const apiKey = channel.config.apiKey;
     const baseUrl = this.config.getOrThrow<string>('EVOLUTION_API_URL');
 
-    const res = await axios.get(
-      `${baseUrl}/instance/connect/${instance}`,
-      { headers: { apikey: apiKey }, timeout: 15000 },
-    );
+    try {
+      const res = await axios.get(
+        `${baseUrl}/instance/connect/${instance}`,
+        { headers: { apikey: apiKey }, timeout: 15000 },
+      );
+      const base64 = res.data?.base64 ?? res.data?.qrcode?.base64 ?? '';
+      if (base64) return { base64, pairingCode: res.data?.pairingCode };
+    } catch (err: any) {
+      this.logger.warn(`Evolution connect returned error for ${instance}: ${err.message}`);
+    }
+    // Fallback: read last QR saved from webhook event
     return {
-      base64: res.data?.base64 ?? res.data?.qrcode?.base64 ?? '',
-      pairingCode: res.data?.pairingCode,
+      base64: typeof channel.config.lastQrCode === 'string' ? channel.config.lastQrCode : '',
+      pairingCode: undefined,
     };
   }
 
@@ -68,11 +75,37 @@ export class EvolutionAdapter implements ChannelAdapter {
         integration: 'WHATSAPP-BAILEYS',
         webhook: {
           url: webhookUrl,
-          byEvents: true,
-          events: ['MESSAGES_UPSERT', 'CONNECTION_UPDATE'],
+          byEvents: false,
+          events: ['QRCODE_UPDATED', 'CONNECTION_UPDATE', 'MESSAGES_UPSERT'],
         },
       },
       { headers: { apikey: apiKey }, timeout: 20000 },
     );
+  }
+
+  async updateWebhook(channelConfigId: string, webhookUrl: string): Promise<void> {
+    const channel = await this.repo.findOneByOrFail({ id: channelConfigId });
+    const instance = channel.config.instance;
+    const apiKey = this.config.getOrThrow<string>('EVOLUTION_GLOBAL_API_KEY');
+    const baseUrl = this.config.getOrThrow<string>('EVOLUTION_API_URL');
+
+    await axios.post(
+      `${baseUrl}/webhook/set/${instance}`,
+      {
+        webhook: {
+          enabled: true,
+          url: webhookUrl,
+          byEvents: false,
+          events: ['QRCODE_UPDATED', 'CONNECTION_UPDATE', 'MESSAGES_UPSERT'],
+        },
+      },
+      { headers: { apikey: apiKey }, timeout: 15000 },
+    );
+  }
+
+  async saveQrCode(channelConfigId: string, base64: string): Promise<void> {
+    const channel = await this.repo.findOneByOrFail({ id: channelConfigId });
+    channel.config = { ...channel.config, lastQrCode: base64, lastQrAt: new Date().toISOString() };
+    await this.repo.save(channel);
   }
 }

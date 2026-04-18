@@ -67,4 +67,13 @@ export class ChannelsService {
     const adapter = this.adapters.get('evolution') as EvolutionAdapter;
     await adapter.createInstance(id, webhookUrl);
   }
+
+  async refreshWebhook(id: string, webhookUrl: string): Promise<void> {
+    const channel = await this.findById(id);
+    if (channel.type !== 'evolution') {
+      throw new BadRequestException('Refresh webhook só disponível para canais Evolution');
+    }
+    const adapter = this.adapters.get('evolution') as EvolutionAdapter;
+    await adapter.updateWebhook(id, webhookUrl);
+  }
 }
