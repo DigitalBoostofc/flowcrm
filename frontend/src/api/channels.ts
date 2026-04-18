@@ -8,7 +8,7 @@ export async function listChannels(): Promise<ChannelConfig[]> {
 
 export async function createChannel(dto: {
   name: string;
-  type: 'evolution';
+  type: 'evolution' | 'meta';
   config: Record<string, string>;
 }) {
   const res = await api.post<ChannelConfig>('/channels', dto);
