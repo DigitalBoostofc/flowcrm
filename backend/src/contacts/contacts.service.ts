@@ -1,0 +1,39 @@
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { ILike, Repository } from 'typeorm';
+import { Contact } from './entities/contact.entity';
+import { CreateContactDto } from './dto/create-contact.dto';
+
+@Injectable()
+export class ContactsService {
+  constructor(
+    @InjectRepository(Contact)
+    private repo: Repository<Contact>,
+  ) {}
+
+  create(dto: CreateContactDto): Promise<Contact> {
+    const contact = this.repo.create(dto);
+    return this.repo.save(contact);
+  }
+
+  findAll(search?: string): Promise<Contact[]> {
+    if (search) {
+      return this.repo.find({
+        where: [{ name: ILike(`%${search}%`) }, { phone: ILike(`%${search}%`) }],
+      });
+    }
+    return this.repo.find({ order: { createdAt: 'DESC' } });
+  }
+
+  async findOne(id: string): Promise<Contact> {
+    const contact = await this.repo.findOne({ where: { id }, relations: ['leads'] });
+    if (!contact) throw new NotFoundException('Contato não encontrado');
+    return contact;
+  }
+
+  async findOrCreateByPhone(phone: string, name: string): Promise<Contact> {
+    const existing = await this.repo.findOne({ where: { phone } });
+    if (existing) return existing;
+    return this.create({ name, phone });
+  }
+}
