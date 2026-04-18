@@ -8,6 +8,18 @@ export async function listLeads(pipelineId: string, staleDays?: number): Promise
   return res.data;
 }
 
+export async function createLead(data: {
+  contactId: string;
+  pipelineId: string;
+  stageId: string;
+  title?: string;
+  value?: number;
+  notes?: string;
+}): Promise<Lead> {
+  const res = await api.post<Lead>('/leads', data);
+  return res.data;
+}
+
 export async function moveLead(id: string, stageId: string): Promise<Lead> {
   const res = await api.patch<Lead>(`/leads/${id}/move`, { stageId });
   return res.data;

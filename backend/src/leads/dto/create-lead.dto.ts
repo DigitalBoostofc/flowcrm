@@ -28,4 +28,8 @@ export class CreateLeadDto {
   @IsOptional()
   @IsUUID()
   assignedToId?: string;
+
+  @IsOptional()
+  @IsString()
+  notes?: string;
 }

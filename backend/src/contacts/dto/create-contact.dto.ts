@@ -19,4 +19,24 @@ export class CreateContactDto {
   @IsString()
   @MaxLength(100)
   channelOrigin?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(150)
+  company?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  role?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  website?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(20)
+  zipCode?: string;
 }

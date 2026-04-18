@@ -21,6 +21,18 @@ export class Contact {
   @Column({ nullable: true })
   origin: string;
 
+  @Column({ nullable: true })
+  company: string;
+
+  @Column({ nullable: true })
+  role: string;
+
+  @Column({ nullable: true })
+  website: string;
+
+  @Column({ nullable: true })
+  zipCode: string;
+
   @OneToMany(() => Lead, (lead) => lead.contact)
   leads: Lead[];
 

@@ -64,6 +64,9 @@ export class Lead {
   @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
   value: number;
 
+  @Column({ type: 'text', nullable: true })
+  notes: string;
+
   @Column({ type: 'timestamp', nullable: true })
   archivedAt: Date | null;
 
