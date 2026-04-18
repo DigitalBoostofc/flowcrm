@@ -5,7 +5,7 @@ import Toaster from '@/components/ui/Toaster';
 
 export default function AppShell({ children }: { children: ReactNode }) {
   return (
-    <div className="h-screen flex bg-slate-950">
+    <div className="h-screen flex overflow-hidden" style={{ background: '#07070f' }}>
       <Sidebar />
       <main className="flex-1 overflow-auto">{children}</main>
       <LeadPanel />
