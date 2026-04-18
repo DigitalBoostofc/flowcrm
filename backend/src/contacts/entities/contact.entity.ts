@@ -18,6 +18,9 @@ export class Contact {
   @Column({ nullable: true })
   channelOrigin: string;
 
+  @Column({ nullable: true })
+  origin: string;
+
   @OneToMany(() => Lead, (lead) => lead.contact)
   leads: Lead[];
 

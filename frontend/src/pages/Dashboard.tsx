@@ -24,6 +24,7 @@ export default function Dashboard() {
   const [selectedPipelineId, setSelectedPipelineId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [agentId, setAgentId] = useState<string | null>(null);
+  const [staleDays, setStaleDays] = useState<number | null>(null);
 
   const effectivePipelineId = selectedPipelineId
     ?? pipelines.find((p) => p.isDefault)?.id
@@ -31,8 +32,8 @@ export default function Dashboard() {
     ?? null;
 
   const { data: leads = [] } = useQuery({
-    queryKey: ['leads', effectivePipelineId],
-    queryFn: () => listLeads(effectivePipelineId!),
+    queryKey: ['leads', effectivePipelineId, staleDays],
+    queryFn: () => listLeads(effectivePipelineId!, staleDays ?? undefined),
     enabled: !!effectivePipelineId,
   });
 
@@ -104,6 +105,8 @@ export default function Dashboard() {
         agentId={agentId}
         setAgentId={setAgentId}
         agents={agents}
+        staleDays={staleDays}
+        setStaleDays={setStaleDays}
       />
       <KanbanBoard stages={stages} leadsByStage={leadsByStage} pipelineId={effectivePipelineId} />
     </div>

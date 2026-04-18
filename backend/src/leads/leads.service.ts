@@ -1,9 +1,11 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { LessThan, Repository } from 'typeorm';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import { Lead } from './entities/lead.entity';
+import { Lead, LeadStatus } from './entities/lead.entity';
 import { CreateLeadDto } from './dto/create-lead.dto';
+import { UpdateLeadDto } from './dto/update-lead.dto';
+import { UpdateLeadStatusDto } from './dto/update-lead-status.dto';
 
 @Injectable()
 export class LeadsService {
@@ -14,13 +16,20 @@ export class LeadsService {
   ) {}
 
   create(dto: CreateLeadDto): Promise<Lead> {
-    const lead = this.repo.create(dto);
+    const lead = this.repo.create({ ...dto, stageEnteredAt: new Date() });
     return this.repo.save(lead);
   }
 
-  findByPipeline(pipelineId: string): Promise<Lead[]> {
+  findByPipeline(pipelineId: string, staleDays?: number): Promise<Lead[]> {
+    const where: any = { pipelineId };
+    if (staleDays) {
+      const cutoff = new Date();
+      cutoff.setDate(cutoff.getDate() - staleDays);
+      where.stageEnteredAt = LessThan(cutoff);
+      where.status = LeadStatus.ACTIVE;
+    }
     return this.repo.find({
-      where: { pipelineId },
+      where,
       relations: ['contact', 'stage', 'assignedTo'],
       order: { createdAt: 'ASC' },
     });
@@ -42,10 +51,28 @@ export class LeadsService {
     });
   }
 
+  async update(id: string, dto: UpdateLeadDto): Promise<Lead> {
+    const lead = await this.findOne(id);
+    Object.assign(lead, dto);
+    return this.repo.save(lead);
+  }
+
+  async updateStatus(id: string, dto: UpdateLeadStatusDto): Promise<Lead> {
+    const lead = await this.findOne(id);
+    lead.status = dto.status;
+    if (dto.status === LeadStatus.LOST) {
+      lead.lossReason = (dto.lossReason ?? null) as any;
+    } else {
+      lead.lossReason = null as any;
+    }
+    return this.repo.save(lead);
+  }
+
   async move(id: string, stageId: string): Promise<Lead> {
     const lead = await this.findOne(id);
     const previousStageId = lead.stageId;
     lead.stageId = stageId;
+    lead.stageEnteredAt = new Date();
     const updated = await this.repo.save(lead);
     this.eventEmitter.emit('lead.moved', { lead: updated, previousStageId, newStageId: stageId });
     return updated;

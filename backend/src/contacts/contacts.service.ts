@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { ILike, Repository } from 'typeorm';
 import { Contact } from './entities/contact.entity';
 import { CreateContactDto } from './dto/create-contact.dto';
+import { UpdateContactDto } from './dto/update-contact.dto';
 
 @Injectable()
 export class ContactsService {
@@ -20,9 +21,11 @@ export class ContactsService {
     if (search) {
       return this.repo.find({
         where: [{ name: ILike(`%${search}%`) }, { phone: ILike(`%${search}%`) }],
+        relations: ['leads'],
+        order: { createdAt: 'DESC' },
       });
     }
-    return this.repo.find({ order: { createdAt: 'DESC' } });
+    return this.repo.find({ relations: ['leads'], order: { createdAt: 'DESC' } });
   }
 
   async findOne(id: string): Promise<Contact> {
@@ -35,6 +38,12 @@ export class ContactsService {
     const existing = await this.repo.findOne({ where: { phone } });
     if (existing) return existing;
     return this.create({ name, phone });
+  }
+
+  async update(id: string, dto: UpdateContactDto): Promise<Contact> {
+    const contact = await this.findOne(id);
+    Object.assign(contact, dto);
+    return this.repo.save(contact);
   }
 
   async remove(id: string): Promise<void> {

@@ -4,6 +4,12 @@ import { Stage } from '../../stages/entities/stage.entity';
 import { Pipeline } from '../../pipelines/entities/pipeline.entity';
 import { User } from '../../users/entities/user.entity';
 
+export enum LeadStatus {
+  ACTIVE = 'active',
+  WON = 'won',
+  LOST = 'lost',
+}
+
 @Entity('leads')
 export class Lead {
   @PrimaryGeneratedColumn('uuid')
@@ -36,6 +42,24 @@ export class Lead {
 
   @Column({ nullable: true })
   assignedToId: string;
+
+  @Column({ nullable: true })
+  title: string;
+
+  @Column({ type: 'enum', enum: LeadStatus, default: LeadStatus.ACTIVE })
+  status: LeadStatus;
+
+  @Column({ nullable: true })
+  lossReason: string;
+
+  @Column({ type: 'date', nullable: true })
+  startDate: string;
+
+  @Column({ type: 'date', nullable: true })
+  conclusionDate: string;
+
+  @Column({ type: 'timestamp', default: () => 'NOW()' })
+  stageEnteredAt: Date;
 
   @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
   value: number;

@@ -12,12 +12,17 @@ export interface LoginResponse {
   user: User;
 }
 
+export type LeadStatus = 'active' | 'won' | 'lost';
+export type ActivityType = 'note' | 'call' | 'whatsapp' | 'meeting' | 'visit' | 'proposal';
+
 export interface Contact {
   id: string;
   name: string;
   phone?: string;
   email?: string;
   channelOrigin?: string;
+  origin?: string;
+  leads?: Lead[];
   createdAt: string;
   updatedAt: string;
 }
@@ -50,9 +55,25 @@ export interface Lead {
   pipeline?: Pipeline;
   assignedToId?: string | null;
   assignedTo?: User | null;
+  title?: string | null;
+  status: LeadStatus;
+  lossReason?: string | null;
+  startDate?: string | null;
+  conclusionDate?: string | null;
+  stageEnteredAt: string;
   value?: number | null;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface LeadActivity {
+  id: string;
+  leadId: string;
+  type: ActivityType;
+  body: string;
+  createdById?: string;
+  createdBy?: User;
+  createdAt: string;
 }
 
 export interface Conversation {

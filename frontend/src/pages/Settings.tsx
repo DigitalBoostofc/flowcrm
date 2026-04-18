@@ -6,8 +6,9 @@ import ChannelsTab from '@/components/settings/ChannelsTab';
 import AgentsTab from '@/components/settings/AgentsTab';
 import AutomationsTab from '@/components/settings/AutomationsTab';
 import TemplatesTab from '@/components/settings/TemplatesTab';
+import LossReasonsTab from '@/components/settings/LossReasonsTab';
 
-type Tab = 'pipelines' | 'channels' | 'agents' | 'automations' | 'templates';
+type Tab = 'pipelines' | 'channels' | 'agents' | 'automations' | 'templates' | 'loss-reasons';
 
 const TABS: { id: Tab; label: string }[] = [
   { id: 'pipelines', label: 'Pipelines' },
@@ -15,6 +16,7 @@ const TABS: { id: Tab; label: string }[] = [
   { id: 'agents', label: 'Agentes' },
   { id: 'automations', label: 'Automações' },
   { id: 'templates', label: 'Templates' },
+  { id: 'loss-reasons', label: 'Motivos de Perda' },
 ];
 
 export default function Settings() {
@@ -46,6 +48,7 @@ export default function Settings() {
       {tab === 'agents' && <AgentsTab />}
       {tab === 'automations' && <AutomationsTab />}
       {tab === 'templates' && <TemplatesTab />}
+      {tab === 'loss-reasons' && <LossReasonsTab />}
     </div>
   );
 }

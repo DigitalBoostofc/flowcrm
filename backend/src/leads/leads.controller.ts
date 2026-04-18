@@ -2,6 +2,8 @@ import { Controller, Get, Post, Patch, Delete, Body, Param, Query, UseGuards, Ht
 import { LeadsService } from './leads.service';
 import { CreateLeadDto } from './dto/create-lead.dto';
 import { MoveLeadDto } from './dto/move-lead.dto';
+import { UpdateLeadDto } from './dto/update-lead.dto';
+import { UpdateLeadStatusDto } from './dto/update-lead-status.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
@@ -18,13 +20,26 @@ export class LeadsController {
   }
 
   @Get()
-  findByPipeline(@Query('pipelineId') pipelineId: string) {
-    return this.leadsService.findByPipeline(pipelineId);
+  findByPipeline(
+    @Query('pipelineId') pipelineId: string,
+    @Query('staleDays') staleDays?: string,
+  ) {
+    return this.leadsService.findByPipeline(pipelineId, staleDays ? parseInt(staleDays) : undefined);
   }
 
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.leadsService.findOne(id);
+  }
+
+  @Patch(':id')
+  update(@Param('id') id: string, @Body() dto: UpdateLeadDto) {
+    return this.leadsService.update(id, dto);
+  }
+
+  @Patch(':id/status')
+  updateStatus(@Param('id') id: string, @Body() dto: UpdateLeadStatusDto) {
+    return this.leadsService.updateStatus(id, dto);
   }
 
   @Patch(':id/move')
