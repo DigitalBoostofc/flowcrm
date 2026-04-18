@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { OnQueueEvent, QueueEventsHost, QueueEventsListener } from '@nestjs/bullmq';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import { QUEUE_AUTOMATION, QUEUE_SCHEDULED, QUEUE_OUTBOUND } from './queues.module';
+import { QUEUE_AUTOMATION, QUEUE_SCHEDULED, QUEUE_OUTBOUND } from './queue-names';
 
 @Injectable()
 @QueueEventsListener(QUEUE_AUTOMATION)
