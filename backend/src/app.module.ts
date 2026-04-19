@@ -30,6 +30,8 @@ import { SectorsModule } from './sectors/sectors.module';
 import { StageRequiredFieldsModule } from './stage-required-fields/stage-required-fields.module';
 import { WorkspacesModule } from './workspaces/workspaces.module';
 import { IntegrationsModule } from './integrations/integrations.module';
+import { AppSettingsModule } from './app-settings/app-settings.module';
+import { SignupModule } from './signup/signup.module';
 
 @Module({
   imports: [
@@ -79,6 +81,8 @@ import { IntegrationsModule } from './integrations/integrations.module';
     StageRequiredFieldsModule,
     WorkspacesModule,
     IntegrationsModule,
+    AppSettingsModule,
+    SignupModule,
   ],
 })
 export class AppModule {}

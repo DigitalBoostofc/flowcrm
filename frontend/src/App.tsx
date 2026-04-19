@@ -1,5 +1,6 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import Login from '@/pages/Login';
+import Signup from '@/pages/Signup';
 import Inicio from '@/pages/Inicio';
 import Pessoas from '@/pages/Pessoas';
 import Negocios from '@/pages/Negocios';
@@ -45,6 +46,7 @@ export default function App() {
     <WsProvider>
       <Routes>
         <Route path="/login" element={token ? <Navigate to="/" /> : <Login />} />
+        <Route path="/signup" element={token ? <Navigate to="/" /> : <Signup />} />
         <Route
           path="/*"
           element={

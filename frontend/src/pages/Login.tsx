@@ -1,7 +1,7 @@
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { Zap, Eye, EyeOff } from 'lucide-react';
 import { login } from '@/api/auth';
@@ -152,6 +152,13 @@ export default function Login() {
             >
               {isSubmitting ? 'Entrando...' : 'Entrar'}
             </button>
+
+            <div className="text-xs text-center pt-2" style={{ color: 'var(--ink-3)' }}>
+              Não tem conta?{' '}
+              <Link to="/signup" className="font-medium" style={{ color: 'var(--accent)' }}>
+                Criar conta grátis
+              </Link>
+            </div>
           </form>
         </div>
       </div>

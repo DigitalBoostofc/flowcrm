@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
   GitBranch, XCircle, Users2, Tags, Building2, Radio, FileText,
-  Zap, User as UserIcon, Puzzle,
+  Zap, User as UserIcon, Puzzle, Server,
 } from 'lucide-react';
 import { useAuthStore } from '@/store/auth.store';
 import FunisEtapasTab from '@/components/settings/FunisEtapasTab';
@@ -15,11 +15,12 @@ import AgentsTab from '@/components/settings/AgentsTab';
 import AutomationsTab from '@/components/settings/AutomationsTab';
 import TemplatesTab from '@/components/settings/TemplatesTab';
 import IntegrationsTab from '@/components/settings/IntegrationsTab';
+import SistemaTab from '@/components/settings/SistemaTab';
 
 type Tab =
   | 'funis-etapas' | 'motivos-perda' | 'origens-clientes'
   | 'categorias-clientes' | 'setores' | 'channels'
-  | 'templates' | 'automations' | 'agents' | 'integrations';
+  | 'templates' | 'automations' | 'agents' | 'integrations' | 'sistema';
 
 interface NavItem { id: Tab; label: string; icon: typeof GitBranch; ownerOnly?: boolean }
 interface NavGroup { title: string; items: NavItem[] }
@@ -63,6 +64,12 @@ const GROUPS: NavGroup[] = [
     title: 'Integrações',
     items: [
       { id: 'integrations',         label: 'Google Calendar',       icon: Puzzle },
+    ],
+  },
+  {
+    title: 'Administração',
+    items: [
+      { id: 'sistema',              label: 'Sistema',               icon: Server,     ownerOnly: true },
     ],
   },
 ];
@@ -150,6 +157,7 @@ export default function Settings() {
           {tab === 'automations'         && <AutomationsTab />}
           {tab === 'agents'              && <AgentsTab />}
           {tab === 'integrations'        && <IntegrationsTab />}
+          {tab === 'sistema'             && <SistemaTab />}
         </div>
       </div>
     </div>
