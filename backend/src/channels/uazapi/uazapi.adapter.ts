@@ -84,10 +84,15 @@ export class UazapiAdapter implements ChannelAdapter {
   async connectSession(channelConfigId: string, webhookUrl: string): Promise<string> {
     const token = await this.ensureToken(channelConfigId);
 
-    // Configura webhook (ignora erros)
+    // Configura webhook com eventos corretos e exclusões
     await axios.post(
       `${this.baseUrl}/webhook`,
-      { url: webhookUrl, enabled: true, events: ['message', 'qrcode', 'connection'] },
+      {
+        url: webhookUrl,
+        enabled: true,
+        events: ['messages', 'qrcode', 'connection'],
+        excludeMessages: ['wasSentByApi', 'isGroupYes'],
+      },
       { headers: this.instanceHeaders(token), timeout: 20000 },
     ).catch((err: any) => this.logger.warn(`webhook set: ${err.message}`));
 
