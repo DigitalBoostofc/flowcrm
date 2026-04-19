@@ -988,7 +988,7 @@ export default function Pessoas() {
               return (
                 <div
                   key={c.id}
-                  onClick={() => setSelectedPessoa(c)}
+                  onClick={() => setEditingPessoa(c)}
                   className="group grid gap-4 px-6 py-3 text-sm transition-colors hover:bg-[var(--surface-hover)] cursor-pointer items-center"
                   style={{
                     gridTemplateColumns: '48px 2fr 1.4fr 1fr 1.4fr 1.6fr 36px',
