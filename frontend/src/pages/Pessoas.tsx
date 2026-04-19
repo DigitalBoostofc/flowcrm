@@ -6,8 +6,8 @@ import {
 import { listContacts, createContact } from '@/api/contacts';
 import { listUsers } from '@/api/users';
 import { useAuthStore } from '@/store/auth.store';
-import { usePanelStore } from '@/store/panel.store';
 import type { Contact, ContactPrivacy, User } from '@/types/api';
+import PessoaDetailPanel from '@/components/pessoas/PessoaDetailPanel';
 
 /* ── Form helpers ────────────────────────────────────── */
 
@@ -699,10 +699,10 @@ function EmptyState({ onAdd }: { onAdd: () => void }) {
 
 export default function Pessoas() {
   const user = useAuthStore((s) => s.user);
-  const openPanel = usePanelStore((s) => s.open);
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [addOpen, setAddOpen] = useState(false);
+  const [selectedPessoa, setSelectedPessoa] = useState<Contact | null>(null);
 
   useEffect(() => {
     const t = setTimeout(() => setDebouncedSearch(search), 300);
@@ -829,9 +829,7 @@ export default function Pessoas() {
               return (
                 <div
                   key={c.id}
-                  onClick={() => {
-                    if (c.leads && c.leads.length > 0) openPanel(c.leads[0].id);
-                  }}
+                  onClick={() => setSelectedPessoa(c)}
                   className="grid gap-4 px-6 py-3 text-sm transition-colors hover:bg-[var(--surface-hover)] cursor-pointer items-center"
                   style={{
                     gridTemplateColumns: '48px 2fr 1.4fr 1fr 1.4fr 1.6fr',
@@ -886,6 +884,15 @@ export default function Pessoas() {
         currentUser={user}
         users={users}
       />
+
+      {selectedPessoa && (
+        <PessoaDetailPanel
+          contact={selectedPessoa}
+          currentUser={user}
+          users={users}
+          onClose={() => setSelectedPessoa(null)}
+        />
+      )}
     </div>
   );
 }

@@ -5,6 +5,8 @@ export interface ListTasksParams {
   status?: TaskStatus;
   type?: TaskType;
   assigneeId?: string;
+  targetType?: TaskTargetType;
+  targetId?: string;
   range?: 'today' | 'week' | 'all';
   dueFrom?: string;
   dueTo?: string;

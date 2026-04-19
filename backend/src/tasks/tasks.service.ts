@@ -34,6 +34,8 @@ export class TasksService {
         assignee: JSON.stringify([query.assigneeId]),
       });
     }
+    if (query.targetType) qb.andWhere('task.targetType = :targetType', { targetType: query.targetType });
+    if (query.targetId) qb.andWhere('task.targetId = :targetId', { targetId: query.targetId });
 
     const now = new Date();
     if (query.range === 'today') {

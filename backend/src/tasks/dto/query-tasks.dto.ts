@@ -1,5 +1,5 @@
 import { IsEnum, IsISO8601, IsOptional, IsString, IsUUID } from 'class-validator';
-import { TaskStatus, TaskType } from '../entities/task.entity';
+import { TaskStatus, TaskType, TaskTargetType } from '../entities/task.entity';
 
 export class QueryTasksDto {
   @IsOptional()
@@ -13,6 +13,14 @@ export class QueryTasksDto {
   @IsOptional()
   @IsUUID()
   assigneeId?: string;
+
+  @IsOptional()
+  @IsEnum(TaskTargetType)
+  targetType?: TaskTargetType;
+
+  @IsOptional()
+  @IsUUID()
+  targetId?: string;
 
   @IsOptional()
   @IsISO8601()
