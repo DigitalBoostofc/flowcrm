@@ -140,7 +140,7 @@ export interface Message {
 export interface ChannelConfig {
   id: string;
   name: string;
-  type: 'evolution' | 'meta';
+  type: 'evolution' | 'uazapi' | 'meta';
   config: Record<string, string>;
   status: 'connected' | 'disconnected' | 'error';
   active: boolean;

@@ -4,8 +4,8 @@ export class CreateChannelDto {
   @IsString()
   name: string;
 
-  @IsEnum(['evolution', 'meta'])
-  type: 'evolution' | 'meta';
+  @IsEnum(['evolution', 'uazapi', 'meta'])
+  type: 'evolution' | 'uazapi' | 'meta';
 
   @IsObject()
   config: Record<string, string>;

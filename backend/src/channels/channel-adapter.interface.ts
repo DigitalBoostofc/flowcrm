@@ -20,6 +20,6 @@ export interface NormalizedInbound {
 }
 
 export interface ChannelAdapter {
-  readonly type: 'evolution' | 'meta';
+  readonly type: 'evolution' | 'uazapi' | 'meta';
   sendMessage(opts: SendMessageOptions): Promise<SendMessageResult>;
 }

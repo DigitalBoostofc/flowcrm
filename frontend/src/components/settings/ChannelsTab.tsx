@@ -4,12 +4,22 @@ import { Plus, Trash2, QrCode } from 'lucide-react';
 import { listChannels, createChannel, deleteChannel, provisionChannel, getChannelQr } from '@/api/channels';
 import Modal from '@/components/ui/Modal';
 
-type ChannelKind = 'evolution' | 'meta';
+type ChannelKind = 'uazapi' | 'meta';
 
 function randomHex(length: number): string {
   const bytes = new Uint8Array(length);
   crypto.getRandomValues(bytes);
   return Array.from(bytes).map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+function channelLabel(type: string): string {
+  if (type === 'uazapi') return 'WhatsApp via QR (uazapiGO)';
+  if (type === 'evolution') return 'WhatsApp via QR (Evolution)';
+  return 'WhatsApp Business API (Meta oficial)';
+}
+
+function isQrChannel(type: string): boolean {
+  return type === 'uazapi' || type === 'evolution';
 }
 
 export default function ChannelsTab() {
@@ -18,20 +28,20 @@ export default function ChannelsTab() {
   const [newOpen, setNewOpen] = useState(false);
   const [qrOpen, setQrOpen] = useState<string | null>(null);
 
-  const [kind, setKind] = useState<ChannelKind>('evolution');
+  const [kind, setKind] = useState<ChannelKind>('uazapi');
   const [name, setName] = useState('');
-  // evolution fields
-  const [instance, setInstance] = useState('');
-  const [evolutionApiKey, setEvolutionApiKey] = useState('');
+  // uazapi fields
+  const [baseUrl, setBaseUrl] = useState('');
+  const [token, setToken] = useState('');
   // meta fields
   const [phoneNumberId, setPhoneNumberId] = useState('');
   const [accessToken, setAccessToken] = useState('');
 
   const resetForm = () => {
-    setKind('evolution');
+    setKind('uazapi');
     setName('');
-    setInstance('');
-    setEvolutionApiKey('');
+    setBaseUrl('');
+    setToken('');
     setPhoneNumberId('');
     setAccessToken('');
   };
@@ -39,8 +49,8 @@ export default function ChannelsTab() {
   const createMutation = useMutation({
     mutationFn: () => {
       const config: Record<string, string> =
-        kind === 'evolution'
-          ? { instance, apiKey: evolutionApiKey, webhookSecret: randomHex(16) }
+        kind === 'uazapi'
+          ? { baseUrl: baseUrl.replace(/\/$/, ''), token, webhookSecret: randomHex(16) }
           : { phoneNumberId, accessToken };
       return createChannel({ name, type: kind, config });
     },
@@ -63,8 +73,8 @@ export default function ChannelsTab() {
 
   const isFormValid =
     !!name &&
-    (kind === 'evolution'
-      ? !!instance && !!evolutionApiKey
+    (kind === 'uazapi'
+      ? !!baseUrl && !!token
       : !!phoneNumberId && !!accessToken);
 
   return (
@@ -84,9 +94,7 @@ export default function ChannelsTab() {
             <div>
               <div className="font-medium text-slate-100">{c.name}</div>
               <div className="text-xs text-slate-500">
-                <span className="capitalize">
-                  {c.type === 'evolution' ? 'WhatsApp via QR (Evolution)' : 'WhatsApp Business API (Meta oficial)'}
-                </span>
+                <span className="capitalize">{channelLabel(c.type)}</span>
                 {' • '}
                 <span className={c.status === 'connected' ? 'text-emerald-400' : c.status === 'error' ? 'text-red-400' : 'text-amber-400'}>
                   {c.status}
@@ -94,7 +102,7 @@ export default function ChannelsTab() {
               </div>
             </div>
             <div className="flex gap-2">
-              {c.type === 'evolution' && (
+              {isQrChannel(c.type) && (
                 <button
                   onClick={() => provisionMutation.mutate(c.id)}
                   disabled={provisionMutation.isPending}
@@ -124,16 +132,16 @@ export default function ChannelsTab() {
             <div className="grid grid-cols-2 gap-2">
               <button
                 type="button"
-                onClick={() => setKind('evolution')}
+                onClick={() => setKind('uazapi')}
                 className={`text-left rounded-lg border p-3 transition ${
-                  kind === 'evolution'
+                  kind === 'uazapi'
                     ? 'border-brand-500 bg-brand-600/10'
                     : 'border-slate-700 bg-slate-900 hover:border-slate-600'
                 }`}
               >
                 <div className="text-sm font-medium text-slate-100">WhatsApp via QR</div>
                 <div className="text-xs text-slate-400 mt-0.5">
-                  Não-oficial (Evolution/Baileys) — lê QR code no celular
+                  Não-oficial (uazapiGO) — lê QR code no celular
                 </div>
               </button>
               <button
@@ -164,27 +172,31 @@ export default function ChannelsTab() {
             />
           </div>
 
-          {/* Evolution fields */}
-          {kind === 'evolution' && (
+          {/* uazapi fields */}
+          {kind === 'uazapi' && (
             <>
               <div>
-                <label className="text-xs text-slate-400 mb-1 block">Nome da instância no Evolution</label>
+                <label className="text-xs text-slate-400 mb-1 block">URL do servidor uazapiGO</label>
                 <input
-                  value={instance}
-                  onChange={(e) => setInstance(e.target.value)}
-                  placeholder="Ex: flowcrm-main"
+                  value={baseUrl}
+                  onChange={(e) => setBaseUrl(e.target.value)}
+                  placeholder="https://api.seuservidor.com"
                   className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100"
                 />
               </div>
               <div>
-                <label className="text-xs text-slate-400 mb-1 block">API key global do Evolution</label>
+                <label className="text-xs text-slate-400 mb-1 block">Token da instância</label>
                 <input
-                  value={evolutionApiKey}
-                  onChange={(e) => setEvolutionApiKey(e.target.value)}
-                  placeholder="apikey do servidor Evolution"
+                  value={token}
+                  onChange={(e) => setToken(e.target.value)}
+                  placeholder="Token gerado pelo uazapiGO"
                   className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100"
                 />
               </div>
+              <p className="text-xs text-slate-500 leading-relaxed">
+                Crie uma instância no painel do uazapiGO, copie o token e a URL base do servidor.
+                Após criar o canal, clique em <strong className="text-slate-400">Conectar</strong> para gerar o QR code.
+              </p>
             </>
           )}
 

@@ -5,6 +5,7 @@ import { ChannelConfig, ChannelType, ChannelStatus } from './entities/channel-co
 import { ChannelAdapter, SendMessageOptions, SendMessageResult } from './channel-adapter.interface';
 import { CreateChannelDto } from './dto/create-channel.dto';
 import { EvolutionAdapter } from './evolution/evolution.adapter';
+import { UazapiAdapter } from './uazapi/uazapi.adapter';
 import { MetaAdapter } from './meta/meta.adapter';
 
 @Injectable()
@@ -14,9 +15,11 @@ export class ChannelsService {
   constructor(
     @InjectRepository(ChannelConfig) private repo: Repository<ChannelConfig>,
     evolution: EvolutionAdapter,
+    uazapi: UazapiAdapter,
     meta: MetaAdapter,
   ) {
     this.adapters.set('evolution', evolution);
+    this.adapters.set('uazapi', uazapi);
     this.adapters.set('meta', meta);
   }
 
@@ -52,28 +55,44 @@ export class ChannelsService {
 
   async getQrCode(id: string): Promise<{ base64: string; pairingCode?: string }> {
     const channel = await this.findById(id);
-    if (channel.type !== 'evolution') {
-      throw new BadRequestException('QR code só disponível para canais Evolution');
+    if (channel.type === 'uazapi') {
+      const adapter = this.adapters.get('uazapi') as unknown as UazapiAdapter;
+      return adapter.getQrCode(id);
     }
-    const adapter = this.adapters.get('evolution') as EvolutionAdapter;
-    return adapter.getQrCode(id);
+    if (channel.type === 'evolution') {
+      const adapter = this.adapters.get('evolution') as EvolutionAdapter;
+      return adapter.getQrCode(id);
+    }
+    throw new BadRequestException('QR code não disponível para este tipo de canal');
   }
 
   async provisionInstance(id: string, webhookUrl: string): Promise<void> {
     const channel = await this.findById(id);
-    if (channel.type !== 'evolution') {
-      throw new BadRequestException('Provisionamento só disponível para canais Evolution');
+    if (channel.type === 'uazapi') {
+      const adapter = this.adapters.get('uazapi') as unknown as UazapiAdapter;
+      await adapter.connectSession(id, webhookUrl);
+      return;
     }
-    const adapter = this.adapters.get('evolution') as EvolutionAdapter;
-    await adapter.createInstance(id, webhookUrl);
+    if (channel.type === 'evolution') {
+      const adapter = this.adapters.get('evolution') as EvolutionAdapter;
+      await adapter.createInstance(id, webhookUrl);
+      return;
+    }
+    throw new BadRequestException('Provisionamento não disponível para este tipo de canal');
   }
 
   async refreshWebhook(id: string, webhookUrl: string): Promise<void> {
     const channel = await this.findById(id);
-    if (channel.type !== 'evolution') {
-      throw new BadRequestException('Refresh webhook só disponível para canais Evolution');
+    if (channel.type === 'evolution') {
+      const adapter = this.adapters.get('evolution') as EvolutionAdapter;
+      await adapter.updateWebhook(id, webhookUrl);
+      return;
     }
-    const adapter = this.adapters.get('evolution') as EvolutionAdapter;
-    await adapter.updateWebhook(id, webhookUrl);
+    if (channel.type === 'uazapi') {
+      const adapter = this.adapters.get('uazapi') as unknown as UazapiAdapter;
+      await adapter.connectSession(id, webhookUrl);
+      return;
+    }
+    throw new BadRequestException('Refresh webhook não disponível para este tipo de canal');
   }
 }

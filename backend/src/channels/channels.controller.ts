@@ -40,8 +40,7 @@ export class ChannelsController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.OWNER)
   async provision(@Param('id') id: string, @Request() req: any) {
-    const channel = await this.channelsService.findById(id);
-    const webhookUrl = this.buildWebhookUrl(req, id, channel.config.webhookSecret);
+    const webhookUrl = await this.buildWebhookUrl(req, id);
     await this.channelsService.provisionInstance(id, webhookUrl);
     return { ok: true, webhookUrl };
   }
@@ -50,17 +49,19 @@ export class ChannelsController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.OWNER)
   async refreshWebhook(@Param('id') id: string, @Request() req: any) {
-    const channel = await this.channelsService.findById(id);
-    const webhookUrl = this.buildWebhookUrl(req, id, channel.config.webhookSecret);
+    const webhookUrl = await this.buildWebhookUrl(req, id);
     await this.channelsService.refreshWebhook(id, webhookUrl);
     return { ok: true, webhookUrl };
   }
 
-  private buildWebhookUrl(req: any, id: string, secret: string): string {
+  private async buildWebhookUrl(req: any, id: string): Promise<string> {
+    const channel = await this.channelsService.findById(id);
+    const secret = channel.config.webhookSecret;
     const host = req.get('host');
     const forwardedProto = req.get('x-forwarded-proto');
     const protocol = forwardedProto || req.protocol || 'https';
-    return `${protocol}://${host}/api/webhooks/evolution/${id}/${secret}`;
+    const provider = channel.type === 'uazapi' ? 'uazapi' : 'evolution';
+    return `${protocol}://${host}/api/webhooks/${provider}/${id}/${secret}`;
   }
 
   @Get(':id/qr')
