@@ -15,6 +15,10 @@ import { User, UserRole } from '../users/entities/user.entity';
 import { Workspace } from '../workspaces/entities/workspace.entity';
 import { AppSettingsService } from '../app-settings/app-settings.service';
 import { ChannelsService } from '../channels/channels.service';
+import { ContactsService } from '../contacts/contacts.service';
+import { LeadsService } from '../leads/leads.service';
+import { PipelinesService } from '../pipelines/pipelines.service';
+import { TenantContext } from '../common/tenant/tenant-context.service';
 import { SignupStartDto } from './dto/signup.dto';
 
 const OTP_TTL_MINUTES = 10;
@@ -31,6 +35,10 @@ export class SignupService {
     private readonly dataSource: DataSource,
     private readonly appSettings: AppSettingsService,
     private readonly channels: ChannelsService,
+    private readonly contacts: ContactsService,
+    private readonly leads: LeadsService,
+    private readonly pipelines: PipelinesService,
+    private readonly tenant: TenantContext,
     private readonly jwt: JwtService,
   ) {}
 
@@ -164,6 +172,13 @@ export class SignupService {
       workspaceId: result.user.workspaceId,
     });
 
+    this.trackInAdminWorkspaces({
+      name: result.user.name,
+      email: result.user.email,
+      phone: result.user.phone,
+      workspaceName: result.workspace.name,
+    }).catch((err) => this.logger.error('Falha ao rastrear signup em workspaces admin', err as Error));
+
     return {
       accessToken,
       user: {
@@ -174,6 +189,49 @@ export class SignupService {
         workspaceId: result.user.workspaceId,
       },
     };
+  }
+
+  private async trackInAdminWorkspaces(signup: {
+    name: string; email: string; phone: string; workspaceName: string;
+  }): Promise<void> {
+    const raw = process.env.PLATFORM_ADMIN_EMAILS;
+    if (!raw) return;
+    const adminEmails = raw.split(',').map((s) => s.trim().toLowerCase()).filter(Boolean);
+    if (adminEmails.length === 0) return;
+
+    const admins = await this.userRepo.find({
+      where: adminEmails.map((email) => ({ email })),
+    });
+
+    const seen = new Set<string>();
+    for (const admin of admins) {
+      if (!admin.workspaceId || seen.has(admin.workspaceId)) continue;
+      seen.add(admin.workspaceId);
+
+      try {
+        await this.tenant.run(admin.workspaceId, undefined, async () => {
+          const contact = await this.contacts.create({
+            name: signup.name,
+            email: signup.email,
+            phone: signup.phone,
+            origem: 'Cadastro FlowCRM',
+          });
+
+          const pipeline = await this.pipelines.findDefault();
+          if (!pipeline || !pipeline.stages?.length) return;
+          const firstStage = [...pipeline.stages].sort((a, b) => a.position - b.position)[0];
+
+          await this.leads.create({
+            contactId: contact.id,
+            pipelineId: pipeline.id,
+            stageId: firstStage.id,
+            title: `Novo cadastro: ${signup.workspaceName}`,
+          } as any);
+        });
+      } catch (err) {
+        this.logger.error(`Falha ao criar lead para signup em workspace ${admin.workspaceId}`, err as Error);
+      }
+    }
   }
 
   private generateCode(): string {

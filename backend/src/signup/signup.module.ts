@@ -6,9 +6,19 @@ import { SignupService } from './signup.service';
 import { SignupController } from './signup.controller';
 import { AuthModule } from '../auth/auth.module';
 import { ChannelsModule } from '../channels/channels.module';
+import { ContactsModule } from '../contacts/contacts.module';
+import { LeadsModule } from '../leads/leads.module';
+import { PipelinesModule } from '../pipelines/pipelines.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([OtpVerification, User]), AuthModule, ChannelsModule],
+  imports: [
+    TypeOrmModule.forFeature([OtpVerification, User]),
+    AuthModule,
+    ChannelsModule,
+    ContactsModule,
+    LeadsModule,
+    PipelinesModule,
+  ],
   controllers: [SignupController],
   providers: [SignupService],
 })
