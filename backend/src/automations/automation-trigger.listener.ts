@@ -7,6 +7,7 @@ import { QueryFailedError, Repository } from 'typeorm';
 import { Automation } from './entities/automation.entity';
 import { AutomationExecution } from './entities/automation-execution.entity';
 import { QUEUE_AUTOMATION } from '../common/queues/queues.module';
+import { Stage } from '../stages/entities/stage.entity';
 
 @Injectable()
 export class AutomationTriggerListener {
@@ -15,37 +16,58 @@ export class AutomationTriggerListener {
   constructor(
     @InjectRepository(Automation) private auto: Repository<Automation>,
     @InjectRepository(AutomationExecution) private exec: Repository<AutomationExecution>,
+    @InjectRepository(Stage) private stageRepo: Repository<Stage>,
     @InjectQueue(QUEUE_AUTOMATION) private queue: Queue,
   ) {}
 
   @OnEvent('lead.moved')
-  onMoved(evt: { lead: { id: string }; newStageId: string }): Promise<void> {
-    return this.maybeTrigger(evt.newStageId, evt.lead.id);
+  async onMoved(evt: {
+    lead: { id: string; pipelineId: string };
+    previousStageId: string;
+    newStageId: string;
+  }): Promise<void> {
+    const prevStage = await this.stageRepo.findOne({ where: { id: evt.previousStageId } });
+    const newStage = await this.stageRepo.findOne({ where: { id: evt.newStageId } });
+
+    await this.fireStageTriggers(evt.newStageId, evt.lead.id);
+
+    if (newStage && (!prevStage || prevStage.pipelineId !== newStage.pipelineId)) {
+      await this.firePipelineTriggers(newStage.pipelineId, evt.lead.id);
+    }
   }
 
   @OnEvent('lead.created')
-  onCreated(evt: { lead: { id: string }; stageId: string }): Promise<void> {
-    return this.maybeTrigger(evt.stageId, evt.lead.id);
+  async onCreated(evt: { lead: { id: string; pipelineId: string }; stageId: string }): Promise<void> {
+    await this.fireStageTriggers(evt.stageId, evt.lead.id);
+    if (evt.lead.pipelineId) {
+      await this.firePipelineTriggers(evt.lead.pipelineId, evt.lead.id);
+    }
   }
 
-  private async maybeTrigger(stageId: string, leadId: string): Promise<void> {
-    const automation = await this.auto.findOne({ where: { stageId, active: true } });
-    if (!automation) return;
+  private async fireStageTriggers(stageId: string, leadId: string): Promise<void> {
+    const list = await this.auto.find({
+      where: { stageId, triggerType: 'stage', active: true },
+    });
+    for (const a of list) await this.enqueue(a.id, leadId);
+  }
 
+  private async firePipelineTriggers(pipelineId: string, leadId: string): Promise<void> {
+    const list = await this.auto.find({
+      where: { pipelineId, triggerType: 'pipeline', active: true },
+    });
+    for (const a of list) await this.enqueue(a.id, leadId);
+  }
+
+  private async enqueue(automationId: string, leadId: string): Promise<void> {
     try {
-      await this.exec.insert({ automationId: automation.id, leadId });
+      await this.exec.insert({ automationId, leadId, status: 'pending', currentStepPosition: 0 });
     } catch (err) {
       if (err instanceof QueryFailedError) {
-        this.logger.debug(`Automation ${automation.id} already executed for lead ${leadId}`);
+        this.logger.debug(`Automation ${automationId} already executed for lead ${leadId}`);
         return;
       }
       throw err;
     }
-
-    await this.queue.add(
-      'send',
-      { automationId: automation.id, leadId },
-      { delay: automation.delayMinutes * 60 * 1000 },
-    );
+    await this.queue.add('step', { automationId, leadId, stepPosition: 0 });
   }
 }

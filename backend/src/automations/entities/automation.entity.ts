@@ -1,40 +1,49 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, CreateDateColumn, Index, Unique } from 'typeorm';
+import {
+  Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn,
+  CreateDateColumn, UpdateDateColumn, Index, OneToMany,
+} from 'typeorm';
+import { Pipeline } from '../../pipelines/entities/pipeline.entity';
 import { Stage } from '../../stages/entities/stage.entity';
-import { MessageTemplate } from '../../templates/entities/template.entity';
+import { AutomationStep } from './automation-step.entity';
+
+export type AutomationTriggerType = 'pipeline' | 'stage';
 
 @Entity('automations')
-@Unique(['stageId'])
 export class Automation {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @ManyToOne(() => Stage, { onDelete: 'CASCADE' })
-  @JoinColumn({ name: 'stageId' })
-  stage: Stage;
-
-  @Column()
-  @Index()
-  stageId: string;
-
-  @Column({ type: 'int', default: 0 })
-  delayMinutes: number;
+  @Column({ type: 'varchar', length: 120 })
+  name: string;
 
   @Column({ type: 'varchar', length: 20 })
-  channelType: string;
+  triggerType: AutomationTriggerType;
 
-  @Column()
-  channelConfigId: string;
+  @ManyToOne(() => Pipeline, { onDelete: 'CASCADE', nullable: true })
+  @JoinColumn({ name: 'pipelineId' })
+  pipeline: Pipeline | null;
 
-  @ManyToOne(() => MessageTemplate)
-  @JoinColumn({ name: 'templateId' })
-  template: MessageTemplate;
+  @Column({ type: 'uuid', nullable: true })
+  @Index()
+  pipelineId: string | null;
 
-  @Column()
-  templateId: string;
+  @ManyToOne(() => Stage, { onDelete: 'CASCADE', nullable: true })
+  @JoinColumn({ name: 'stageId' })
+  stage: Stage | null;
+
+  @Column({ type: 'uuid', nullable: true })
+  @Index()
+  stageId: string | null;
 
   @Column({ default: true })
   active: boolean;
 
+  @OneToMany(() => AutomationStep, (s) => s.automation, { cascade: true, eager: false })
+  steps: AutomationStep[];
+
   @CreateDateColumn()
   createdAt: Date;
+
+  @UpdateDateColumn()
+  updatedAt: Date;
 }

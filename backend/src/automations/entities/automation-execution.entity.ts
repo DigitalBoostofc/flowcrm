@@ -1,4 +1,8 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, Unique, Index } from 'typeorm';
+import {
+  Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, Unique, Index,
+} from 'typeorm';
+
+export type AutomationExecutionStatus = 'pending' | 'completed' | 'filtered' | 'failed';
 
 @Entity('automation_executions')
 @Unique(['automationId', 'leadId'])
@@ -6,14 +10,23 @@ export class AutomationExecution {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column()
+  @Column({ type: 'uuid' })
   @Index()
   automationId: string;
 
-  @Column()
+  @Column({ type: 'uuid' })
   @Index()
   leadId: string;
 
+  @Column({ type: 'varchar', length: 20, default: 'pending' })
+  status: AutomationExecutionStatus;
+
+  @Column({ type: 'int', default: 0 })
+  currentStepPosition: number;
+
   @CreateDateColumn({ type: 'timestamptz' })
-  executedAt: Date;
+  startedAt: Date;
+
+  @UpdateDateColumn({ type: 'timestamptz' })
+  updatedAt: Date;
 }

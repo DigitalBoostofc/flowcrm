@@ -1,23 +1,45 @@
-import { IsBoolean, IsInt, IsOptional, IsString, IsUUID, Min } from 'class-validator';
+import {
+  IsArray, IsBoolean, IsIn, IsInt, IsNotEmpty, IsObject, IsOptional, IsString, IsUUID, MaxLength, Min, ValidateNested,
+} from 'class-validator';
+import { Type } from 'class-transformer';
 
-export class CreateAutomationDto {
-  @IsUUID()
-  stageId: string;
-
+export class AutomationStepDto {
   @IsInt()
   @Min(0)
-  delayMinutes: number;
+  position: number;
 
   @IsString()
-  channelType: string;
+  @IsIn(['wait', 'filter', 'send_whatsapp'])
+  type: 'wait' | 'filter' | 'send_whatsapp';
 
-  @IsUUID()
-  channelConfigId: string;
+  @IsObject()
+  config: Record<string, unknown>;
+}
 
+export class CreateAutomationDto {
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(120)
+  name: string;
+
+  @IsString()
+  @IsIn(['pipeline', 'stage'])
+  triggerType: 'pipeline' | 'stage';
+
+  @IsOptional()
   @IsUUID()
-  templateId: string;
+  pipelineId?: string | null;
+
+  @IsOptional()
+  @IsUUID()
+  stageId?: string | null;
 
   @IsOptional()
   @IsBoolean()
   active?: boolean;
+
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => AutomationStepDto)
+  steps: AutomationStepDto[];
 }
