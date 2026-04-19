@@ -12,6 +12,7 @@ import { AlertTriangle } from 'lucide-react';
 import type { Lead, Pipeline, Stage } from '@/types/api';
 import { moveLead } from '@/api/leads';
 import { formatBRL } from '@/lib/format';
+import { useToastStore } from '@/store/toast.store';
 
 interface Props {
   pipeline: Pipeline | null;
@@ -25,6 +26,7 @@ function daysSinceUpdate(dateStr: string): number {
 
 export default function NegocioKanban({ pipeline, leads, onCardClick }: Props) {
   const qc = useQueryClient();
+  const pushToast = useToastStore((s) => s.push);
   const [activeLeadId, setActiveLeadId] = useState<string | null>(null);
   const snapshotRef = useRef<Lead[] | null>(null);
 
@@ -49,10 +51,18 @@ export default function NegocioKanban({ pipeline, leads, onCardClick }: Props) {
 
   const mutation = useMutation({
     mutationFn: ({ id, stageId }: { id: string; stageId: string }) => moveLead(id, stageId),
-    onError: () => {
+    onError: (err: any) => {
       if (snapshotRef.current) {
         qc.setQueryData<Lead[]>(['negocios'], snapshotRef.current);
       }
+      // eslint-disable-next-line no-console
+      console.error('[NegocioKanban] moveLead failed', err?.response?.status, err?.response?.data, err);
+      const status = err?.response?.status;
+      const serverMsg = err?.response?.data?.message || err?.message || 'Falha desconhecida';
+      pushToast({
+        title: `Erro ao mover negócio${status ? ` (${status})` : ''}`,
+        body: String(Array.isArray(serverMsg) ? serverMsg.join(', ') : serverMsg),
+      });
     },
     onSettled: () => {
       snapshotRef.current = null;
