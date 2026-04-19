@@ -202,6 +202,8 @@ export default function NegocioDetailPanel({ lead, currentUser, users, pipelines
   const [copied, setCopied] = useState(false);
   const [pipelinePickerOpen, setPipelinePickerOpen] = useState(false);
   const [selectedPipelineId, setSelectedPipelineId] = useState('');
+  const pipelineBtnRef = useRef<HTMLButtonElement>(null);
+  const [pickerPos, setPickerPos] = useState({ top: 0, left: 0 });
 
   /* ESC to close */
   useEffect(() => {
@@ -426,9 +428,14 @@ export default function NegocioDetailPanel({ lead, currentUser, users, pipelines
               className="flex items-stretch rounded-lg overflow-hidden"
               style={{ background: 'var(--surface)', border: '1px solid var(--edge)' }}
             >
-              <div className="relative flex-shrink-0" style={{ borderRight: '1px solid var(--edge)' }}>
+              <div className="flex-shrink-0" style={{ borderRight: '1px solid var(--edge)' }}>
                 <button
+                  ref={pipelineBtnRef}
                   onClick={() => {
+                    if (!pipelinePickerOpen && pipelineBtnRef.current) {
+                      const rect = pipelineBtnRef.current.getBoundingClientRect();
+                      setPickerPos({ top: rect.bottom + 6, left: rect.left });
+                    }
                     setSelectedPipelineId(lead.pipelineId ?? '');
                     setPipelinePickerOpen(o => !o);
                   }}
@@ -440,54 +447,61 @@ export default function NegocioDetailPanel({ lead, currentUser, users, pipelines
                   {pipeline?.name ?? 'Funil'}
                   <ChevronDown className="w-3 h-3 opacity-60" />
                 </button>
-
-                {pipelinePickerOpen && (
-                  <>
-                    <div className="fixed inset-0 z-10" onClick={() => setPipelinePickerOpen(false)} />
-                    <div
-                      className="absolute top-full left-0 mt-1 rounded-xl shadow-xl z-20 min-w-[220px] py-2"
-                      style={{ background: 'var(--surface-raised)', border: '1px solid var(--edge-strong)' }}
-                    >
-                      <p className="px-3 pb-1.5 text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--ink-3)' }}>
-                        Selecione o funil
-                      </p>
-                      {pipelines.map(p => (
-                        <button
-                          key={p.id}
-                          onClick={() => setSelectedPipelineId(p.id)}
-                          className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left transition-colors hover:bg-[var(--surface-hover)]"
-                          style={{ color: selectedPipelineId === p.id ? 'var(--brand-500)' : 'var(--ink-1)', fontWeight: selectedPipelineId === p.id ? 600 : 400 }}
-                        >
-                          <span
-                            className="w-2 h-2 rounded-full flex-shrink-0"
-                            style={{ background: selectedPipelineId === p.id ? 'var(--brand-500)' : 'var(--edge-strong)' }}
-                          />
-                          {p.name}
-                          {p.id === lead.pipelineId && (
-                            <span className="ml-auto text-[10px]" style={{ color: 'var(--ink-3)' }}>atual</span>
-                          )}
-                        </button>
-                      ))}
-                      <div className="px-3 pt-2 mt-1" style={{ borderTop: '1px solid var(--edge)' }}>
-                        <button
-                          onClick={() => {
-                            if (selectedPipelineId && selectedPipelineId !== lead.pipelineId) {
-                              pipelineMut.mutate(selectedPipelineId);
-                            } else {
-                              setPipelinePickerOpen(false);
-                            }
-                          }}
-                          disabled={!selectedPipelineId || pipelineMut.isPending}
-                          className="w-full h-8 rounded-lg text-xs font-semibold text-white disabled:opacity-40"
-                          style={{ background: 'var(--brand-500)' }}
-                        >
-                          {pipelineMut.isPending ? 'Salvando...' : 'Salvar'}
-                        </button>
-                      </div>
-                    </div>
-                  </>
-                )}
               </div>
+
+              {pipelinePickerOpen && (
+                <>
+                  <div className="fixed inset-0 z-[200]" onClick={() => setPipelinePickerOpen(false)} />
+                  <div
+                    className="rounded-xl shadow-xl z-[201] min-w-[220px] py-2"
+                    style={{
+                      position: 'fixed',
+                      top: pickerPos.top,
+                      left: pickerPos.left,
+                      background: 'var(--surface-raised)',
+                      border: '1px solid var(--edge-strong)',
+                      boxShadow: 'var(--shadow-xl)',
+                    }}
+                  >
+                    <p className="px-3 pb-1.5 text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--ink-3)' }}>
+                      Selecione o funil
+                    </p>
+                    {pipelines.map(p => (
+                      <button
+                        key={p.id}
+                        onClick={() => setSelectedPipelineId(p.id)}
+                        className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left transition-colors hover:bg-[var(--surface-hover)]"
+                        style={{ color: selectedPipelineId === p.id ? 'var(--brand-500)' : 'var(--ink-1)', fontWeight: selectedPipelineId === p.id ? 600 : 400 }}
+                      >
+                        <span
+                          className="w-2 h-2 rounded-full flex-shrink-0"
+                          style={{ background: selectedPipelineId === p.id ? 'var(--brand-500)' : 'var(--edge-strong)' }}
+                        />
+                        {p.name}
+                        {p.id === lead.pipelineId && (
+                          <span className="ml-auto text-[10px]" style={{ color: 'var(--ink-3)' }}>atual</span>
+                        )}
+                      </button>
+                    ))}
+                    <div className="px-3 pt-2 mt-1" style={{ borderTop: '1px solid var(--edge)' }}>
+                      <button
+                        onClick={() => {
+                          if (selectedPipelineId && selectedPipelineId !== lead.pipelineId) {
+                            pipelineMut.mutate(selectedPipelineId);
+                          } else {
+                            setPipelinePickerOpen(false);
+                          }
+                        }}
+                        disabled={!selectedPipelineId || pipelineMut.isPending}
+                        className="w-full h-8 rounded-lg text-xs font-semibold text-white disabled:opacity-40"
+                        style={{ background: 'var(--brand-500)' }}
+                      >
+                        {pipelineMut.isPending ? 'Salvando...' : 'Salvar'}
+                      </button>
+                    </div>
+                  </div>
+                </>
+              )}
               {stages.map((s, idx) => {
                 const isCurrent = idx === currentStageIdx;
                 const isPast = idx < currentStageIdx;
