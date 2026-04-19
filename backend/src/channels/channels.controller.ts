@@ -65,6 +65,7 @@ export class ChannelsController {
   }
 
   @Get(':id/qr')
+  @UseGuards(JwtAuthGuard)
   async qr(@Param('id') id: string, @Request() req: any, @Res() res: any) {
     const qr = await this.channelsService.getQrCode(id);
     const acceptsJson = (req.headers.accept || '').includes('application/json');
