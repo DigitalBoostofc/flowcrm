@@ -229,14 +229,24 @@ function AddCompanyModal({ open, onClose, currentUser, users, company }: AddComp
 
   const mutation = useMutation({
     mutationFn: () => {
-      const payload = { ...form, ranking: form.ranking || undefined };
-      return company ? updateCompany(company.id, payload) : createCompany(payload);
+      const cleaned: Record<string, unknown> = {};
+      for (const [key, value] of Object.entries(form)) {
+        if (typeof value === 'string' && value.trim() === '') continue;
+        if (Array.isArray(value) && value.length === 0 && key !== 'additionalAccessUserIds') continue;
+        cleaned[key] = value;
+      }
+      cleaned.ranking = form.ranking || undefined;
+      return company ? updateCompany(company.id, cleaned) : createCompany(cleaned as any);
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['companies'] });
       onClose();
     },
-    onError: () => setError(isEdit ? 'Erro ao atualizar empresa.' : 'Erro ao criar empresa.'),
+    onError: (err: any) => {
+      const backendMsg = err?.response?.data?.message;
+      const detail = Array.isArray(backendMsg) ? backendMsg.join(', ') : backendMsg;
+      setError(detail || (isEdit ? 'Erro ao atualizar empresa.' : 'Erro ao criar empresa.'));
+    },
   });
 
   const handleSubmit = (e: React.FormEvent) => {
