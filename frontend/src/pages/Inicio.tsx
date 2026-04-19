@@ -279,20 +279,337 @@ function ActivityCard({
   );
 }
 
+/* ── Quick Panel base ──────────────────────────────────────── */
+
+type QuickType = 'pessoa' | 'empresa' | 'negocio' | null;
+
+interface QuickPanelProps {
+  anchorRef: React.RefObject<HTMLButtonElement | null>;
+  onClose: () => void;
+}
+
+function QuickPanelShell({ anchorRef, onClose, title, icon: Icon, color, children }: QuickPanelProps & {
+  title: string;
+  icon: typeof Building2;
+  color: string;
+  children: React.ReactNode;
+}) {
+  const panelRef = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState({ top: 0, right: 0 });
+
+  useEffect(() => {
+    if (!anchorRef.current) return;
+    const rect = anchorRef.current.getBoundingClientRect();
+    const panelWidth = 320;
+    setPos({
+      top: rect.top,
+      right: window.innerWidth - rect.left + 8,
+    });
+  }, [anchorRef]);
+
+  // Fechar ao clicar fora
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (panelRef.current && !panelRef.current.contains(e.target as Node) &&
+          anchorRef.current && !anchorRef.current.contains(e.target as Node)) {
+        onClose();
+      }
+    };
+    const t = setTimeout(() => document.addEventListener('mousedown', handler), 100);
+    return () => { clearTimeout(t); document.removeEventListener('mousedown', handler); };
+  }, [onClose, anchorRef]);
+
+  // Fechar com Escape
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, [onClose]);
+
+  return (
+    <div
+      ref={panelRef}
+      className="animate-fade-up"
+      style={{
+        position: 'fixed',
+        top: Math.min(pos.top, window.innerHeight - 520),
+        right: pos.right,
+        width: 320,
+        zIndex: 9998,
+        background: 'var(--surface)',
+        border: '1px solid var(--edge-strong)',
+        borderRadius: 12,
+        boxShadow: 'var(--shadow-xl)',
+        overflow: 'hidden',
+      }}
+    >
+      {/* Header */}
+      <div className="flex items-center gap-3 px-4 py-3" style={{ background: color }}>
+        <Icon className="w-4 h-4 text-white flex-shrink-0" strokeWidth={2} />
+        <span className="text-sm font-semibold text-white tracking-wide uppercase flex-1">{title}</span>
+        <button onClick={onClose} className="text-white/70 hover:text-white transition-colors">
+          <X className="w-4 h-4" strokeWidth={2} />
+        </button>
+      </div>
+      <div className="p-4 space-y-3 max-h-[75vh] overflow-y-auto">{children}</div>
+    </div>
+  );
+}
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="space-y-1">
+      <label className="block text-xs font-medium" style={{ color: 'var(--ink-2)' }}>{label}</label>
+      {children}
+    </div>
+  );
+}
+
+const fieldStyle: React.CSSProperties = {
+  width: '100%', height: 34, padding: '0 10px', borderRadius: 6,
+  fontSize: 13, fontFamily: 'inherit',
+  background: 'var(--surface-hover)', border: '1px solid var(--edge-strong)',
+  color: 'var(--ink-1)', outline: 'none',
+};
+
+/* ── Adicionar Pessoa ──────────────────────────────────────── */
+
+function QuickAddPessoa({ anchorRef, onClose }: QuickPanelProps) {
+  const qc = useQueryClient();
+  const [name, setName] = useState('');
+  const [company, setCompany] = useState('');
+  const [role, setRole] = useState('');
+  const [email, setEmail] = useState('');
+  const [phoneType, setPhoneType] = useState<'celular' | 'whatsapp' | 'phone'>('celular');
+  const [phone, setPhone] = useState('');
+
+  const mut = useMutation({
+    mutationFn: () => createContact({
+      name,
+      company: company || undefined,
+      role: role || undefined,
+      email: email || undefined,
+      celular: phoneType === 'celular' ? phone || undefined : undefined,
+      whatsapp: phoneType === 'whatsapp' ? phone || undefined : undefined,
+    }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['contacts'] }); onClose(); },
+  });
+
+  return (
+    <QuickPanelShell anchorRef={anchorRef} onClose={onClose} title="Adicionar uma pessoa" icon={UserIcon} color="#635BFF">
+      <Field label="Nome *">
+        <input style={fieldStyle} value={name} onChange={e => setName(e.target.value)} placeholder="Nome completo" autoFocus />
+      </Field>
+      <Field label="Empresa">
+        <input style={fieldStyle} value={company} onChange={e => setCompany(e.target.value)} placeholder="Nome da empresa" />
+      </Field>
+      <Field label="Cargo">
+        <input style={fieldStyle} value={role} onChange={e => setRole(e.target.value)} placeholder="Cargo" />
+      </Field>
+      <Field label="E-mail">
+        <input style={fieldStyle} type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="exemplo@email.com" />
+      </Field>
+      <Field label="Tipo de telefone">
+        <select style={{ ...fieldStyle, height: 34 }} value={phoneType} onChange={e => setPhoneType(e.target.value as any)}>
+          <option value="celular">Celular</option>
+          <option value="whatsapp">WhatsApp</option>
+          <option value="phone">Telefone</option>
+        </select>
+      </Field>
+      <Field label="Telefone">
+        <input style={fieldStyle} value={phone} onChange={e => setPhone(e.target.value)} placeholder="(DDD) Número" />
+      </Field>
+      <button
+        onClick={() => mut.mutate()}
+        disabled={!name || mut.isPending}
+        className="w-full h-9 rounded-lg text-sm font-semibold text-white disabled:opacity-50 flex items-center justify-center gap-2 mt-1"
+        style={{ background: '#635BFF' }}
+      >
+        {mut.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Adicionar'}
+      </button>
+    </QuickPanelShell>
+  );
+}
+
+/* ── Adicionar Empresa ─────────────────────────────────────── */
+
+function QuickAddEmpresa({ anchorRef, onClose }: QuickPanelProps) {
+  const qc = useQueryClient();
+  const [name, setName] = useState('');
+  const [website, setWebsite] = useState('');
+  const [cep, setCep] = useState('');
+  const [telefone, setTelefone] = useState('');
+
+  const mut = useMutation({
+    mutationFn: () => createCompany({
+      name,
+      website: website || undefined,
+      cep: cep || undefined,
+      telefone: telefone || undefined,
+    }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['companies'] }); onClose(); },
+  });
+
+  return (
+    <QuickPanelShell anchorRef={anchorRef} onClose={onClose} title="Adicionar uma empresa" icon={Building2} color="#635BFF">
+      <Field label="Nome *">
+        <input style={fieldStyle} value={name} onChange={e => setName(e.target.value)} placeholder="Empresa Y" autoFocus />
+      </Field>
+      <Field label="Website">
+        <input style={fieldStyle} value={website} onChange={e => setWebsite(e.target.value)} placeholder="www.empresa.com.br" />
+      </Field>
+      <Field label="CEP">
+        <input style={fieldStyle} value={cep} onChange={e => setCep(e.target.value)} placeholder="00000-000" />
+      </Field>
+      <Field label="Telefone">
+        <input style={fieldStyle} value={telefone} onChange={e => setTelefone(e.target.value)} placeholder="(DDD) Número" />
+      </Field>
+      <button
+        onClick={() => mut.mutate()}
+        disabled={!name || mut.isPending}
+        className="w-full h-9 rounded-lg text-sm font-semibold text-white disabled:opacity-50 flex items-center justify-center gap-2 mt-1"
+        style={{ background: '#635BFF' }}
+      >
+        {mut.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Adicionar'}
+      </button>
+    </QuickPanelShell>
+  );
+}
+
+/* ── Adicionar Negócio ─────────────────────────────────────── */
+
+function QuickAddNegocio({ anchorRef, onClose }: QuickPanelProps) {
+  const qc = useQueryClient();
+  const [title, setTitle] = useState('');
+  const [contactSearch, setContactSearch] = useState('');
+  const [selectedContactId, setSelectedContactId] = useState('');
+  const [value, setValue] = useState('');
+  const [pipelineId, setPipelineId] = useState('');
+  const [stageId, setStageId] = useState('');
+  const [notes, setNotes] = useState('');
+
+  const { data: pipelines = [] } = useQuery({ queryKey: ['pipelines'], queryFn: listPipelines });
+  const { data: contacts = [] } = useQuery({
+    queryKey: ['contacts', contactSearch],
+    queryFn: () => listContacts(contactSearch || undefined),
+    enabled: contactSearch.length >= 1,
+  });
+
+  const selectedPipeline = pipelines.find(p => p.id === pipelineId);
+  const stages = selectedPipeline?.stages?.sort((a, b) => a.position - b.position) ?? [];
+
+  const mut = useMutation({
+    mutationFn: async () => {
+      let contactId = selectedContactId;
+      if (!contactId && contactSearch) {
+        const c = await createContact({ name: contactSearch });
+        contactId = c.id;
+      }
+      return createLead({
+        contactId,
+        pipelineId,
+        stageId,
+        title: title || undefined,
+        value: value ? parseFloat(value.replace(',', '.')) : undefined,
+        notes: notes || undefined,
+      });
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['leads'] }); onClose(); },
+  });
+
+  const canSubmit = (selectedContactId || contactSearch) && pipelineId && stageId;
+
+  return (
+    <QuickPanelShell anchorRef={anchorRef} onClose={onClose} title="Adicionar um negócio" icon={DollarSign} color="#635BFF">
+      <Field label="Título">
+        <input style={fieldStyle} value={title} onChange={e => setTitle(e.target.value)} placeholder="Venda de produto Y" autoFocus />
+      </Field>
+      <Field label="Empresa / Pessoa *">
+        <div className="relative">
+          <input
+            style={fieldStyle}
+            value={selectedContactId ? contacts.find(c => c.id === selectedContactId)?.name ?? contactSearch : contactSearch}
+            onChange={e => { setContactSearch(e.target.value); setSelectedContactId(''); }}
+            placeholder="Nome do cliente"
+          />
+          {!selectedContactId && contacts.length > 0 && contactSearch && (
+            <div
+              className="absolute top-full left-0 w-full mt-1 rounded-lg py-1 z-10"
+              style={{ background: 'var(--surface-raised)', border: '1px solid var(--edge-strong)', boxShadow: 'var(--shadow-lg)' }}
+            >
+              {contacts.slice(0, 5).map(c => (
+                <button
+                  key={c.id}
+                  className="w-full text-left px-3 py-2 text-xs hover:bg-[var(--surface-hover)]"
+                  style={{ color: 'var(--ink-1)' }}
+                  onClick={() => { setSelectedContactId(c.id); setContactSearch(c.name); }}
+                >
+                  {c.name}
+                  {c.company && <span style={{ color: 'var(--ink-3)' }}> · {c.company}</span>}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      </Field>
+      <Field label="Valor">
+        <input style={fieldStyle} value={value} onChange={e => setValue(e.target.value)} placeholder="0,00" type="text" />
+      </Field>
+      <Field label="Funil *">
+        <select
+          style={{ ...fieldStyle, height: 34 }}
+          value={pipelineId}
+          onChange={e => { setPipelineId(e.target.value); setStageId(''); }}
+        >
+          <option value="">Selecione...</option>
+          {pipelines.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+        </select>
+      </Field>
+      {pipelineId && (
+        <Field label="Etapa *">
+          <select style={{ ...fieldStyle, height: 34 }} value={stageId} onChange={e => setStageId(e.target.value)}>
+            <option value="">Selecione...</option>
+            {stages.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+          </select>
+        </Field>
+      )}
+      <Field label="Descrição">
+        <textarea
+          style={{ ...fieldStyle, height: 72, resize: 'none', paddingTop: 8, paddingBottom: 8 }}
+          value={notes}
+          onChange={e => setNotes(e.target.value)}
+          placeholder="Descrição"
+        />
+      </Field>
+      <button
+        onClick={() => mut.mutate()}
+        disabled={!canSubmit || mut.isPending}
+        className="w-full h-9 rounded-lg text-sm font-semibold text-white disabled:opacity-50 flex items-center justify-center gap-2 mt-1"
+        style={{ background: '#635BFF' }}
+      >
+        {mut.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Adicionar'}
+      </button>
+    </QuickPanelShell>
+  );
+}
+
+/* ── Sidebar Action Button ─────────────────────────────────── */
+
 function SidebarActionButton({
-  icon: Icon, label, variant = 'solid',
-}: { icon: typeof Building2; label: string; variant?: 'solid' | 'ghost' }) {
-  const isSolid = variant === 'solid';
+  icon: Icon, label, onClick, btnRef,
+}: { icon: typeof Building2; label: string; onClick: () => void; btnRef?: React.RefObject<HTMLButtonElement> }) {
   return (
     <button
-      className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-bold uppercase tracking-wide transition-all"
-      style={
-        isSolid
-          ? { background: 'var(--brand-500, #6366f1)', color: '#fff' }
-          : { background: 'var(--surface-raised)', color: 'var(--brand-500, #6366f1)', border: '1px solid var(--edge)' }
-      }
+      ref={btnRef as React.RefObject<HTMLButtonElement>}
+      onClick={onClick}
+      className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-semibold transition-all"
+      style={{ background: 'var(--surface)', border: '1px solid var(--edge-strong)', color: 'var(--ink-1)', boxShadow: 'var(--shadow-sm)' }}
+      onMouseEnter={e => (e.currentTarget.style.borderColor = 'var(--brand-500)')}
+      onMouseLeave={e => (e.currentTarget.style.borderColor = 'var(--edge-strong)')}
     >
-      <Icon className="w-4 h-4" />
+      <div className="w-7 h-7 rounded-md flex items-center justify-center flex-shrink-0" style={{ background: 'var(--brand-50)' }}>
+        <Icon className="w-3.5 h-3.5" style={{ color: 'var(--brand-500)' }} strokeWidth={2} />
+      </div>
       {label}
     </button>
   );
@@ -354,6 +671,10 @@ function TrialBanner() {
 
 export default function Inicio() {
   const currentUser = useAuthStore((s) => s.user);
+  const [quickOpen, setQuickOpen] = useState<QuickType>(null);
+  const btnEmpresaRef = useRef<HTMLButtonElement>(null);
+  const btnPessoaRef  = useRef<HTMLButtonElement>(null);
+  const btnNegocioRef = useRef<HTMLButtonElement>(null);
 
   const today = useMemo(() => new Date(), []);
   const defaultStart = useMemo(() => {
@@ -460,12 +781,35 @@ export default function Inicio() {
         </div>
 
         {/* Right sidebar */}
-        <aside className="space-y-3">
-          <SidebarActionButton icon={Building2} label="Adicionar uma empresa" />
-          <SidebarActionButton icon={UserIcon} label="Adicionar uma pessoa" />
-          <SidebarActionButton icon={DollarSign} label="Adicionar um negócio" />
+        <aside className="space-y-2">
+          <SidebarActionButton
+            icon={Building2} label="Adicionar uma empresa"
+            btnRef={btnEmpresaRef}
+            onClick={() => setQuickOpen(q => q === 'empresa' ? null : 'empresa')}
+          />
+          <SidebarActionButton
+            icon={UserIcon} label="Adicionar uma pessoa"
+            btnRef={btnPessoaRef}
+            onClick={() => setQuickOpen(q => q === 'pessoa' ? null : 'pessoa')}
+          />
+          <SidebarActionButton
+            icon={DollarSign} label="Adicionar um negócio"
+            btnRef={btnNegocioRef}
+            onClick={() => setQuickOpen(q => q === 'negocio' ? null : 'negocio')}
+          />
         </aside>
       </div>
+
+      {/* Quick panels */}
+      {quickOpen === 'empresa' && (
+        <QuickAddEmpresa anchorRef={btnEmpresaRef} onClose={() => setQuickOpen(null)} />
+      )}
+      {quickOpen === 'pessoa' && (
+        <QuickAddPessoa anchorRef={btnPessoaRef} onClose={() => setQuickOpen(null)} />
+      )}
+      {quickOpen === 'negocio' && (
+        <QuickAddNegocio anchorRef={btnNegocioRef} onClose={() => setQuickOpen(null)} />
+      )}
     </div>
   );
 }
