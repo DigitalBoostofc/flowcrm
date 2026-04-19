@@ -1,17 +1,7 @@
 import { api } from './client';
-import type { Contact } from '@/types/api';
+import type { Contact, ContactPrivacy } from '@/types/api';
 
-export async function listContacts(search?: string): Promise<Contact[]> {
-  const res = await api.get<Contact[]>('/contacts', { params: search ? { search } : {} });
-  return res.data;
-}
-
-export async function getContact(id: string): Promise<Contact> {
-  const res = await api.get<Contact>(`/contacts/${id}`);
-  return res.data;
-}
-
-export async function createContact(data: {
+export interface CreateContactInput {
   name: string;
   phone?: string;
   email?: string;
@@ -23,14 +13,50 @@ export async function createContact(data: {
   channelOrigin?: string;
   categoria?: string;
   responsibleId?: string;
-}): Promise<Contact> {
+  cpf?: string;
+  birthDay?: string;
+  birthYear?: number;
+  origem?: string;
+  descricao?: string;
+  whatsapp?: string;
+  celular?: string;
+  fax?: string;
+  ramal?: string;
+  pais?: string;
+  estado?: string;
+  cidade?: string;
+  bairro?: string;
+  rua?: string;
+  numero?: string;
+  complemento?: string;
+  produtos?: string[];
+  facebook?: string;
+  twitter?: string;
+  linkedin?: string;
+  skype?: string;
+  instagram?: string;
+  privacy?: ContactPrivacy;
+  additionalAccessUserIds?: string[];
+}
+
+export async function listContacts(search?: string): Promise<Contact[]> {
+  const res = await api.get<Contact[]>('/contacts', { params: search ? { search } : {} });
+  return res.data;
+}
+
+export async function getContact(id: string): Promise<Contact> {
+  const res = await api.get<Contact>(`/contacts/${id}`);
+  return res.data;
+}
+
+export async function createContact(data: CreateContactInput): Promise<Contact> {
   const res = await api.post<Contact>('/contacts', data);
   return res.data;
 }
 
 export async function updateContact(
   id: string,
-  data: { name?: string; phone?: string; email?: string; origin?: string; categoria?: string; responsibleId?: string },
+  data: Partial<CreateContactInput>,
 ): Promise<Contact> {
   const res = await api.patch<Contact>(`/contacts/${id}`, data);
   return res.data;

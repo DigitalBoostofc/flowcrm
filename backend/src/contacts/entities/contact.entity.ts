@@ -1,6 +1,11 @@
 import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, OneToMany } from 'typeorm';
 import { Lead } from '../../leads/entities/lead.entity';
 
+export enum ContactPrivacy {
+  ALL = 'all',
+  RESTRICTED = 'restricted',
+}
+
 @Entity('contacts')
 export class Contact {
   @PrimaryGeneratedColumn('uuid')
@@ -38,6 +43,78 @@ export class Contact {
 
   @Column({ type: 'uuid', nullable: true })
   responsibleId: string;
+
+  @Column({ nullable: true })
+  cpf: string;
+
+  @Column({ nullable: true })
+  birthDay: string;
+
+  @Column({ type: 'int', nullable: true })
+  birthYear: number;
+
+  @Column({ nullable: true })
+  origem: string;
+
+  @Column({ type: 'text', nullable: true })
+  descricao: string;
+
+  @Column({ nullable: true })
+  whatsapp: string;
+
+  @Column({ nullable: true })
+  celular: string;
+
+  @Column({ nullable: true })
+  fax: string;
+
+  @Column({ nullable: true })
+  ramal: string;
+
+  @Column({ nullable: true })
+  pais: string;
+
+  @Column({ nullable: true })
+  estado: string;
+
+  @Column({ nullable: true })
+  cidade: string;
+
+  @Column({ nullable: true })
+  bairro: string;
+
+  @Column({ nullable: true })
+  rua: string;
+
+  @Column({ nullable: true })
+  numero: string;
+
+  @Column({ nullable: true })
+  complemento: string;
+
+  @Column({ type: 'jsonb', default: () => `'[]'` })
+  produtos: string[];
+
+  @Column({ nullable: true })
+  facebook: string;
+
+  @Column({ nullable: true })
+  twitter: string;
+
+  @Column({ nullable: true })
+  linkedin: string;
+
+  @Column({ nullable: true })
+  skype: string;
+
+  @Column({ nullable: true })
+  instagram: string;
+
+  @Column({ type: 'enum', enum: ContactPrivacy, default: ContactPrivacy.ALL })
+  privacy: ContactPrivacy;
+
+  @Column({ type: 'jsonb', default: () => `'[]'` })
+  additionalAccessUserIds: string[];
 
   @OneToMany(() => Lead, (lead) => lead.contact)
   leads: Lead[];

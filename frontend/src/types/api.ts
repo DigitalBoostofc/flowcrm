@@ -15,6 +15,8 @@ export interface LoginResponse {
 export type LeadStatus = 'active' | 'won' | 'lost';
 export type ActivityType = 'note' | 'call' | 'whatsapp' | 'meeting' | 'visit' | 'proposal';
 
+export type ContactPrivacy = 'all' | 'restricted';
+
 export interface Contact {
   id: string;
   name: string;
@@ -28,6 +30,30 @@ export interface Contact {
   zipCode?: string;
   categoria?: string;
   responsibleId?: string;
+  cpf?: string;
+  birthDay?: string;
+  birthYear?: number;
+  origem?: string;
+  descricao?: string;
+  whatsapp?: string;
+  celular?: string;
+  fax?: string;
+  ramal?: string;
+  pais?: string;
+  estado?: string;
+  cidade?: string;
+  bairro?: string;
+  rua?: string;
+  numero?: string;
+  complemento?: string;
+  produtos?: string[];
+  facebook?: string;
+  twitter?: string;
+  linkedin?: string;
+  skype?: string;
+  instagram?: string;
+  privacy?: ContactPrivacy;
+  additionalAccessUserIds?: string[];
   leads?: Lead[];
   createdAt: string;
   updatedAt: string;

@@ -4,13 +4,10 @@ import {
   Search, Filter, ArrowUpDown, Columns3, Download, Upload, Plus, X, Users,
 } from 'lucide-react';
 import { listContacts, createContact } from '@/api/contacts';
-import { listCompanies } from '@/api/companies';
-import { listPipelines } from '@/api/pipelines';
-import { createLead } from '@/api/leads';
 import { listUsers } from '@/api/users';
 import { useAuthStore } from '@/store/auth.store';
 import { usePanelStore } from '@/store/panel.store';
-import type { Contact, User } from '@/types/api';
+import type { Contact, ContactPrivacy, User } from '@/types/api';
 
 /* ── Form helpers ────────────────────────────────────── */
 
@@ -36,7 +33,7 @@ function Input(props: React.InputHTMLAttributes<HTMLInputElement>) {
   return (
     <input
       {...props}
-      className="w-full px-3 py-2 rounded-lg outline-none text-sm focus:border-[var(--brand-500)]"
+      className="w-full px-3 py-2 rounded-lg outline-none text-sm focus:border-[var(--brand-500)] disabled:opacity-60"
       style={{
         background: 'var(--surface)',
         border: '1px solid var(--edge)',
@@ -120,21 +117,20 @@ function Avatar({ name, id, size = 32 }: { name: string; id: string; size?: numb
   );
 }
 
-/* ── AddNegocioModal ─────────────────────────────────── */
+/* ── Constants ───────────────────────────────────────── */
 
-interface Produto {
-  productName: string;
-  unitPrice: number;
-  quantity: number;
-  discount: number;
-  discountType: 'value' | 'percent';
-}
+const BR_STATES = [
+  'AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 'MT',
+  'MS', 'MG', 'PA', 'PB', 'PR', 'PE', 'PI', 'RJ', 'RN', 'RS', 'RO',
+  'RR', 'SC', 'SP', 'SE', 'TO',
+];
 
-function emptyProduto(): Produto {
-  return { productName: '', unitPrice: 0, quantity: 1, discount: 0, discountType: 'value' };
-}
+const CATEGORIAS = ['Cliente', 'Prospect', 'Parceiro', 'Fornecedor', 'Lead'];
+const ORIGENS = ['Site', 'Indicação', 'Redes sociais', 'E-mail', 'Evento', 'Outro'];
 
-function AddNegocioModal({
+/* ── AddPessoaModal ──────────────────────────────────── */
+
+function AddPessoaModal({
   open, onClose, currentUser, users,
 }: {
   open: boolean;
@@ -144,138 +140,55 @@ function AddNegocioModal({
 }) {
   const qc = useQueryClient();
 
-  const [entityType, setEntityType] = useState<'empresa' | 'pessoa'>('empresa');
-  const [entitySearch, setEntitySearch] = useState('');
-  const [selectedEntity, setSelectedEntity] = useState<{ id: string; name: string; kind: 'empresa' | 'pessoa' } | null>(null);
-
-  const [form, setForm] = useState({
-    title: '',
+  const emptyForm = () => ({
+    name: '',
+    cpf: '',
+    company: '',
+    role: '',
+    birthDay: '',
+    birthYear: '',
     responsibleId: currentUser?.id ?? '',
-    pipelineId: '',
-    startDate: '',
-    conclusionDate: '',
-    notes: '',
-    privacy: 'all' as 'all' | 'restricted',
+    categoria: '',
+    origem: '',
+    descricao: '',
+    privacy: 'all' as ContactPrivacy,
     additionalAccessUserIds: [] as string[],
+    email: '',
+    whatsapp: '',
+    phone: '',
+    celular: '',
+    fax: '',
+    ramal: '',
+    zipCode: '',
+    pais: 'Brasil',
+    estado: '',
+    cidade: '',
+    bairro: '',
+    rua: '',
+    numero: '',
+    complemento: '',
+    produtos: [] as string[],
+    facebook: '',
+    twitter: '',
+    linkedin: '',
+    skype: '',
+    instagram: '',
   });
-  const [produtos, setProdutos] = useState<Produto[]>([]);
+
+  const [form, setForm] = useState(emptyForm);
+  const [productInput, setProductInput] = useState('');
   const [error, setError] = useState('');
 
   useEffect(() => {
     if (!open) {
-      setEntityType('empresa');
-      setEntitySearch('');
-      setSelectedEntity(null);
-      setProdutos([]);
+      setForm(emptyForm());
+      setProductInput('');
       setError('');
-      setForm({
-        title: '',
-        responsibleId: currentUser?.id ?? '',
-        pipelineId: '',
-        startDate: '',
-        conclusionDate: '',
-        notes: '',
-        privacy: 'all',
-        additionalAccessUserIds: [],
-      });
     }
-  }, [open, currentUser]);
+  }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const { data: pipelines = [] } = useQuery({ queryKey: ['pipelines'], queryFn: listPipelines, enabled: open });
-  const { data: companies = [] } = useQuery({
-    queryKey: ['companies', entitySearch],
-    queryFn: () => listCompanies(entitySearch || undefined),
-    enabled: open && entityType === 'empresa' && !selectedEntity && entitySearch.trim().length >= 1,
-    staleTime: 10_000,
-  });
-  const { data: contactResults = [] } = useQuery({
-    queryKey: ['contacts', entitySearch],
-    queryFn: () => listContacts(entitySearch || undefined),
-    enabled: open && entityType === 'pessoa' && !selectedEntity && entitySearch.trim().length >= 1,
-    staleTime: 10_000,
-  });
-
-  const set = <K extends keyof typeof form>(key: K, value: (typeof form)[K]) =>
+  const set = <K extends keyof ReturnType<typeof emptyForm>>(key: K, value: ReturnType<typeof emptyForm>[K]) =>
     setForm((f) => ({ ...f, [key]: value }));
-
-  // Default pipeline selection once pipelines load
-  useEffect(() => {
-    if (open && pipelines.length && !form.pipelineId) {
-      const def = pipelines.find((p) => p.isDefault) ?? pipelines[0];
-      if (def) set('pipelineId', def.id);
-    }
-  }, [open, pipelines]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Totals
-  const totals = useMemo(() => {
-    let valor = 0;
-    let desconto = 0;
-    for (const p of produtos) {
-      const linha = p.unitPrice * p.quantity;
-      const d = p.discountType === 'percent' ? (linha * p.discount) / 100 : p.discount;
-      valor += linha;
-      desconto += d;
-    }
-    return { valor, desconto, total: valor - desconto };
-  }, [produtos]);
-
-  const updateProduto = (idx: number, patch: Partial<Produto>) => {
-    setProdutos((arr) => arr.map((p, i) => (i === idx ? { ...p, ...patch } : p)));
-  };
-
-  const mutation = useMutation({
-    mutationFn: async () => {
-      if (!form.pipelineId) throw new Error('Selecione um funil.');
-      const pipeline = pipelines.find((p) => p.id === form.pipelineId);
-      if (!pipeline) throw new Error('Funil inválido.');
-      const stage = [...(pipeline.stages ?? [])].sort((a, b) => a.position - b.position)[0];
-      if (!stage) throw new Error('Pipeline sem etapas.');
-
-      let contactId = selectedEntity?.kind === 'pessoa' ? selectedEntity.id : undefined;
-
-      // If user picked an empresa, we still need a contact for the lead.
-      // Create a placeholder contact tied to the company name so the lead has a valid FK.
-      if (!contactId) {
-        const name = selectedEntity?.name ?? entitySearch.trim();
-        if (!name) throw new Error('Informe a empresa ou pessoa.');
-        const c = await createContact({
-          name,
-          company: selectedEntity?.kind === 'empresa' ? selectedEntity.name : undefined,
-        });
-        contactId = c.id;
-      }
-
-      return createLead({
-        contactId,
-        pipelineId: pipeline.id,
-        stageId: stage.id,
-        title: form.title.trim() || undefined,
-        value: totals.total || undefined,
-        notes: form.notes.trim() || undefined,
-        assignedToId: form.responsibleId || undefined,
-        startDate: form.startDate || undefined,
-        conclusionDate: form.conclusionDate || undefined,
-        privacy: form.privacy,
-        additionalAccessUserIds: form.privacy === 'restricted' ? form.additionalAccessUserIds : [],
-        items: produtos
-          .filter((p) => p.productName.trim())
-          .map((p) => ({
-            productName: p.productName.trim(),
-            unitPrice: Number(p.unitPrice) || 0,
-            quantity: Number(p.quantity) || 0,
-            discount: Number(p.discount) || 0,
-            discountType: p.discountType,
-          })),
-      });
-    },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['leads'] });
-      qc.invalidateQueries({ queryKey: ['contacts'] });
-      qc.invalidateQueries({ queryKey: ['pessoas'] });
-      onClose();
-    },
-    onError: (e: Error) => setError(e.message || 'Erro ao criar negócio.'),
-  });
 
   const toggleAccessUser = (id: string) => {
     set(
@@ -286,14 +199,61 @@ function AddNegocioModal({
     );
   };
 
+  const addProduct = () => {
+    const v = productInput.trim();
+    if (!v) return;
+    set('produtos', [...form.produtos, v]);
+    setProductInput('');
+  };
+
+  const mutation = useMutation({
+    mutationFn: () =>
+      createContact({
+        name: form.name.trim(),
+        cpf: form.cpf.trim() || undefined,
+        company: form.company.trim() || undefined,
+        role: form.role.trim() || undefined,
+        birthDay: form.birthDay.trim() || undefined,
+        birthYear: form.birthYear ? parseInt(form.birthYear, 10) : undefined,
+        responsibleId: form.responsibleId || undefined,
+        categoria: form.categoria || undefined,
+        origem: form.origem || undefined,
+        descricao: form.descricao.trim() || undefined,
+        privacy: form.privacy,
+        additionalAccessUserIds: form.privacy === 'restricted' ? form.additionalAccessUserIds : [],
+        email: form.email.trim() || undefined,
+        whatsapp: form.whatsapp.trim() || undefined,
+        phone: form.phone.trim() || undefined,
+        celular: form.celular.trim() || undefined,
+        fax: form.fax.trim() || undefined,
+        ramal: form.ramal.trim() || undefined,
+        zipCode: form.zipCode.trim() || undefined,
+        pais: form.pais.trim() || undefined,
+        estado: form.estado || undefined,
+        cidade: form.cidade.trim() || undefined,
+        bairro: form.bairro.trim() || undefined,
+        rua: form.rua.trim() || undefined,
+        numero: form.numero.trim() || undefined,
+        complemento: form.complemento.trim() || undefined,
+        produtos: form.produtos.length ? form.produtos : undefined,
+        facebook: form.facebook.trim() || undefined,
+        twitter: form.twitter.trim() || undefined,
+        linkedin: form.linkedin.trim() || undefined,
+        skype: form.skype.trim() || undefined,
+        instagram: form.instagram.trim() || undefined,
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['pessoas'] });
+      qc.invalidateQueries({ queryKey: ['contacts'] });
+      onClose();
+    },
+    onError: () => setError('Erro ao criar pessoa.'),
+  });
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedEntity && !entitySearch.trim()) {
-      setError('Informe a empresa ou pessoa.');
-      return;
-    }
-    if (!form.title.trim()) {
-      setError('Nome do negócio é obrigatório.');
+    if (!form.name.trim()) {
+      setError('Por favor, informe o nome da pessoa.');
       return;
     }
     setError('');
@@ -301,14 +261,6 @@ function AddNegocioModal({
   };
 
   if (!open) return null;
-
-  const money = (v: number) =>
-    v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-
-  const entityOptions: { id: string; name: string }[] =
-    entityType === 'empresa'
-      ? companies.map((c) => ({ id: c.id, name: c.name }))
-      : contactResults.map((c) => ({ id: c.id, name: c.name }));
 
   return (
     <div
@@ -328,7 +280,7 @@ function AddNegocioModal({
           style={{ borderBottom: '1px solid var(--edge)', background: 'var(--surface-raised)', borderRadius: '12px 12px 0 0' }}
         >
           <h2 className="font-semibold text-lg" style={{ color: 'var(--ink-1)' }}>
-            Adicionar novo negócio
+            Adicionar nova pessoa
           </h2>
           <button
             onClick={onClose}
@@ -339,139 +291,108 @@ function AddNegocioModal({
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-6">
-          {/* Entidade */}
+        <form onSubmit={handleSubmit} className="p-6 space-y-8">
+          {/* ── Dados básicos ── */}
           <section>
-            <Label required>Empresa / Pessoa</Label>
-            <div className="flex gap-2 mb-2">
-              {(['empresa', 'pessoa'] as const).map((t) => (
-                <button
-                  key={t}
-                  type="button"
-                  onClick={() => { setEntityType(t); setSelectedEntity(null); setEntitySearch(''); }}
-                  className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors"
-                  style={{
-                    background: entityType === t ? 'var(--brand-500, #6366f1)' : 'var(--surface)',
-                    color: entityType === t ? '#fff' : 'var(--ink-2)',
-                    border: '1px solid var(--edge)',
-                  }}
-                >
-                  {t === 'empresa' ? 'Empresa' : 'Pessoa'}
-                </button>
-              ))}
-            </div>
-            {selectedEntity ? (
-              <div
-                className="flex items-center justify-between px-3 py-2 rounded-lg text-sm"
-                style={{ background: 'var(--surface)', border: '1px solid var(--edge)' }}
-              >
-                <span style={{ color: 'var(--ink-1)' }}>{selectedEntity.name}</span>
-                <button
-                  type="button"
-                  onClick={() => { setSelectedEntity(null); setEntitySearch(''); }}
-                  style={{ color: 'var(--ink-3)' }}
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-            ) : (
-              <div className="relative">
+            <SectionTitle title="Dados básicos" />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="md:col-span-2">
+                <Label required>Nome</Label>
                 <Input
-                  value={entitySearch}
-                  onChange={(e) => setEntitySearch(e.target.value)}
-                  placeholder={entityType === 'empresa' ? 'Buscar empresa...' : 'Buscar pessoa...'}
+                  value={form.name}
+                  onChange={(e) => set('name', e.target.value)}
+                  placeholder="Digite o nome"
                 />
-                {entitySearch && entityOptions.length > 0 && (
-                  <div
-                    className="absolute z-10 w-full mt-1 rounded-lg overflow-hidden shadow-lg max-h-40 overflow-y-auto"
-                    style={{ background: 'var(--surface-overlay, var(--surface-raised))', border: '1px solid var(--edge-strong, var(--edge))' }}
-                  >
-                    {entityOptions.slice(0, 8).map((o) => (
-                      <button
-                        key={o.id}
-                        type="button"
-                        onClick={() => { setSelectedEntity({ ...o, kind: entityType }); setEntitySearch(o.name); }}
-                        className="w-full text-left px-3 py-2 text-sm hover:bg-[var(--surface-hover)]"
-                        style={{ color: 'var(--ink-1)' }}
-                      >
-                        {o.name}
-                      </button>
-                    ))}
-                  </div>
+                {error && error.toLowerCase().includes('nome') && (
+                  <p className="text-xs mt-1 text-red-500">{error}</p>
                 )}
               </div>
-            )}
-            <p className="text-[11px] mt-1" style={{ color: 'var(--ink-3)' }}>
-              Selecione um existente ou digite um nome para criar automaticamente.
-            </p>
+
+              <div>
+                <Label>CPF</Label>
+                <Input
+                  value={form.cpf}
+                  onChange={(e) => set('cpf', e.target.value)}
+                  placeholder="000.000.000-00"
+                  maxLength={14}
+                />
+              </div>
+              <div>
+                <Label>Empresa</Label>
+                <Input
+                  value={form.company}
+                  onChange={(e) => set('company', e.target.value)}
+                  placeholder="Digite o nome da empresa"
+                />
+              </div>
+              <div>
+                <Label>Cargo</Label>
+                <Input
+                  value={form.role}
+                  onChange={(e) => set('role', e.target.value)}
+                  placeholder="Digite o cargo"
+                />
+              </div>
+              <div>
+                <Label>Aniversário</Label>
+                <Input
+                  value={form.birthDay}
+                  onChange={(e) => set('birthDay', e.target.value)}
+                  placeholder="00/00"
+                  maxLength={5}
+                />
+              </div>
+              <div>
+                <Label>Ano nasc.</Label>
+                <Input
+                  type="number"
+                  value={form.birthYear}
+                  onChange={(e) => set('birthYear', e.target.value)}
+                  placeholder="0000"
+                />
+              </div>
+              <div>
+                <Label>Responsável</Label>
+                <Select
+                  value={form.responsibleId}
+                  onChange={(v) => set('responsibleId', v)}
+                  options={users.map((u) => ({
+                    value: u.id,
+                    label: u.id === currentUser?.id ? `Eu (${u.name})` : u.name,
+                  }))}
+                />
+              </div>
+              <div>
+                <Label>Categoria</Label>
+                <Select
+                  value={form.categoria}
+                  onChange={(v) => set('categoria', v)}
+                  options={CATEGORIAS.map((c) => ({ value: c, label: c }))}
+                />
+              </div>
+              <div>
+                <Label>Origem</Label>
+                <Select
+                  value={form.origem}
+                  onChange={(v) => set('origem', v)}
+                  options={ORIGENS.map((o) => ({ value: o, label: o }))}
+                />
+              </div>
+              <div className="md:col-span-2">
+                <Label>Descrição</Label>
+                <Textarea
+                  rows={3}
+                  value={form.descricao}
+                  onChange={(e) => set('descricao', e.target.value)}
+                  placeholder="Escreva detalhes importantes sobre esse cliente"
+                />
+              </div>
+            </div>
           </section>
 
-          {/* Nome do negócio + responsável */}
-          <section className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="md:col-span-2">
-              <Label required>Nome do negócio</Label>
-              <Input
-                value={form.title}
-                onChange={(e) => set('title', e.target.value)}
-                placeholder="Venda de produto Y"
-              />
-            </div>
-            <div>
-              <Label>Responsável</Label>
-              <Select
-                value={form.responsibleId}
-                onChange={(v) => set('responsibleId', v)}
-                options={users.map((u) => ({
-                  value: u.id,
-                  label: u.id === currentUser?.id ? `Eu (${u.name})` : u.name,
-                }))}
-                placeholder="Selecione"
-              />
-            </div>
-            <div>
-              <Label>Valor total</Label>
-              <Input
-                readOnly
-                value={money(totals.total)}
-                style={{
-                  background: 'var(--surface-hover)',
-                  border: '1px solid var(--edge)',
-                  color: 'var(--ink-2)',
-                }}
-              />
-            </div>
-            <div>
-              <Label>Funil</Label>
-              <Select
-                value={form.pipelineId}
-                onChange={(v) => set('pipelineId', v)}
-                options={pipelines.map((p) => ({ value: p.id, label: p.name }))}
-                placeholder="Selecione"
-              />
-            </div>
-            <div />
-            <div>
-              <Label>Data de início</Label>
-              <Input type="date" value={form.startDate} onChange={(e) => set('startDate', e.target.value)} />
-            </div>
-            <div>
-              <Label>Data de conclusão</Label>
-              <Input type="date" value={form.conclusionDate} onChange={(e) => set('conclusionDate', e.target.value)} />
-            </div>
-            <div className="md:col-span-2">
-              <Label>Descrição</Label>
-              <Textarea
-                rows={3}
-                value={form.notes}
-                onChange={(e) => set('notes', e.target.value)}
-                placeholder="Escreva detalhes importantes sobre esse negócio"
-              />
-            </div>
-          </section>
-
-          {/* Privacidade */}
+          {/* ── Privacidade ── */}
           <section>
-            <SectionTitle title="Privacidade" subtitle="Quem pode ver o histórico e editar esse negócio?" />
+            <SectionTitle title="Privacidade" subtitle="Quem pode ver o histórico e editar essa pessoa?" />
             <div className="space-y-3">
               <label
                 className="flex items-start gap-3 p-3 rounded-lg cursor-pointer"
@@ -480,7 +401,12 @@ function AddNegocioModal({
                   border: `1px solid ${form.privacy === 'all' ? 'var(--brand-500, #6366f1)' : 'var(--edge)'}`,
                 }}
               >
-                <input type="radio" checked={form.privacy === 'all'} onChange={() => set('privacy', 'all')} className="mt-1" />
+                <input
+                  type="radio"
+                  checked={form.privacy === 'all'}
+                  onChange={() => set('privacy', 'all')}
+                  className="mt-1"
+                />
                 <div>
                   <div className="text-sm font-semibold" style={{ color: 'var(--ink-1)' }}>Todos</div>
                   <div className="text-xs" style={{ color: 'var(--ink-3)' }}>
@@ -496,11 +422,17 @@ function AddNegocioModal({
                   border: `1px solid ${form.privacy === 'restricted' ? 'var(--brand-500, #6366f1)' : 'var(--edge)'}`,
                 }}
               >
-                <input type="radio" checked={form.privacy === 'restricted'} onChange={() => set('privacy', 'restricted')} className="mt-1" />
+                <input
+                  type="radio"
+                  checked={form.privacy === 'restricted'}
+                  onChange={() => set('privacy', 'restricted')}
+                  className="mt-1"
+                />
                 <div className="flex-1">
                   <div className="text-sm font-semibold" style={{ color: 'var(--ink-1)' }}>Acesso restrito</div>
                   <div className="text-xs" style={{ color: 'var(--ink-3)' }}>
                     O responsável, seus líderes e os administradores da conta sempre terão acesso.
+                    Você também pode conceder acesso a outros usuários.
                   </div>
                   {form.privacy === 'restricted' && (
                     <div className="mt-3">
@@ -552,136 +484,161 @@ function AddNegocioModal({
             </div>
           </section>
 
-          {/* Produtos e serviços */}
+          {/* ── Contato ── */}
           <section>
-            <SectionTitle title="Produtos e serviços" subtitle="Adicione itens para compor o valor do negócio." />
-            <div
-              className="rounded-lg overflow-hidden"
-              style={{ border: '1px solid var(--edge)' }}
-            >
-              <div
-                className="grid gap-2 px-3 py-2 text-[11px] font-semibold uppercase tracking-wide"
-                style={{
-                  gridTemplateColumns: '2fr 1fr 0.7fr 1fr 1.2fr 1fr 32px',
-                  background: 'var(--surface-raised)',
-                  color: 'var(--ink-3)',
-                  borderBottom: '1px solid var(--edge)',
-                }}
-              >
-                <div>Item</div>
-                <div>Preço unitário</div>
-                <div>Qtd</div>
-                <div>Total</div>
-                <div>Desconto</div>
-                <div>Total c/ desc.</div>
-                <div />
-              </div>
-
-              {produtos.length === 0 ? (
-                <div className="px-3 py-4 text-xs text-center" style={{ color: 'var(--ink-3)' }}>
-                  Nenhum produto adicionado.
-                </div>
-              ) : (
-                produtos.map((p, idx) => {
-                  const linha = p.unitPrice * p.quantity;
-                  const desc = p.discountType === 'percent' ? (linha * p.discount) / 100 : p.discount;
-                  return (
-                    <div
-                      key={idx}
-                      className="grid gap-2 px-3 py-2 items-center"
-                      style={{
-                        gridTemplateColumns: '2fr 1fr 0.7fr 1fr 1.2fr 1fr 32px',
-                        borderBottom: idx === produtos.length - 1 ? 'none' : '1px solid var(--edge)',
-                      }}
-                    >
-                      <Input
-                        value={p.productName}
-                        onChange={(e) => updateProduto(idx, { productName: e.target.value })}
-                        placeholder="Nome do produto"
-                      />
-                      <Input
-                        type="number" min={0} step="0.01"
-                        value={p.unitPrice || ''}
-                        onChange={(e) => updateProduto(idx, { unitPrice: parseFloat(e.target.value) || 0 })}
-                        placeholder="0,00"
-                      />
-                      <Input
-                        type="number" min={0} step="1"
-                        value={p.quantity || ''}
-                        onChange={(e) => updateProduto(idx, { quantity: parseFloat(e.target.value) || 0 })}
-                        placeholder="0"
-                      />
-                      <div className="text-sm" style={{ color: 'var(--ink-2)' }}>{money(linha)}</div>
-                      <div className="flex gap-1">
-                        <Input
-                          type="number" min={0} step="0.01"
-                          value={p.discount || ''}
-                          onChange={(e) => updateProduto(idx, { discount: parseFloat(e.target.value) || 0 })}
-                          placeholder="0"
-                        />
-                        <select
-                          value={p.discountType}
-                          onChange={(e) => updateProduto(idx, { discountType: e.target.value as 'value' | 'percent' })}
-                          className="px-2 rounded-lg text-xs outline-none"
-                          style={{
-                            background: 'var(--surface)',
-                            border: '1px solid var(--edge)',
-                            color: 'var(--ink-1)',
-                          }}
-                        >
-                          <option value="value">R$</option>
-                          <option value="percent">%</option>
-                        </select>
-                      </div>
-                      <div className="text-sm font-medium" style={{ color: 'var(--ink-1)' }}>{money(linha - desc)}</div>
-                      <button
-                        type="button"
-                        onClick={() => setProdutos((arr) => arr.filter((_, i) => i !== idx))}
-                        className="p-1 rounded hover:bg-[var(--surface-hover)]"
-                        style={{ color: 'var(--ink-3)' }}
-                      >
-                        <X className="w-4 h-4" />
-                      </button>
-                    </div>
-                  );
-                })
-              )}
-            </div>
-
-            <button
-              type="button"
-              onClick={() => setProdutos((arr) => [...arr, emptyProduto()])}
-              className="mt-2 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold"
-              style={{ color: 'var(--brand-500, #6366f1)' }}
-            >
-              <Plus className="w-3.5 h-3.5" />
-              Adicionar item
-            </button>
-
-            {/* Summary */}
-            <div
-              className="mt-4 rounded-lg p-4 grid grid-cols-3 gap-4 text-sm"
-              style={{ background: 'var(--surface)', border: '1px solid var(--edge)' }}
-            >
+            <SectionTitle
+              title="Informações para contato"
+              subtitle="Adicione informações que facilitem o contato com o cliente."
+            />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <div className="text-xs" style={{ color: 'var(--ink-3)' }}>Valor</div>
-                <div className="font-semibold" style={{ color: 'var(--ink-1)' }}>{money(totals.valor)}</div>
+                <Label>E-mail</Label>
+                <Input type="email" value={form.email} onChange={(e) => set('email', e.target.value)} placeholder="exemplo@email.com" />
               </div>
               <div>
-                <div className="text-xs" style={{ color: 'var(--ink-3)' }}>Valor do desconto</div>
-                <div className="font-semibold" style={{ color: 'var(--ink-1)' }}>{money(totals.desconto)}</div>
+                <Label>WhatsApp</Label>
+                <Input value={form.whatsapp} onChange={(e) => set('whatsapp', e.target.value)} placeholder="+00 00 00000-0000" />
               </div>
               <div>
-                <div className="text-xs" style={{ color: 'var(--ink-3)' }}>Valor total</div>
-                <div className="font-semibold" style={{ color: 'var(--brand-500, #6366f1)' }}>{money(totals.total)}</div>
+                <Label>Telefone</Label>
+                <Input value={form.phone} onChange={(e) => set('phone', e.target.value)} placeholder="(00) 0000-0000" />
+              </div>
+              <div>
+                <Label>Celular</Label>
+                <Input value={form.celular} onChange={(e) => set('celular', e.target.value)} placeholder="(00) 00000-0000" />
+              </div>
+              <div>
+                <Label>Fax</Label>
+                <Input value={form.fax} onChange={(e) => set('fax', e.target.value)} placeholder="(00) 0000-0000" />
+              </div>
+              <div>
+                <Label>Ramal</Label>
+                <Input value={form.ramal} onChange={(e) => set('ramal', e.target.value)} placeholder="00" />
               </div>
             </div>
           </section>
 
-          {error && <p className="text-xs text-red-500">{error}</p>}
+          {/* ── Endereço ── */}
+          <section>
+            <SectionTitle title="Dados de endereço" subtitle="Adicione a localização do seu cliente." />
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <Label>CEP</Label>
+                <Input value={form.zipCode} onChange={(e) => set('zipCode', e.target.value)} placeholder="00000-000" />
+              </div>
+              <div>
+                <Label>País</Label>
+                <Input value={form.pais} onChange={(e) => set('pais', e.target.value)} placeholder="Brasil" />
+              </div>
+              <div>
+                <Label>Estado</Label>
+                <Select
+                  value={form.estado}
+                  onChange={(v) => set('estado', v)}
+                  options={BR_STATES.map((s) => ({ value: s, label: s }))}
+                />
+              </div>
+              <div>
+                <Label>Cidade</Label>
+                <Input
+                  value={form.cidade}
+                  onChange={(e) => set('cidade', e.target.value)}
+                  placeholder={form.estado ? 'Nome da cidade' : 'Primeiro, selecione o estado'}
+                  disabled={!form.estado}
+                />
+              </div>
+              <div>
+                <Label>Bairro</Label>
+                <Input value={form.bairro} onChange={(e) => set('bairro', e.target.value)} placeholder="Bairro X" />
+              </div>
+              <div>
+                <Label>Rua</Label>
+                <Input value={form.rua} onChange={(e) => set('rua', e.target.value)} placeholder="Rua Y" />
+              </div>
+              <div>
+                <Label>Número</Label>
+                <Input value={form.numero} onChange={(e) => set('numero', e.target.value)} placeholder="77" />
+              </div>
+              <div className="md:col-span-2">
+                <Label>Complemento</Label>
+                <Input value={form.complemento} onChange={(e) => set('complemento', e.target.value)} placeholder="Sala 153, Bloco B" />
+              </div>
+            </div>
+          </section>
+
+          {/* ── Produtos ── */}
+          <section>
+            <SectionTitle title="Produtos e serviços" subtitle="Quais esta pessoa tem potencial de compra?" />
+            <Label>Produtos</Label>
+            <div className="flex gap-2">
+              <Input
+                value={productInput}
+                onChange={(e) => setProductInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') { e.preventDefault(); addProduct(); }
+                }}
+                placeholder="Buscar..."
+              />
+              <button
+                type="button"
+                onClick={addProduct}
+                className="px-3 rounded-lg text-sm font-medium"
+                style={{ background: 'var(--surface-hover)', color: 'var(--ink-2)', border: '1px solid var(--edge)' }}
+              >
+                Adicionar
+              </button>
+            </div>
+            {form.produtos.length > 0 && (
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {form.produtos.map((p, i) => (
+                  <span
+                    key={i}
+                    className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium"
+                    style={{ background: '#1f2937', color: '#fff' }}
+                  >
+                    {p}
+                    <button type="button" onClick={() => set('produtos', form.produtos.filter((_, j) => j !== i))}>
+                      <X className="w-3 h-3" />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
+          </section>
+
+          {/* ── Redes sociais ── */}
+          <section>
+            <SectionTitle title="Redes sociais" />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label>Facebook</Label>
+                <Input value={form.facebook} onChange={(e) => set('facebook', e.target.value)} placeholder="facebook.com/agendor" />
+              </div>
+              <div>
+                <Label>X (Twitter)</Label>
+                <Input value={form.twitter} onChange={(e) => set('twitter', e.target.value)} placeholder="x.com/agendor" />
+              </div>
+              <div>
+                <Label>LinkedIn</Label>
+                <Input value={form.linkedin} onChange={(e) => set('linkedin', e.target.value)} placeholder="linkedin.com/in/agendor" />
+              </div>
+              <div>
+                <Label>Skype</Label>
+                <Input value={form.skype} onChange={(e) => set('skype', e.target.value)} placeholder="agendorcrm" />
+              </div>
+              <div>
+                <Label>Instagram</Label>
+                <Input value={form.instagram} onChange={(e) => set('instagram', e.target.value)} placeholder="@agendor" />
+              </div>
+            </div>
+          </section>
+
+          {error && !error.toLowerCase().includes('nome') && (
+            <p className="text-xs text-red-500">{error}</p>
+          )}
         </form>
 
-        {/* Footer */}
+        {/* Footer actions */}
         <div
           className="flex items-center justify-end gap-3 px-6 py-4 sticky bottom-0"
           style={{ borderTop: '1px solid var(--edge)', background: 'var(--surface-raised)', borderRadius: '0 0 12px 12px' }}
@@ -701,7 +658,7 @@ function AddNegocioModal({
             className="px-5 py-2 rounded-lg text-sm font-semibold text-white disabled:opacity-50"
             style={{ background: 'var(--brand-500, #6366f1)' }}
           >
-            {mutation.isPending ? 'Salvando...' : 'Salvar negócio'}
+            {mutation.isPending ? 'Salvando...' : 'Salvar pessoa'}
           </button>
         </div>
       </div>
@@ -724,7 +681,7 @@ function EmptyState({ onAdd }: { onAdd: () => void }) {
         Cadastre as pessoas da sua rede
       </h3>
       <p className="text-sm mb-5 max-w-sm" style={{ color: 'var(--ink-3)' }}>
-        Você ainda não cadastrou pessoas. Crie um novo negócio e vincule um contato para começar.
+        Você ainda não cadastrou pessoas. Que tal começar adicionando agora mesmo!
       </p>
       <button
         onClick={onAdd}
@@ -923,7 +880,7 @@ export default function Pessoas() {
         Exibindo {total} de {total} pessoa{total !== 1 ? 's' : ''}
       </div>
 
-      <AddNegocioModal
+      <AddPessoaModal
         open={addOpen}
         onClose={() => setAddOpen(false)}
         currentUser={user}
