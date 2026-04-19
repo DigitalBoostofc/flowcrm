@@ -2,7 +2,7 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import {
   LayoutDashboard, Users, Settings as SettingsIcon, LogOut,
-  ListChecks, BarChart2, Zap,
+  ListChecks, BarChart2, Zap, CheckSquare,
 } from 'lucide-react';
 import { useAuthStore } from '@/store/auth.store';
 import { useSidebarStore } from '@/store/sidebar.store';
@@ -13,6 +13,7 @@ const NAV_ITEMS = [
   { to: '/', end: true,  icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/analytics',    icon: BarChart2,        label: 'Analytics' },
   { to: '/contacts',     icon: Users,            label: 'Contatos' },
+  { to: '/tasks',        icon: CheckSquare,      label: 'Tarefas' },
   { to: '/settings',     icon: SettingsIcon,     label: 'Configurações' },
 ];
 

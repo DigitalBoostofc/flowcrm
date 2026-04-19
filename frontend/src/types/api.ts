@@ -111,3 +111,29 @@ export interface ChannelConfig {
   createdAt: string;
   updatedAt: string;
 }
+
+export type TaskType = 'email' | 'call' | 'whatsapp' | 'proposal' | 'meeting' | 'visit';
+export type TaskStatus = 'pending' | 'completed';
+export type TaskTargetType = 'contact' | 'lead' | 'company';
+
+export interface TaskAttachment {
+  name: string;
+  url: string;
+}
+
+export interface Task {
+  id: string;
+  type: TaskType;
+  description: string;
+  dueDate: string | null;
+  status: TaskStatus;
+  responsibleIds: string[];
+  targetType: TaskTargetType | null;
+  targetId: string | null;
+  targetLabel: string | null;
+  attachments: TaskAttachment[];
+  createdById: string | null;
+  completedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}

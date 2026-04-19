@@ -20,6 +20,7 @@ import { LeadActivitiesModule } from './lead-activities/lead-activities.module';
 import { LossReasonsModule } from './loss-reasons/loss-reasons.module';
 import { AnalyticsModule } from './analytics/analytics.module';
 import { SearchModule } from './search/search.module';
+import { TasksModule } from './tasks/tasks.module';
 
 @Module({
   imports: [
@@ -56,6 +57,7 @@ import { SearchModule } from './search/search.module';
     LossReasonsModule,
     AnalyticsModule,
     SearchModule,
+    TasksModule,
   ],
 })
 export class AppModule {}
