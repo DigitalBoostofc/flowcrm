@@ -79,41 +79,37 @@ export class WorkspacesService {
     await this.dataSource.transaction(async (em) => {
       const wid = workspaceId;
 
-      // Ordem respeita FK: primeiro filhos, depois pais
-      await em.query(`DELETE FROM messages             WHERE "workspaceId" = $1`, [wid]);
-      await em.query(`DELETE FROM conversations         WHERE "workspaceId" = $1`, [wid]);
-      await em.query(`DELETE FROM automation_executions WHERE "workspaceId" = $1`, [wid]);
-      await em.query(`DELETE FROM scheduled_messages    WHERE "workspaceId" = $1`, [wid]);
-      await em.query(`DELETE FROM lead_activities       WHERE "workspaceId" = $1`, [wid]);
-      await em.query(`DELETE FROM tasks                 WHERE "workspaceId" = $1`, [wid]);
-      await em.query(`DELETE FROM leads                 WHERE "workspaceId" = $1`, [wid]);
-      await em.query(`DELETE FROM contacts              WHERE "workspaceId" = $1`, [wid]);
-      await em.query(`DELETE FROM companies             WHERE "workspaceId" = $1`, [wid]);
-      await em.query(`DELETE FROM automation_steps
-                       WHERE "automationId" IN (SELECT id FROM automations WHERE "workspaceId" = $1)`, [wid]);
-      await em.query(`DELETE FROM automations           WHERE "workspaceId" = $1`, [wid]);
-      await em.query(`DELETE FROM message_templates     WHERE "workspaceId" = $1`, [wid]);
-      await em.query(`DELETE FROM channel_configs       WHERE "workspaceId" = $1`, [wid]);
-      await em.query(`DELETE FROM stage_required_fields
-                       WHERE "stageId" IN (SELECT id FROM stages WHERE "workspaceId" = $1)`, [wid]);
-      await em.query(`DELETE FROM stages                WHERE "workspaceId" = $1`, [wid]);
-      await em.query(`DELETE FROM pipelines             WHERE "workspaceId" = $1`, [wid]);
-      await em.query(`DELETE FROM loss_reasons          WHERE "workspaceId" = $1`, [wid]);
-      await em.query(`DELETE FROM customer_origins      WHERE "workspaceId" = $1`, [wid]);
-      await em.query(`DELETE FROM customer_categories   WHERE "workspaceId" = $1`, [wid]);
-      await em.query(`DELETE FROM sectors               WHERE "workspaceId" = $1`, [wid]);
-      await em.query(`DELETE FROM feature_flags          WHERE "workspaceId" = $1`, [wid]);
-      await em.query(`DELETE FROM otp_verifications     WHERE phone IN (
+      // Leads primeiro: cascade elimina conversations → messages/scheduled_messages,
+      // lead_activities e automation_executions (todos têm leadId ON DELETE CASCADE).
+      // Isso também resolve leads.contactId → contacts (NO ACTION) e
+      // leads.stageId/pipelineId → stages/pipelines (NO ACTION).
+      await em.query(`DELETE FROM leads WHERE "workspaceId" = $1`, [wid]);
+
+      // Contacts e companies agora são seguros (nenhum lead os referencia mais).
+      await em.query(`DELETE FROM contacts WHERE "workspaceId" = $1`, [wid]);
+      await em.query(`DELETE FROM companies WHERE "workspaceId" = $1`, [wid]);
+
+      // message_templates: createdById → users (NO ACTION).
+      // Deve ser deletado antes dos users (que serão cascade deletados pelo workspace).
+      await em.query(`DELETE FROM message_templates WHERE "workspaceId" = $1`, [wid]);
+
+      // Tabelas sem FK para workspaces — precisam de subquery ou workspaceId direto.
+      await em.query(`DELETE FROM feature_flags WHERE "workspaceId" = $1`, [wid]);
+      await em.query(`DELETE FROM otp_verifications WHERE phone IN (
                          SELECT phone FROM users WHERE "workspaceId" = $1 AND phone IS NOT NULL
                        )`, [wid]);
-      await em.query(`DELETE FROM user_integrations     WHERE "userId" IN (
+      await em.query(`DELETE FROM user_integrations WHERE "userId" IN (
                          SELECT id FROM users WHERE "workspaceId" = $1
                        )`, [wid]);
 
-      // Nulifica owner antes de deletar users (evita FK violation)
+      // Quebrar FK circular workspaces.ownerUserId → users.id antes de deletar users.
       await em.query(`UPDATE workspaces SET "ownerUserId" = NULL WHERE id = $1`, [wid]);
-      await em.query(`DELETE FROM users                 WHERE "workspaceId" = $1`, [wid]);
-      await em.query(`DELETE FROM workspaces            WHERE id = $1`, [wid]);
+
+      // Deletar o workspace: ON DELETE CASCADE cuida de tudo que sobrou
+      // (users, pipelines → stages → automations → steps, channel_configs,
+      //  tasks, loss_reasons, customer_origins, customer_categories, sectors,
+      //  stage_required_fields, automation_executions, etc.).
+      await em.query(`DELETE FROM workspaces WHERE id = $1`, [wid]);
     });
 
     this.logger.warn(`DELEÇÃO PERMANENTE concluída para workspace ${workspaceId}`);
