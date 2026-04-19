@@ -2,16 +2,19 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Lead, LeadStatus } from '../leads/entities/lead.entity';
+import { TenantContext } from '../common/tenant/tenant-context.service';
 
 @Injectable()
 export class AnalyticsService {
   constructor(
     @InjectRepository(Lead)
     private leads: Repository<Lead>,
+    private readonly tenant: TenantContext,
   ) {}
 
   async getSummary(pipelineId?: string) {
-    const where: any = {};
+    const workspaceId = this.tenant.requireWorkspaceId();
+    const where: any = { workspaceId };
     if (pipelineId) where.pipelineId = pipelineId;
 
     const all = await this.leads.find({

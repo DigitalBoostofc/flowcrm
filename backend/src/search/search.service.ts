@@ -3,25 +3,32 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { ILike, Repository } from 'typeorm';
 import { Contact } from '../contacts/entities/contact.entity';
 import { Lead } from '../leads/entities/lead.entity';
+import { TenantContext } from '../common/tenant/tenant-context.service';
 
 @Injectable()
 export class SearchService {
   constructor(
     @InjectRepository(Contact) private contacts: Repository<Contact>,
     @InjectRepository(Lead) private leads: Repository<Lead>,
+    private readonly tenant: TenantContext,
   ) {}
 
   async search(q: string) {
     if (!q || q.trim().length < 2) return { contacts: [], leads: [] };
+    const workspaceId = this.tenant.requireWorkspaceId();
     const term = q.trim();
 
     const [contacts, leadsByTitle, leadsByContact] = await Promise.all([
       this.contacts.find({
-        where: [{ name: ILike(`%${term}%`) }, { phone: ILike(`%${term}%`) }, { email: ILike(`%${term}%`) }],
+        where: [
+          { workspaceId, name: ILike(`%${term}%`) },
+          { workspaceId, phone: ILike(`%${term}%`) },
+          { workspaceId, email: ILike(`%${term}%`) },
+        ],
         take: 5,
       }),
       this.leads.find({
-        where: { title: ILike(`%${term}%`) },
+        where: { workspaceId, title: ILike(`%${term}%`) },
         relations: ['contact', 'stage', 'pipeline'],
         take: 5,
       }),
@@ -30,8 +37,8 @@ export class SearchService {
         .leftJoinAndSelect('lead.contact', 'contact')
         .leftJoinAndSelect('lead.stage', 'stage')
         .leftJoinAndSelect('lead.pipeline', 'pipeline')
-        .where('contact.name ILIKE :term', { term: `%${term}%` })
-        .orWhere('contact.phone ILIKE :term', { term: `%${term}%` })
+        .where('lead."workspaceId" = :workspaceId', { workspaceId })
+        .andWhere('(contact.name ILIKE :term OR contact.phone ILIKE :term)', { term: `%${term}%` })
         .take(5)
         .getMany(),
     ]);

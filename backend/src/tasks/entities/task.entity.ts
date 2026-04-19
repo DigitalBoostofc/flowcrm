@@ -79,6 +79,9 @@ export class Task {
   @Column({ type: 'timestamptz', nullable: true })
   completedAt: Date | null;
 
+  @Column({ type: 'jsonb', default: () => `'{}'` })
+  googleEventIds: Record<string, string>;
+
   @CreateDateColumn()
   createdAt: Date;
 

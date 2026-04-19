@@ -8,6 +8,7 @@ import { Automation } from './entities/automation.entity';
 import { AutomationExecution } from './entities/automation-execution.entity';
 import { QUEUE_AUTOMATION } from '../common/queues/queues.module';
 import { Stage } from '../stages/entities/stage.entity';
+import { TenantContext } from '../common/tenant/tenant-context.service';
 
 @Injectable()
 export class AutomationTriggerListener {
@@ -18,6 +19,7 @@ export class AutomationTriggerListener {
     @InjectRepository(AutomationExecution) private exec: Repository<AutomationExecution>,
     @InjectRepository(Stage) private stageRepo: Repository<Stage>,
     @InjectQueue(QUEUE_AUTOMATION) private queue: Queue,
+    private readonly tenant: TenantContext,
   ) {}
 
   @OnEvent('lead.moved')
@@ -45,22 +47,24 @@ export class AutomationTriggerListener {
   }
 
   private async fireStageTriggers(stageId: string, leadId: string): Promise<void> {
+    const workspaceId = this.tenant.requireWorkspaceId();
     const list = await this.auto.find({
-      where: { stageId, triggerType: 'stage', active: true },
+      where: { workspaceId, stageId, triggerType: 'stage', active: true },
     });
-    for (const a of list) await this.enqueue(a.id, leadId);
+    for (const a of list) await this.enqueue(a.id, leadId, workspaceId);
   }
 
   private async firePipelineTriggers(pipelineId: string, leadId: string): Promise<void> {
+    const workspaceId = this.tenant.requireWorkspaceId();
     const list = await this.auto.find({
-      where: { pipelineId, triggerType: 'pipeline', active: true },
+      where: { workspaceId, pipelineId, triggerType: 'pipeline', active: true },
     });
-    for (const a of list) await this.enqueue(a.id, leadId);
+    for (const a of list) await this.enqueue(a.id, leadId, workspaceId);
   }
 
-  private async enqueue(automationId: string, leadId: string): Promise<void> {
+  private async enqueue(automationId: string, leadId: string, workspaceId: string): Promise<void> {
     try {
-      await this.exec.insert({ automationId, leadId, status: 'pending', currentStepPosition: 0 });
+      await this.exec.insert({ workspaceId, automationId, leadId, status: 'pending', currentStepPosition: 0 });
     } catch (err) {
       if (err instanceof QueryFailedError) {
         this.logger.debug(`Automation ${automationId} already executed for lead ${leadId}`);

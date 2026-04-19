@@ -19,8 +19,8 @@ export class UazapiWebhookController {
     @Param('secret') secret: string,
     @Body() payload: any,
   ) {
-    const channel = await this.channels.findById(channelConfigId);
-    if (secret !== channel.config.webhookSecret) {
+    const channel = await this.channels.findByIdUnscoped(channelConfigId);
+    if (!channel || secret !== channel.config.webhookSecret) {
       this.logger.warn(`Webhook não autorizado para canal ${channelConfigId}`);
       throw new UnauthorizedException();
     }

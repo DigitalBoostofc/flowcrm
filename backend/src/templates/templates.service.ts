@@ -3,25 +3,30 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { MessageTemplate } from './entities/template.entity';
 import { CreateTemplateDto } from './dto/create-template.dto';
+import { TenantContext } from '../common/tenant/tenant-context.service';
 
 @Injectable()
 export class TemplatesService {
   constructor(
     @InjectRepository(MessageTemplate)
     private repo: Repository<MessageTemplate>,
+    private readonly tenant: TenantContext,
   ) {}
 
   create(dto: CreateTemplateDto, createdById: string): Promise<MessageTemplate> {
-    const template = this.repo.create({ ...dto, createdById });
+    const workspaceId = this.tenant.requireWorkspaceId();
+    const template = this.repo.create({ ...dto, createdById, workspaceId });
     return this.repo.save(template);
   }
 
   findAll(): Promise<MessageTemplate[]> {
-    return this.repo.find({ order: { createdAt: 'DESC' } });
+    const workspaceId = this.tenant.requireWorkspaceId();
+    return this.repo.find({ where: { workspaceId }, order: { createdAt: 'DESC' } });
   }
 
   async findOne(id: string): Promise<MessageTemplate> {
-    const t = await this.repo.findOne({ where: { id } });
+    const workspaceId = this.tenant.requireWorkspaceId();
+    const t = await this.repo.findOne({ where: { id, workspaceId } });
     if (!t) throw new NotFoundException('Template não encontrado');
     return t;
   }
@@ -31,6 +36,7 @@ export class TemplatesService {
   }
 
   async remove(id: string): Promise<void> {
-    await this.repo.delete(id);
+    const workspaceId = this.tenant.requireWorkspaceId();
+    await this.repo.delete({ id, workspaceId });
   }
 }

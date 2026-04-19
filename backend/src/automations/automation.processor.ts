@@ -19,6 +19,7 @@ import { ConversationsService } from '../conversations/conversations.service';
 import { MessagesService } from '../messages/messages.service';
 import { interpolate } from '../channels/interpolation.util';
 import { QUEUE_AUTOMATION } from '../common/queues/queues.module';
+import { TenantContext } from '../common/tenant/tenant-context.service';
 
 interface StepJobData {
   automationId: string;
@@ -39,18 +40,29 @@ export class AutomationProcessor extends WorkerHost {
     private channels: ChannelsService,
     private conversations: ConversationsService,
     private messages: MessagesService,
+    private tenant: TenantContext,
   ) {
     super();
   }
 
   async process(job: Job<StepJobData>): Promise<void> {
-    const { automationId, leadId, stepPosition } = job.data;
+    const { automationId } = job.data;
 
     const automation = await this.auto.findOne({
       where: { id: automationId },
       relations: ['steps'],
     });
     if (!automation || !automation.active) return;
+
+    await this.tenant.run(automation.workspaceId, undefined, () =>
+      this.processInTenant(automation, job.data),
+    );
+  }
+
+  private async processInTenant(
+    automation: Automation,
+    { automationId, leadId, stepPosition }: StepJobData,
+  ): Promise<void> {
 
     const steps = (automation.steps ?? []).slice().sort((a, b) => a.position - b.position);
     let pos = stepPosition;

@@ -8,6 +8,7 @@ import { ChannelsService } from '../channels/channels.service';
 import { ConversationsService } from '../conversations/conversations.service';
 import { MessagesService } from '../messages/messages.service';
 import { QUEUE_SCHEDULED } from '../common/queues/queues.module';
+import { TenantContext } from '../common/tenant/tenant-context.service';
 
 @Processor(QUEUE_SCHEDULED)
 export class ScheduledMessageProcessor extends WorkerHost {
@@ -18,6 +19,7 @@ export class ScheduledMessageProcessor extends WorkerHost {
     private channels: ChannelsService,
     private conversations: ConversationsService,
     private messages: MessagesService,
+    private tenant: TenantContext,
   ) {
     super();
   }
@@ -26,6 +28,10 @@ export class ScheduledMessageProcessor extends WorkerHost {
     const record = await this.repo.findOneByOrFail({ id: job.data.scheduledMessageId });
     if (record.status !== 'pending') return;
 
+    await this.tenant.run(record.workspaceId, undefined, () => this.deliver(record));
+  }
+
+  private async deliver(record: ScheduledMessage): Promise<void> {
     const conv = await this.conversations.findOne(record.conversationId);
     const result = await this.channels.send({
       channelConfigId: record.channelConfigId,

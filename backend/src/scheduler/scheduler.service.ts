@@ -6,19 +6,23 @@ import { Queue } from 'bullmq';
 import { ScheduledMessage } from './entities/scheduled-message.entity';
 import { ScheduleMessageDto } from './dto/schedule-message.dto';
 import { QUEUE_SCHEDULED } from '../common/queues/queues.module';
+import { TenantContext } from '../common/tenant/tenant-context.service';
 
 @Injectable()
 export class SchedulerService {
   constructor(
     @InjectRepository(ScheduledMessage) private repo: Repository<ScheduledMessage>,
     @InjectQueue(QUEUE_SCHEDULED) private queue: Queue,
+    private readonly tenant: TenantContext,
   ) {}
 
   async schedule(dto: ScheduleMessageDto, createdById: string): Promise<ScheduledMessage> {
+    const workspaceId = this.tenant.requireWorkspaceId();
     const scheduledAt = new Date(dto.scheduledAt);
     const record = await this.repo.save(
       this.repo.create({
         conversationId: dto.conversationId,
+        workspaceId,
         body: dto.body,
         channelConfigId: dto.channelConfigId,
         scheduledAt,
@@ -38,7 +42,8 @@ export class SchedulerService {
   }
 
   async cancel(id: string): Promise<void> {
-    const record = await this.repo.findOne({ where: { id } });
+    const workspaceId = this.tenant.requireWorkspaceId();
+    const record = await this.repo.findOne({ where: { id, workspaceId } });
     if (!record) throw new NotFoundException('Mensagem agendada não encontrada');
     if (record.status !== 'pending') return;
     if (record.bullJobId) {
@@ -49,16 +54,26 @@ export class SchedulerService {
   }
 
   findAll(): Promise<ScheduledMessage[]> {
-    return this.repo.find({ order: { scheduledAt: 'ASC' } });
+    const workspaceId = this.tenant.requireWorkspaceId();
+    return this.repo.find({ where: { workspaceId }, order: { scheduledAt: 'ASC' } });
   }
 
   findByConversation(conversationId: string): Promise<ScheduledMessage[]> {
-    return this.repo.find({ where: { conversationId }, order: { scheduledAt: 'ASC' } });
+    const workspaceId = this.tenant.requireWorkspaceId();
+    return this.repo.find({
+      where: { conversationId, workspaceId },
+      order: { scheduledAt: 'ASC' },
+    });
   }
 
   async findOne(id: string): Promise<ScheduledMessage> {
-    const r = await this.repo.findOne({ where: { id } });
+    const workspaceId = this.tenant.requireWorkspaceId();
+    const r = await this.repo.findOne({ where: { id, workspaceId } });
     if (!r) throw new NotFoundException('Mensagem agendada não encontrada');
     return r;
+  }
+
+  findOneByIdUnscoped(id: string): Promise<ScheduledMessage | null> {
+    return this.repo.findOne({ where: { id } });
   }
 }

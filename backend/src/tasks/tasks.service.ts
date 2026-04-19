@@ -1,31 +1,82 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, Optional } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Between, LessThanOrEqual, MoreThanOrEqual, Repository } from 'typeorm';
+import { Repository } from 'typeorm';
 import { Task, TaskStatus } from './entities/task.entity';
 import { CreateTaskDto } from './dto/create-task.dto';
 import { UpdateTaskDto } from './dto/update-task.dto';
 import { QueryTasksDto } from './dto/query-tasks.dto';
+import { TenantContext } from '../common/tenant/tenant-context.service';
+import { GoogleCalendarService } from '../integrations/google-calendar.service';
+
+const TASK_TYPE_LABELS: Record<string, string> = {
+  email: 'E-mail',
+  call: 'Ligação',
+  whatsapp: 'WhatsApp',
+  proposal: 'Proposta',
+  meeting: 'Reunião',
+  visit: 'Visita',
+};
 
 @Injectable()
 export class TasksService {
+  private readonly logger = new Logger(TasksService.name);
+
   constructor(
     @InjectRepository(Task)
     private repo: Repository<Task>,
+    private readonly tenant: TenantContext,
+    @Optional() private readonly googleCalendar: GoogleCalendarService,
   ) {}
 
-  create(dto: CreateTaskDto, createdById?: string): Promise<Task> {
+  async create(dto: CreateTaskDto, createdById?: string): Promise<Task> {
+    const workspaceId = this.tenant.requireWorkspaceId();
     const task = this.repo.create({
       ...dto,
+      workspaceId,
       dueDate: dto.dueDate ? new Date(dto.dueDate) : null,
       responsibleIds: dto.responsibleIds ?? [],
       attachments: dto.attachments ?? [],
       createdById: createdById ?? null,
+      googleEventIds: {},
     });
-    return this.repo.save(task);
+    const saved = await this.repo.save(task);
+
+    // Sync to Google Calendar (non-blocking)
+    if (this.googleCalendar && saved.dueDate && saved.responsibleIds.length) {
+      this.syncCreateToGoogle(saved).catch(err =>
+        this.logger.warn(`Google Calendar sync falhou: ${err.message}`)
+      );
+    }
+
+    return saved;
+  }
+
+  private async syncCreateToGoogle(task: Task): Promise<void> {
+    const startAt = new Date(task.dueDate!);
+    const endAt = new Date(startAt.getTime() + 30 * 60 * 1000); // +30 min
+    const typeLabel = TASK_TYPE_LABELS[task.type] ?? task.type;
+    const summary = `[${typeLabel}] ${task.description}`;
+    const description = task.targetLabel ? `Relacionado: ${task.targetLabel}` : undefined;
+
+    const eventIds: Record<string, string> = {};
+    await Promise.all(
+      task.responsibleIds.map(async (userId) => {
+        const eventId = await this.googleCalendar.createEvent(userId, { summary, description, startAt, endAt });
+        if (eventId) eventIds[userId] = eventId;
+      })
+    );
+
+    if (Object.keys(eventIds).length > 0) {
+      await this.repo.update(task.id, { googleEventIds: eventIds });
+    }
   }
 
   async findAll(query: QueryTasksDto): Promise<Task[]> {
-    const qb = this.repo.createQueryBuilder('task').orderBy('task.dueDate', 'ASC', 'NULLS LAST');
+    const workspaceId = this.tenant.requireWorkspaceId();
+    const qb = this.repo
+      .createQueryBuilder('task')
+      .where('task."workspaceId" = :workspaceId', { workspaceId })
+      .orderBy('task.dueDate', 'ASC', 'NULLS LAST');
 
     if (query.status) qb.andWhere('task.status = :status', { status: query.status });
     if (query.type) qb.andWhere('task.type = :type', { type: query.type });
@@ -55,7 +106,8 @@ export class TasksService {
   }
 
   async findOne(id: string): Promise<Task> {
-    const task = await this.repo.findOne({ where: { id } });
+    const workspaceId = this.tenant.requireWorkspaceId();
+    const task = await this.repo.findOne({ where: { id, workspaceId } });
     if (!task) throw new NotFoundException('Tarefa não encontrada');
     return task;
   }
@@ -84,7 +136,23 @@ export class TasksService {
   }
 
   async remove(id: string): Promise<void> {
-    const result = await this.repo.delete(id);
-    if (result.affected === 0) throw new NotFoundException('Tarefa não encontrada');
+    const workspaceId = this.tenant.requireWorkspaceId();
+    const task = await this.repo.findOne({ where: { id, workspaceId } });
+    if (!task) throw new NotFoundException('Tarefa não encontrada');
+
+    // Remove eventos do Google Calendar (non-blocking)
+    if (this.googleCalendar && task.googleEventIds) {
+      this.syncDeleteToGoogle(task).catch(() => {});
+    }
+
+    await this.repo.delete({ id, workspaceId });
+  }
+
+  private async syncDeleteToGoogle(task: Task): Promise<void> {
+    await Promise.all(
+      Object.entries(task.googleEventIds ?? {}).map(([userId, eventId]) =>
+        this.googleCalendar.deleteEvent(userId, eventId)
+      )
+    );
   }
 }

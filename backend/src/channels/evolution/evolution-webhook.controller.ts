@@ -32,8 +32,8 @@ export class EvolutionWebhookController {
   }
 
   private async handle(channelConfigId: string, secret: string, payload: any) {
-    const channel = await this.channels.findById(channelConfigId);
-    if (secret !== channel.config.webhookSecret) {
+    const channel = await this.channels.findByIdUnscoped(channelConfigId);
+    if (!channel || secret !== channel.config.webhookSecret) {
       this.logger.warn(`Unauthorized webhook for channel ${channelConfigId}`);
       throw new UnauthorizedException();
     }

@@ -7,6 +7,7 @@ import { CreateChannelDto } from './dto/create-channel.dto';
 import { EvolutionAdapter } from './evolution/evolution.adapter';
 import { UazapiAdapter } from './uazapi/uazapi.adapter';
 import { MetaAdapter } from './meta/meta.adapter';
+import { TenantContext } from '../common/tenant/tenant-context.service';
 
 @Injectable()
 export class ChannelsService {
@@ -14,6 +15,7 @@ export class ChannelsService {
 
   constructor(
     @InjectRepository(ChannelConfig) private repo: Repository<ChannelConfig>,
+    private readonly tenant: TenantContext,
     evolution: EvolutionAdapter,
     uazapi: UazapiAdapter,
     meta: MetaAdapter,
@@ -32,21 +34,30 @@ export class ChannelsService {
   }
 
   async create(dto: CreateChannelDto): Promise<ChannelConfig> {
-    const existing = await this.repo.findOne({ where: { type: dto.type as ChannelType, active: true } });
+    const workspaceId = this.tenant.requireWorkspaceId();
+    const existing = await this.repo.findOne({
+      where: { workspaceId, type: dto.type as ChannelType, active: true },
+    });
     if (existing) {
       throw new BadRequestException('Já existe um canal WhatsApp ativo. Delete o atual antes de criar um novo.');
     }
-    return this.repo.save(this.repo.create(dto));
+    return this.repo.save(this.repo.create({ ...dto, workspaceId }));
   }
 
   findAll(): Promise<ChannelConfig[]> {
-    return this.repo.find({ where: { active: true } });
+    const workspaceId = this.tenant.requireWorkspaceId();
+    return this.repo.find({ where: { workspaceId, active: true } });
   }
 
   async findById(id: string): Promise<ChannelConfig> {
-    const c = await this.repo.findOne({ where: { id } });
+    const workspaceId = this.tenant.requireWorkspaceId();
+    const c = await this.repo.findOne({ where: { id, workspaceId } });
     if (!c) throw new NotFoundException('Canal não encontrado');
     return c;
+  }
+
+  findByIdUnscoped(id: string): Promise<ChannelConfig | null> {
+    return this.repo.findOne({ where: { id } });
   }
 
   async updateStatus(id: string, status: ChannelStatus): Promise<void> {
@@ -54,13 +65,15 @@ export class ChannelsService {
   }
 
   async updateConfig(id: string, extra: Record<string, string>): Promise<void> {
-    const channel = await this.findById(id);
+    const channel = await this.repo.findOne({ where: { id } });
+    if (!channel) throw new NotFoundException('Canal não encontrado');
     channel.config = { ...channel.config, ...extra };
     await this.repo.save(channel);
   }
 
   async remove(id: string): Promise<void> {
-    await this.repo.update(id, { active: false });
+    const workspaceId = this.tenant.requireWorkspaceId();
+    await this.repo.update({ id, workspaceId }, { active: false });
   }
 
   async getQrCode(id: string): Promise<{ base64: string; pairingCode?: string; connected?: boolean; phone?: string }> {

@@ -5,6 +5,7 @@ import { Automation } from './entities/automation.entity';
 import { AutomationStep } from './entities/automation-step.entity';
 import { CreateAutomationDto, AutomationStepDto } from './dto/create-automation.dto';
 import { UpdateAutomationDto } from './dto/update-automation.dto';
+import { TenantContext } from '../common/tenant/tenant-context.service';
 
 @Injectable()
 export class AutomationsService {
@@ -12,6 +13,7 @@ export class AutomationsService {
     @InjectRepository(Automation) private autoRepo: Repository<Automation>,
     @InjectRepository(AutomationStep) private stepRepo: Repository<AutomationStep>,
     private dataSource: DataSource,
+    private readonly tenant: TenantContext,
   ) {}
 
   private validateTrigger(dto: { triggerType: string; pipelineId?: string | null; stageId?: string | null }) {
@@ -24,11 +26,13 @@ export class AutomationsService {
   }
 
   async create(dto: CreateAutomationDto): Promise<Automation> {
+    const workspaceId = this.tenant.requireWorkspaceId();
     this.validateTrigger(dto);
 
     return this.dataSource.transaction(async (manager) => {
       const auto = manager.create(Automation, {
         name: dto.name,
+        workspaceId,
         triggerType: dto.triggerType,
         pipelineId: dto.triggerType === 'pipeline' ? dto.pipelineId ?? null : null,
         stageId: dto.triggerType === 'stage' ? dto.stageId ?? null : null,
@@ -56,6 +60,7 @@ export class AutomationsService {
   }
 
   async update(id: string, dto: UpdateAutomationDto): Promise<Automation> {
+    const workspaceId = this.tenant.requireWorkspaceId();
     const current = await this.findOne(id);
 
     const next = {
@@ -67,7 +72,7 @@ export class AutomationsService {
     this.validateTrigger(next);
 
     return this.dataSource.transaction(async (manager) => {
-      await manager.update(Automation, id, {
+      await manager.update(Automation, { id, workspaceId }, {
         name: next.name,
         triggerType: next.triggerType,
         pipelineId: next.triggerType === 'pipeline' ? next.pipelineId : null,
@@ -91,22 +96,25 @@ export class AutomationsService {
       }
 
       return manager.findOneOrFail(Automation, {
-        where: { id },
+        where: { id, workspaceId },
         relations: ['steps'],
       });
     });
   }
 
   findAll(): Promise<Automation[]> {
+    const workspaceId = this.tenant.requireWorkspaceId();
     return this.autoRepo.find({
+      where: { workspaceId },
       relations: ['steps', 'pipeline', 'stage'],
       order: { createdAt: 'DESC' },
     });
   }
 
   async findOne(id: string): Promise<Automation> {
+    const workspaceId = this.tenant.requireWorkspaceId();
     const a = await this.autoRepo.findOne({
-      where: { id },
+      where: { id, workspaceId },
       relations: ['steps', 'pipeline', 'stage'],
     });
     if (!a) throw new NotFoundException('Automação não encontrada');
@@ -114,21 +122,24 @@ export class AutomationsService {
   }
 
   async findActiveByStage(stageId: string): Promise<Automation[]> {
+    const workspaceId = this.tenant.requireWorkspaceId();
     return this.autoRepo.find({
-      where: { stageId, triggerType: 'stage', active: true },
+      where: { stageId, workspaceId, triggerType: 'stage', active: true },
       relations: ['steps'],
     });
   }
 
   async findActiveByPipeline(pipelineId: string): Promise<Automation[]> {
+    const workspaceId = this.tenant.requireWorkspaceId();
     return this.autoRepo.find({
-      where: { pipelineId, triggerType: 'pipeline', active: true },
+      where: { pipelineId, workspaceId, triggerType: 'pipeline', active: true },
       relations: ['steps'],
     });
   }
 
   async remove(id: string): Promise<void> {
-    const r = await this.autoRepo.delete(id);
+    const workspaceId = this.tenant.requireWorkspaceId();
+    const r = await this.autoRepo.delete({ id, workspaceId });
     if (r.affected === 0) throw new NotFoundException('Automação não encontrada');
   }
 }

@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Message, MessageStatus } from './entities/message.entity';
+import { TenantContext } from '../common/tenant/tenant-context.service';
 
 export interface SaveInboundData {
   conversationId: string;
@@ -19,15 +20,20 @@ export interface SaveOutboundData {
 
 @Injectable()
 export class MessagesService {
-  constructor(@InjectRepository(Message) private repo: Repository<Message>) {}
+  constructor(
+    @InjectRepository(Message) private repo: Repository<Message>,
+    private readonly tenant: TenantContext,
+  ) {}
 
   async saveInbound(data: SaveInboundData): Promise<Message | null> {
+    const workspaceId = this.tenant.requireWorkspaceId();
     const result = await this.repo
       .createQueryBuilder()
       .insert()
       .into(Message)
       .values({
         conversationId: data.conversationId,
+        workspaceId,
         externalMessageId: data.externalMessageId,
         body: data.body,
         sentAt: data.sentAt,
@@ -43,8 +49,10 @@ export class MessagesService {
   }
 
   saveOutbound(data: SaveOutboundData): Promise<Message> {
+    const workspaceId = this.tenant.requireWorkspaceId();
     const msg = this.repo.create({
       conversationId: data.conversationId,
+      workspaceId,
       body: data.body,
       externalMessageId: data.externalMessageId,
       status: data.status,
@@ -60,8 +68,9 @@ export class MessagesService {
   }
 
   findByConversation(conversationId: string, limit = 50): Promise<Message[]> {
+    const workspaceId = this.tenant.requireWorkspaceId();
     return this.repo.find({
-      where: { conversationId },
+      where: { conversationId, workspaceId },
       order: { sentAt: 'DESC' },
       take: limit,
     });

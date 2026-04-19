@@ -2,6 +2,8 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { EventEmitterModule } from '@nestjs/event-emitter';
+import { ClsModule } from 'nestjs-cls';
+import { TenantModule } from './common/tenant/tenant.module';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { ContactsModule } from './contacts/contacts.module';
@@ -27,11 +29,17 @@ import { CustomerCategoriesModule } from './customer-categories/customer-categor
 import { SectorsModule } from './sectors/sectors.module';
 import { StageRequiredFieldsModule } from './stage-required-fields/stage-required-fields.module';
 import { WorkspacesModule } from './workspaces/workspaces.module';
+import { IntegrationsModule } from './integrations/integrations.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     EventEmitterModule.forRoot(),
+    ClsModule.forRoot({
+      global: true,
+      middleware: { mount: true },
+    }),
+    TenantModule,
     QueuesModule,
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
@@ -70,6 +78,7 @@ import { WorkspacesModule } from './workspaces/workspaces.module';
     SectorsModule,
     StageRequiredFieldsModule,
     WorkspacesModule,
+    IntegrationsModule,
   ],
 })
 export class AppModule {}
