@@ -87,6 +87,8 @@ export interface Lead {
   pipeline?: Pipeline;
   assignedToId?: string | null;
   assignedTo?: User | null;
+  createdById?: string | null;
+  createdBy?: User | null;
   title?: string | null;
   status: LeadStatus;
   lossReason?: string | null;
@@ -94,6 +96,8 @@ export interface Lead {
   conclusionDate?: string | null;
   stageEnteredAt: string;
   value?: number | null;
+  ranking?: number | null;
+  notes?: string | null;
   archivedAt?: string | null;
   createdAt: string;
   updatedAt: string;

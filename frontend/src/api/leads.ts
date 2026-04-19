@@ -8,6 +8,11 @@ export async function listLeads(pipelineId: string, staleDays?: number): Promise
   return res.data;
 }
 
+export async function listAllLeads(): Promise<Lead[]> {
+  const res = await api.get<Lead[]>('/leads');
+  return res.data;
+}
+
 export interface LeadItemInput {
   productName: string;
   unitPrice: number;
@@ -51,10 +56,22 @@ export async function assignLead(id: string, userId: string): Promise<Lead> {
 
 export async function updateLead(
   id: string,
-  data: { title?: string; value?: number; startDate?: string; conclusionDate?: string; assignedToId?: string },
+  data: {
+    title?: string;
+    value?: number | null;
+    startDate?: string | null;
+    conclusionDate?: string | null;
+    assignedToId?: string | null;
+    ranking?: number | null;
+    notes?: string;
+  },
 ): Promise<Lead> {
   const res = await api.patch<Lead>(`/leads/${id}`, data);
   return res.data;
+}
+
+export async function deleteLead(id: string): Promise<void> {
+  await api.delete(`/leads/${id}`);
 }
 
 export async function updateLeadStatus(

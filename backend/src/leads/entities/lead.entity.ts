@@ -56,6 +56,16 @@ export class Lead {
   @Column({ nullable: true })
   assignedToId: string;
 
+  @ManyToOne(() => User, { nullable: true })
+  @JoinColumn({ name: 'createdById' })
+  createdBy: User;
+
+  @Column({ type: 'uuid', nullable: true })
+  createdById: string;
+
+  @Column({ type: 'int', nullable: true })
+  ranking: number;
+
   @Column({ nullable: true })
   title: string;
 

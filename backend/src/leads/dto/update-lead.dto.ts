@@ -1,4 +1,4 @@
-import { IsOptional, IsString, IsNumber, IsDateString, IsUUID, Min, MaxLength } from 'class-validator';
+import { IsOptional, IsString, IsNumber, IsDateString, IsUUID, Min, Max, MaxLength, IsInt } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class UpdateLeadDto {
@@ -24,4 +24,15 @@ export class UpdateLeadDto {
   @IsOptional()
   @IsUUID()
   assignedToId?: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(5)
+  @Type(() => Number)
+  ranking?: number;
+
+  @IsOptional()
+  @IsString()
+  notes?: string;
 }

@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Patch, Delete, Body, Param, Query, UseGuards, HttpCode, ParseUUIDPipe } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Delete, Body, Param, Query, Req, UseGuards, HttpCode, ParseUUIDPipe } from '@nestjs/common';
 import { LeadsService } from './leads.service';
 import { CreateLeadDto } from './dto/create-lead.dto';
 import { MoveLeadDto } from './dto/move-lead.dto';
@@ -15,15 +15,16 @@ export class LeadsController {
   constructor(private leadsService: LeadsService) {}
 
   @Post()
-  create(@Body() dto: CreateLeadDto) {
-    return this.leadsService.create(dto);
+  create(@Body() dto: CreateLeadDto, @Req() req: any) {
+    return this.leadsService.create(dto, req.user?.sub);
   }
 
   @Get()
-  findByPipeline(
-    @Query('pipelineId') pipelineId: string,
+  list(
+    @Query('pipelineId') pipelineId?: string,
     @Query('staleDays') staleDays?: string,
   ) {
+    if (!pipelineId) return this.leadsService.findAll();
     return this.leadsService.findByPipeline(pipelineId, staleDays ? parseInt(staleDays) : undefined);
   }
 

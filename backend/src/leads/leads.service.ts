@@ -15,9 +15,13 @@ export class LeadsService {
     private eventEmitter: EventEmitter2,
   ) {}
 
-  create(dto: CreateLeadDto): Promise<Lead> {
-    const lead = this.repo.create({ ...dto, stageEnteredAt: new Date() });
-    return this.repo.save(lead);
+  create(dto: CreateLeadDto, createdById?: string): Promise<Lead> {
+    const lead = this.repo.create({
+      ...dto,
+      stageEnteredAt: new Date(),
+      createdById: createdById ?? null,
+    } as any);
+    return this.repo.save(lead) as Promise<any> as Promise<Lead>;
   }
 
   findByPipeline(pipelineId: string, staleDays?: number): Promise<Lead[]> {
@@ -30,8 +34,16 @@ export class LeadsService {
     }
     return this.repo.find({
       where,
-      relations: ['contact', 'stage', 'assignedTo'],
+      relations: ['contact', 'stage', 'assignedTo', 'createdBy', 'pipeline'],
       order: { createdAt: 'ASC' },
+    });
+  }
+
+  findAll(): Promise<Lead[]> {
+    return this.repo.find({
+      where: { archivedAt: IsNull() },
+      relations: ['contact', 'stage', 'assignedTo', 'createdBy', 'pipeline'],
+      order: { createdAt: 'DESC' },
     });
   }
 
