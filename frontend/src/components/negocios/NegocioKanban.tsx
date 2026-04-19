@@ -109,7 +109,8 @@ export default function NegocioKanban({ pipeline, leads, onCardClick }: Props) {
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
     >
-      <div className="flex gap-4 overflow-x-auto pb-4" style={{ minHeight: 500 }}>
+      {/* gap-2.5 e colunas de 200px para caber mais na tela */}
+      <div className="flex gap-2.5 overflow-x-auto pb-3" style={{ minHeight: 'calc(100vh - 200px)' }}>
         {stages.map((s) => (
           <NegocioColumn
             key={s.id}
@@ -141,16 +142,16 @@ function NegocioColumn({
   });
 
   return (
-    <div className="flex-shrink-0 flex flex-col" style={{ width: 280 }}>
-      {/* Header */}
-      <div className="px-1 pb-2">
+    <div className="flex-shrink-0 flex flex-col" style={{ width: 210 }}>
+      {/* Header compacto */}
+      <div className="px-1 pb-1.5">
         <div
-          className="text-xs font-bold uppercase tracking-wide mb-0.5"
+          className="text-[11px] font-semibold uppercase tracking-wider truncate"
           style={{ color: 'var(--ink-2)' }}
         >
           {stage.name}
         </div>
-        <div className="text-xs" style={{ color: 'var(--ink-3)' }}>
+        <div className="text-[10px] mt-0.5" style={{ color: 'var(--ink-3)' }}>
           {leads.length} · {formatBRL(total)}
         </div>
       </div>
@@ -158,11 +159,11 @@ function NegocioColumn({
       {/* Drop zone */}
       <div
         ref={setNodeRef}
-        className="flex-1 rounded-lg p-2 space-y-2 transition-all"
+        className="flex-1 rounded-lg p-1.5 space-y-1.5 transition-all"
         style={{
-          background: isOver ? 'rgba(99,102,241,0.08)' : 'rgba(99,102,241,0.04)',
-          border: `1px ${isOver ? 'solid' : 'dashed'} ${isOver ? 'var(--brand-500, #6366f1)' : 'var(--edge)'}`,
-          minHeight: 440,
+          background: isOver ? 'rgba(99,91,255,0.08)' : 'rgba(99,91,255,0.03)',
+          border: `1px ${isOver ? 'solid' : 'dashed'} ${isOver ? 'var(--brand-500)' : 'var(--edge)'}`,
+          minHeight: 'calc(100vh - 240px)',
         }}
       >
         <SortableContext items={leads.map((l) => l.id)} strategy={verticalListSortingStrategy}>
@@ -173,18 +174,10 @@ function NegocioColumn({
 
         {leads.length === 0 && (
           <div
-            className="flex items-center justify-center h-full text-center text-xs px-4"
-            style={{ color: 'var(--ink-3)', minHeight: 380 }}
+            className="flex items-center justify-center text-center text-[11px] px-3"
+            style={{ color: 'var(--ink-3)', minHeight: 80 }}
           >
-            {isDragging
-              ? 'Solte aqui'
-              : (
-                <span>
-                  Arraste para cá,<br />
-                  para adicionar negócios<br />
-                  nessa etapa
-                </span>
-              )}
+            {isDragging ? 'Solte aqui' : 'Vazio'}
           </div>
         )}
       </div>
@@ -212,14 +205,14 @@ function NegocioCard({ lead, onClick }: { lead: Lead; onClick: () => void }) {
     : false;
 
   const statusBg =
-    lead.status === 'won' ? 'rgba(16,185,129,0.07)'
-    : lead.status === 'lost' ? 'rgba(239,68,68,0.05)'
-    : 'var(--surface-raised)';
+    lead.status === 'won' ? 'rgba(0,192,127,0.06)'
+    : lead.status === 'lost' ? 'rgba(229,72,77,0.05)'
+    : 'var(--surface)';
 
   return (
     <div
       ref={setNodeRef}
-      style={{ ...style, background: statusBg }}
+      style={{ ...style, background: statusBg, border: '1px solid var(--edge)', boxShadow: 'var(--shadow-sm)' }}
       {...attributes}
       {...listeners}
       onClick={(e) => {
@@ -227,31 +220,31 @@ function NegocioCard({ lead, onClick }: { lead: Lead; onClick: () => void }) {
         e.stopPropagation();
         onClick();
       }}
-      className="cursor-grab active:cursor-grabbing rounded-lg p-3 shadow-sm hover:shadow-md transition-shadow"
+      className="cursor-grab active:cursor-grabbing rounded-md p-2 transition-shadow hover:shadow-md"
     >
-      <div className="flex items-start justify-between gap-2">
+      <div className="flex items-start justify-between gap-1.5">
         <div className="min-w-0 flex-1">
-          <div className="text-sm font-semibold leading-snug" style={{ color: 'var(--ink-1)' }}>
+          <div className="text-[12px] font-medium leading-snug" style={{ color: 'var(--ink-1)' }}>
             {title}
           </div>
           {lead.contact?.name && lead.title && (
-            <div className="text-xs mt-1 truncate" style={{ color: 'var(--ink-3)' }}>
+            <div className="text-[11px] mt-0.5 truncate" style={{ color: 'var(--ink-3)' }}>
               {lead.contact.name}
             </div>
           )}
           {lead.value ? (
-            <div className="text-xs mt-1 font-mono font-semibold" style={{ color: 'var(--brand-500, #6366f1)' }}>
+            <div className="text-[11px] mt-0.5 font-semibold font-mono" style={{ color: 'var(--brand-500)' }}>
               {formatBRL(Number(lead.value))}
             </div>
           ) : null}
         </div>
         {isStale && (
           <span
-            className="flex items-center justify-center w-5 h-5 rounded-md flex-shrink-0"
-            style={{ background: '#fee2e2' }}
-            title="Negócio parado há mais de 7 dias"
+            className="flex items-center justify-center w-4 h-4 rounded flex-shrink-0"
+            style={{ background: 'rgba(229,72,77,0.1)' }}
+            title="Parado há +7 dias"
           >
-            <AlertTriangle className="w-3 h-3" style={{ color: '#dc2626' }} />
+            <AlertTriangle className="w-2.5 h-2.5" style={{ color: 'var(--danger)' }} />
           </span>
         )}
       </div>

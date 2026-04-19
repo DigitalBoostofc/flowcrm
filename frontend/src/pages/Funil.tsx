@@ -666,11 +666,20 @@ export default function Funil() {
         onSettings={() => navigate('/settings')}
       />
 
-      <div className="flex-1 min-w-0 p-6 space-y-4">
+      <div className="flex-1 min-w-0 p-4 space-y-3">
       {/* Header */}
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div className="flex items-center gap-3 flex-wrap">
-          <h1 className="text-2xl font-bold" style={{ color: 'var(--ink-1)' }}>
+          <button
+            onClick={() => navigate(-1)}
+            className="flex items-center gap-1.5 text-xs rounded-md px-2 py-1.5 transition-colors"
+            style={{ color: 'var(--ink-3)', background: 'var(--surface)', border: '1px solid var(--edge)' }}
+            onMouseEnter={e => (e.currentTarget.style.color = 'var(--ink-1)')}
+            onMouseLeave={e => (e.currentTarget.style.color = 'var(--ink-3)')}
+          >
+            ← Voltar
+          </button>
+          <h1 className="text-lg font-semibold" style={{ color: 'var(--ink-1)', letterSpacing: '-0.01em' }}>
             {selectedPipeline?.name ?? 'Funil'}
           </h1>
           <span className="text-sm" style={{ color: 'var(--ink-3)' }}>
