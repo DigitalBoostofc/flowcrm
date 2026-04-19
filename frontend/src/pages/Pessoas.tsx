@@ -755,6 +755,8 @@ function EmptyState({ onAdd }: { onAdd: () => void }) {
 
 /* ── Page ────────────────────────────────────────────── */
 
+type SortPessoas = 'nome_asc' | 'nome_desc' | 'recente' | 'antigo';
+
 export default function Pessoas() {
   const user = useAuthStore((s) => s.user);
   const qc = useQueryClient();
@@ -762,8 +764,17 @@ export default function Pessoas() {
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [addOpen, setAddOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
+  const [filterOpen, setFilterOpen] = useState(false);
   const [selectedPessoa, setSelectedPessoa] = useState<Contact | null>(null);
   const [editingPessoa, setEditingPessoa] = useState<Contact | null>(null);
+
+  // Filtros
+  const [filterCategoria, setFilterCategoria] = useState('');
+  const [filterOrigem, setFilterOrigem] = useState('');
+  const [filterResponsavel, setFilterResponsavel] = useState('');
+  const [sort, setSort] = useState<SortPessoas>('recente');
+
+  const activeFilters = [filterCategoria, filterOrigem, filterResponsavel].filter(Boolean).length;
 
   const handleExport = () => {
     const csv = toCSV(contacts as unknown as Record<string, unknown>[], PESSOAS_COLS);
@@ -811,7 +822,21 @@ export default function Pessoas() {
     return m;
   }, [users]);
 
-  const total = contacts.length;
+  const filteredContacts = useMemo(() => {
+    let result = [...contacts];
+    if (filterCategoria) result = result.filter(c => c.categoria === filterCategoria);
+    if (filterOrigem) result = result.filter(c => c.origem === filterOrigem);
+    if (filterResponsavel) result = result.filter(c => c.responsibleId === filterResponsavel);
+    result.sort((a, b) => {
+      if (sort === 'nome_asc') return a.name.localeCompare(b.name, 'pt-BR');
+      if (sort === 'nome_desc') return b.name.localeCompare(a.name, 'pt-BR');
+      if (sort === 'antigo') return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    });
+    return result;
+  }, [contacts, filterCategoria, filterOrigem, filterResponsavel, sort]);
+
+  const total = filteredContacts.length;
 
   return (
     <div className="p-6 space-y-4">
@@ -839,26 +864,28 @@ export default function Pessoas() {
           </div>
 
           <button
-            className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors hover:bg-[var(--surface-hover)]"
-            style={{ background: 'var(--surface)', border: '1px solid var(--edge)', color: 'var(--ink-1)' }}
+            onClick={() => setFilterOpen(o => !o)}
+            className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors"
+            style={{
+              background: filterOpen || activeFilters > 0 ? 'var(--brand-50)' : 'var(--surface)',
+              border: `1px solid ${activeFilters > 0 ? 'var(--brand-500)' : 'var(--edge)'}`,
+              color: activeFilters > 0 ? 'var(--brand-500)' : 'var(--ink-1)',
+            }}
           >
             <Filter className="w-4 h-4" />
-            Filtros
+            Filtros{activeFilters > 0 && ` (${activeFilters})`}
           </button>
-          <button
-            className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium"
-            style={{ color: 'var(--brand-500, #6366f1)' }}
+          <select
+            value={sort}
+            onChange={e => setSort(e.target.value as SortPessoas)}
+            className="px-3 py-2 rounded-lg text-sm font-medium outline-none"
+            style={{ background: 'var(--surface)', border: '1px solid var(--edge)', color: 'var(--ink-1)' }}
           >
-            <ArrowUpDown className="w-4 h-4" />
-            Ordenar
-          </button>
-          <button
-            className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium"
-            style={{ color: 'var(--brand-500, #6366f1)' }}
-          >
-            <Columns3 className="w-4 h-4" />
-            Colunas
-          </button>
+            <option value="recente">Mais recentes</option>
+            <option value="antigo">Mais antigos</option>
+            <option value="nome_asc">Nome A→Z</option>
+            <option value="nome_desc">Nome Z→A</option>
+          </select>
         </div>
 
         <div className="flex items-center gap-2">
@@ -889,6 +916,43 @@ export default function Pessoas() {
         </div>
       </div>
 
+      {/* Filter bar */}
+      {filterOpen && (
+        <div
+          className="flex items-center gap-3 flex-wrap px-4 py-3 rounded-xl"
+          style={{ background: 'var(--surface)', border: '1px solid var(--edge)' }}
+        >
+          <select value={filterCategoria} onChange={e => setFilterCategoria(e.target.value)}
+            className="px-3 py-1.5 rounded-lg text-sm outline-none"
+            style={{ background: 'var(--surface-hover)', border: '1px solid var(--edge)', color: 'var(--ink-1)' }}>
+            <option value="">Categoria</option>
+            {CATEGORIAS.map(c => <option key={c} value={c}>{c}</option>)}
+          </select>
+          <select value={filterOrigem} onChange={e => setFilterOrigem(e.target.value)}
+            className="px-3 py-1.5 rounded-lg text-sm outline-none"
+            style={{ background: 'var(--surface-hover)', border: '1px solid var(--edge)', color: 'var(--ink-1)' }}>
+            <option value="">Origem</option>
+            {ORIGENS.map(o => <option key={o} value={o}>{o}</option>)}
+          </select>
+          <select value={filterResponsavel} onChange={e => setFilterResponsavel(e.target.value)}
+            className="px-3 py-1.5 rounded-lg text-sm outline-none"
+            style={{ background: 'var(--surface-hover)', border: '1px solid var(--edge)', color: 'var(--ink-1)' }}>
+            <option value="">Responsável</option>
+            {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
+          </select>
+          {activeFilters > 0 && (
+            <button onClick={() => { setFilterCategoria(''); setFilterOrigem(''); setFilterResponsavel(''); }}
+              className="text-xs px-2.5 py-1.5 rounded-lg"
+              style={{ color: 'var(--danger)', background: 'var(--danger-bg)' }}>
+              Limpar filtros
+            </button>
+          )}
+          <span className="text-xs ml-auto" style={{ color: 'var(--ink-3)' }}>
+            {filteredContacts.length} de {contacts.length} registros
+          </span>
+        </div>
+      )}
+
       {/* Table */}
       <div
         className="rounded-xl overflow-hidden"
@@ -915,11 +979,11 @@ export default function Pessoas() {
           <div className="text-center py-10 text-sm" style={{ color: 'var(--ink-3)' }}>
             Carregando...
           </div>
-        ) : contacts.length === 0 ? (
+        ) : filteredContacts.length === 0 ? (
           <EmptyState onAdd={() => setAddOpen(true)} />
         ) : (
           <div>
-            {contacts.map((c: Contact, idx) => {
+            {filteredContacts.map((c: Contact, idx) => {
               const responsavel = c.responsibleId ? userById.get(c.responsibleId) : null;
               return (
                 <div
