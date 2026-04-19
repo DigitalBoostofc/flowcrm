@@ -1,10 +1,13 @@
-import { Controller, Get, UseGuards, Req } from '@nestjs/common';
+import { Controller, Get, Delete, UseGuards, Req } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { RolesGuard } from '../auth/roles.guard';
+import { Roles } from '../auth/roles.decorator';
+import { UserRole } from '../users/entities/user.entity';
 import { WorkspacesService } from './workspaces.service';
 import { isPlatformAdminEmail } from '../common/platform-admin.util';
 
 interface AuthedRequest {
-  user: { id: string; email: string; workspaceId: string };
+  user: { id: string; email: string; workspaceId: string; role: string };
 }
 
 @Controller('workspace')
@@ -18,5 +21,13 @@ export class WorkspacesController {
     return Object.assign(workspace, {
       isPlatformAdmin: isPlatformAdminEmail(req.user.email),
     });
+  }
+
+  @Delete('me')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.OWNER)
+  async deleteAccount(@Req() req: AuthedRequest) {
+    await this.service.deleteWorkspaceAndAllData(req.user.workspaceId);
+    return { ok: true };
   }
 }

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
   GitBranch, XCircle, Users2, Tags, Building2, Radio, FileText,
-  Zap, User as UserIcon, Puzzle, Server,
+  Zap, User as UserIcon, Puzzle, Server, AlertTriangle,
 } from 'lucide-react';
 import { useAuthStore } from '@/store/auth.store';
 import { useWorkspace } from '@/hooks/useWorkspace';
@@ -17,13 +17,14 @@ import AutomationsTab from '@/components/settings/AutomationsTab';
 import TemplatesTab from '@/components/settings/TemplatesTab';
 import IntegrationsTab from '@/components/settings/IntegrationsTab';
 import SistemaTab from '@/components/settings/SistemaTab';
+import DangerZoneTab from '@/components/settings/DangerZoneTab';
 
 type Tab =
   | 'funis-etapas' | 'motivos-perda' | 'origens-clientes'
   | 'categorias-clientes' | 'setores' | 'channels'
-  | 'templates' | 'automations' | 'agents' | 'integrations' | 'sistema';
+  | 'templates' | 'automations' | 'agents' | 'integrations' | 'sistema' | 'danger';
 
-interface NavItem { id: Tab; label: string; icon: typeof GitBranch; ownerOnly?: boolean; platformAdminOnly?: boolean }
+interface NavItem { id: Tab; label: string; icon: typeof GitBranch; ownerOnly?: boolean; platformAdminOnly?: boolean; danger?: boolean }
 interface NavGroup { title: string; items: NavItem[] }
 
 const GROUPS: NavGroup[] = [
@@ -70,7 +71,8 @@ const GROUPS: NavGroup[] = [
   {
     title: 'Administração',
     items: [
-      { id: 'sistema',              label: 'Sistema',               icon: Server,     platformAdminOnly: true },
+      { id: 'sistema',              label: 'Sistema',               icon: Server,        platformAdminOnly: true },
+      { id: 'danger',               label: 'Zona de perigo',        icon: AlertTriangle, ownerOnly: true, danger: true },
     ],
   },
 ];
@@ -127,7 +129,7 @@ export default function Settings() {
                 {group.title}
               </div>
               <div className="space-y-0.5">
-                {group.items.map(({ id, label, icon: Icon }) => {
+                {group.items.map(({ id, label, icon: Icon, danger }) => {
                   const active = tab === id;
                   return (
                     <button
@@ -135,8 +137,8 @@ export default function Settings() {
                       onClick={() => changeTab(id)}
                       className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-md text-[13px] transition-colors"
                       style={{
-                        background: active ? 'var(--brand-50)' : 'transparent',
-                        color: active ? 'var(--brand-500)' : 'var(--ink-2)',
+                        background: active ? (danger ? 'var(--danger-bg)' : 'var(--brand-50)') : 'transparent',
+                        color: danger ? 'var(--danger)' : active ? 'var(--brand-500)' : 'var(--ink-2)',
                         fontWeight: active ? 500 : 400,
                       }}
                     >
@@ -165,6 +167,7 @@ export default function Settings() {
           {tab === 'agents'              && <AgentsTab />}
           {tab === 'integrations'        && <IntegrationsTab />}
           {tab === 'sistema'             && <SistemaTab />}
+          {tab === 'danger'              && <DangerZoneTab />}
         </div>
       </div>
     </div>
