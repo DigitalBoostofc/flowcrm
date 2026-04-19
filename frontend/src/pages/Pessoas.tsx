@@ -1,27 +1,17 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useRef, useState, useEffect, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
-  Search, Filter, ArrowUpDown, Columns3, Download, Upload, Plus, X, Users, Pencil,
+  Search, Filter, Plus, X, Users, Pencil, Camera, Trash2,
 } from 'lucide-react';
-import { listContacts, createContact, updateContact } from '@/api/contacts';
+import {
+  listContacts, createContact, updateContact,
+  uploadContactAvatar, removeContactAvatar,
+} from '@/api/contacts';
 import { listUsers } from '@/api/users';
 import { useAuthStore } from '@/store/auth.store';
 import type { Contact, ContactPrivacy, User } from '@/types/api';
 import PessoaDetailPanel from '@/components/pessoas/PessoaDetailPanel';
-import ImportModal from '@/components/ui/ImportModal';
-import { toCSV, downloadCSV } from '@/lib/csv';
-
-const PESSOAS_COLS = [
-  { key: 'name',    label: 'Nome',    required: true },
-  { key: 'email',   label: 'Email' },
-  { key: 'celular', label: 'Celular' },
-  { key: 'whatsapp',label: 'WhatsApp' },
-  { key: 'company', label: 'Empresa' },
-  { key: 'role',    label: 'Cargo' },
-  { key: 'origem',  label: 'Origem' },
-  { key: 'cidade',  label: 'Cidade' },
-  { key: 'estado',  label: 'Estado' },
-];
+import Avatar from '@/components/ui/Avatar';
 
 /* ── Form helpers ────────────────────────────────────── */
 
@@ -95,39 +85,6 @@ function Select({
         <option key={o.value} value={o.value}>{o.label}</option>
       ))}
     </select>
-  );
-}
-
-/* ── Avatar helpers ──────────────────────────────────── */
-
-function initials(name: string) {
-  return name
-    .split(' ')
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((p) => p[0]?.toUpperCase() ?? '')
-    .join('');
-}
-
-const AVATAR_COLORS = [
-  '#6366f1', '#22c55e', '#ef4444', '#f59e0b', '#8b5cf6',
-  '#06b6d4', '#ec4899', '#10b981', '#f97316', '#0ea5e9',
-];
-
-function colorFor(id: string) {
-  let h = 0;
-  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
-  return AVATAR_COLORS[h % AVATAR_COLORS.length];
-}
-
-function Avatar({ name, id, size = 32 }: { name: string; id: string; size?: number }) {
-  return (
-    <div
-      className="rounded-full flex items-center justify-center text-xs font-semibold text-white flex-shrink-0"
-      style={{ width: size, height: size, background: colorFor(id), fontSize: size * 0.38 }}
-    >
-      {initials(name) || '?'}
-    </div>
   );
 }
 
@@ -350,6 +307,13 @@ function AddPessoaModal({
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-8">
+          {isEdit && contact && (
+            <section>
+              <SectionTitle title="Foto" subtitle="Imagem de até 5MB (JPG, PNG ou WebP)." />
+              <PessoaAvatarEditor contact={contact} />
+            </section>
+          )}
+
           {/* ── Dados básicos ── */}
           <section>
             <SectionTitle title="Dados básicos" />
@@ -724,6 +688,66 @@ function AddPessoaModal({
   );
 }
 
+/* ── Avatar editor (edição) ──────────────────────────── */
+
+function PessoaAvatarEditor({ contact }: { contact: Contact }) {
+  const qc = useQueryClient();
+  const fileRef = useRef<HTMLInputElement | null>(null);
+
+  const uploadMut = useMutation({
+    mutationFn: (file: File) => uploadContactAvatar(contact.id, file),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['pessoas'] });
+      qc.invalidateQueries({ queryKey: ['contacts'] });
+    },
+  });
+
+  const removeMut = useMutation({
+    mutationFn: () => removeContactAvatar(contact.id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['pessoas'] });
+      qc.invalidateQueries({ queryKey: ['contacts'] });
+    },
+  });
+
+  const onPick = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    if (f.size > 5 * 1024 * 1024) return;
+    uploadMut.mutate(f);
+    e.target.value = '';
+  };
+
+  return (
+    <div className="flex items-center gap-4">
+      <div className="relative">
+        <Avatar name={contact.name} url={contact.avatarUrl} size={72} />
+        <button
+          type="button"
+          onClick={() => fileRef.current?.click()}
+          disabled={uploadMut.isPending}
+          className="absolute -bottom-1 -right-1 p-1.5 rounded-full"
+          style={{ background: 'var(--brand-500)', color: '#fff' }}
+          aria-label="Alterar foto"
+        >
+          <Camera className="w-3.5 h-3.5" />
+        </button>
+        <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={onPick} />
+      </div>
+      {contact.avatarUrl && (
+        <button
+          type="button"
+          onClick={() => removeMut.mutate()}
+          className="inline-flex items-center gap-1.5 text-xs"
+          style={{ color: 'var(--danger)' }}
+        >
+          <Trash2 className="w-3.5 h-3.5" /> Remover foto
+        </button>
+      )}
+    </div>
+  );
+}
+
 /* ── Empty state ─────────────────────────────────────── */
 
 function EmptyState({ onAdd }: { onAdd: () => void }) {
@@ -763,7 +787,6 @@ export default function Pessoas() {
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [addOpen, setAddOpen] = useState(false);
-  const [importOpen, setImportOpen] = useState(false);
   const [filterOpen, setFilterOpen] = useState(false);
   const [selectedPessoa, setSelectedPessoa] = useState<Contact | null>(null);
   const [editingPessoa, setEditingPessoa] = useState<Contact | null>(null);
@@ -775,35 +798,6 @@ export default function Pessoas() {
   const [sort, setSort] = useState<SortPessoas>('recente');
 
   const activeFilters = [filterCategoria, filterOrigem, filterResponsavel].filter(Boolean).length;
-
-  const handleExport = () => {
-    const csv = toCSV(contacts as unknown as Record<string, unknown>[], PESSOAS_COLS);
-    downloadCSV(csv, `pessoas_${new Date().toISOString().slice(0, 10)}.csv`);
-  };
-
-  const handleImport = async (rows: Record<string, string>[]) => {
-    let ok = 0; let failed = 0;
-    for (const row of rows) {
-      const name = row['Nome'] || row['name'];
-      if (!name) { failed++; continue; }
-      try {
-        await createContact({
-          name,
-          email: row['Email'] || row['email'] || undefined,
-          celular: row['Celular'] || row['celular'] || undefined,
-          whatsapp: row['WhatsApp'] || row['whatsapp'] || undefined,
-          company: row['Empresa'] || row['company'] || undefined,
-          role: row['Cargo'] || row['role'] || undefined,
-          origem: row['Origem'] || row['origem'] || undefined,
-          cidade: row['Cidade'] || row['cidade'] || undefined,
-          estado: row['Estado'] || row['estado'] || undefined,
-        });
-        ok++;
-      } catch { failed++; }
-    }
-    qc.invalidateQueries({ queryKey: ['contacts'] });
-    return { ok, failed };
-  };
 
   useEffect(() => {
     const t = setTimeout(() => setDebouncedSearch(search), 300);
@@ -889,22 +883,6 @@ export default function Pessoas() {
         </div>
 
         <div className="flex items-center gap-2">
-          <button
-            onClick={() => setImportOpen(true)}
-            className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium"
-            style={{ color: 'var(--brand-500, #6366f1)' }}
-          >
-            <Upload className="w-4 h-4" />
-            Importar
-          </button>
-          <button
-            onClick={handleExport}
-            className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium"
-            style={{ color: 'var(--brand-500, #6366f1)' }}
-          >
-            <Download className="w-4 h-4" />
-            Exportar
-          </button>
           <button
             onClick={() => setAddOpen(true)}
             className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-white shadow-sm transition-all hover:opacity-90"
@@ -1000,7 +978,7 @@ export default function Pessoas() {
                     {String(idx + 1).padStart(2, '0')}
                   </div>
                   <div className="flex items-center gap-2 min-w-0">
-                    <Avatar name={c.name} id={c.id} size={28} />
+                    <Avatar name={c.name} url={c.avatarUrl} size={28} />
                     <span className="font-medium truncate">{c.name}</span>
                   </div>
                   <div className="truncate" style={{ color: 'var(--ink-2)' }}>{c.company ?? '—'}</div>
@@ -1017,7 +995,7 @@ export default function Pessoas() {
                   <div className="flex items-center gap-2 min-w-0">
                     {responsavel ? (
                       <>
-                        <Avatar name={responsavel.name} id={responsavel.id} size={26} />
+                        <Avatar name={responsavel.name} url={responsavel.avatarUrl} size={26} />
                         <span className="truncate" style={{ color: 'var(--ink-2)' }}>{responsavel.name}</span>
                       </>
                     ) : (
@@ -1059,14 +1037,6 @@ export default function Pessoas() {
         currentUser={user}
         users={users}
         contact={editingPessoa}
-      />
-
-      <ImportModal
-        open={importOpen}
-        onClose={() => setImportOpen(false)}
-        title="Pessoas"
-        columns={PESSOAS_COLS}
-        onImport={handleImport}
       />
 
       {selectedPessoa && (

@@ -1,4 +1,8 @@
-import { Controller, Get, Post, Patch, Delete, Body, Param, Query, UseGuards, HttpCode } from '@nestjs/common';
+import {
+  Controller, Get, Post, Patch, Delete, Body, Param, Query, UseGuards, HttpCode,
+  UseInterceptors, UploadedFile, BadRequestException,
+} from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { ContactsService } from './contacts.service';
 import { CreateContactDto } from './dto/create-contact.dto';
 import { UpdateContactDto } from './dto/update-contact.dto';
@@ -45,5 +49,17 @@ export class ContactsController {
   @HttpCode(204)
   remove(@Param('id') id: string) {
     return this.contactsService.remove(id);
+  }
+
+  @Post(':id/avatar')
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 5 * 1024 * 1024 } }))
+  uploadAvatar(@Param('id') id: string, @UploadedFile() file: Express.Multer.File) {
+    if (!file) throw new BadRequestException('Arquivo de imagem é obrigatório.');
+    return this.contactsService.updateAvatar(id, file);
+  }
+
+  @Delete(':id/avatar')
+  deleteAvatar(@Param('id') id: string) {
+    return this.contactsService.removeAvatar(id);
   }
 }

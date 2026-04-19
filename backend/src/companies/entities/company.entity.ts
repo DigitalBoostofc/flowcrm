@@ -135,6 +135,12 @@ export class Company {
   @Column({ type: 'int', nullable: true })
   ranking: number;
 
+  @Column({ type: 'varchar', nullable: true })
+  avatarUrl: string | null;
+
+  @Column({ type: 'varchar', nullable: true })
+  avatarKey: string | null;
+
   @CreateDateColumn()
   createdAt: Date;
 

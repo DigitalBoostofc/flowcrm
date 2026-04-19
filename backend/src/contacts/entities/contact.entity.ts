@@ -113,6 +113,12 @@ export class Contact {
   @Column({ nullable: true })
   instagram: string;
 
+  @Column({ type: 'varchar', nullable: true })
+  avatarUrl: string | null;
+
+  @Column({ type: 'varchar', nullable: true })
+  avatarKey: string | null;
+
   @Column({ type: 'enum', enum: ContactPrivacy, default: ContactPrivacy.ALL })
   privacy: ContactPrivacy;
 

@@ -17,6 +17,7 @@ import { Pipeline } from '../pipelines/entities/pipeline.entity';
 import { Stage } from '../stages/entities/stage.entity';
 import { AppSettingsService } from '../app-settings/app-settings.service';
 import { ChannelsService } from '../channels/channels.service';
+import { PlatformChannelService } from '../otp/platform-channel.service';
 import { ContactsService } from '../contacts/contacts.service';
 import { LeadsService } from '../leads/leads.service';
 import { PipelinesService } from '../pipelines/pipelines.service';
@@ -37,6 +38,7 @@ export class SignupService {
     private readonly dataSource: DataSource,
     private readonly appSettings: AppSettingsService,
     private readonly channels: ChannelsService,
+    private readonly platformChannel: PlatformChannelService,
     private readonly contacts: ContactsService,
     private readonly leads: LeadsService,
     private readonly pipelines: PipelinesService,
@@ -49,9 +51,8 @@ export class SignupService {
     if (!settings.signupEnabled) {
       throw new ServiceUnavailableException('Cadastro público desativado');
     }
-    if (!settings.systemChannelConfigId) {
-      throw new ServiceUnavailableException('Canal de sistema não configurado');
-    }
+
+    const channelConfigId = await this.resolveOtpChannelId();
 
     const existing = await this.userRepo.findOne({ where: { email: dto.email.toLowerCase() } });
     if (existing) throw new ConflictException('Email já cadastrado');
@@ -76,16 +77,13 @@ export class SignupService {
     });
     await this.otpRepo.save(otp);
 
-    await this.sendOtpMessage(settings.systemChannelConfigId, phone, code);
+    await this.sendOtpMessage(channelConfigId, phone, code);
 
     return { otpId: otp.id, expiresAt };
   }
 
   async resend(otpId: string): Promise<{ expiresAt: Date }> {
-    const settings = await this.appSettings.get();
-    if (!settings.systemChannelConfigId) {
-      throw new ServiceUnavailableException('Canal de sistema não configurado');
-    }
+    const channelConfigId = await this.resolveOtpChannelId();
 
     const otp = await this.otpRepo.findOne({ where: { id: otpId } });
     if (!otp || otp.consumedAt) throw new BadRequestException('Código inválido');
@@ -102,9 +100,19 @@ export class SignupService {
     otp.createdAt = new Date();
     await this.otpRepo.save(otp);
 
-    await this.sendOtpMessage(settings.systemChannelConfigId, otp.phone, code);
+    await this.sendOtpMessage(channelConfigId, otp.phone, code);
 
     return { expiresAt: otp.expiresAt };
+  }
+
+  private async resolveOtpChannelId(): Promise<string> {
+    const ownerChannel = await this.platformChannel.findOwnerChannel();
+    if (ownerChannel) return ownerChannel.id;
+    const settings = await this.appSettings.get();
+    if (settings.systemChannelConfigId) return settings.systemChannelConfigId;
+    throw new ServiceUnavailableException(
+      'Canal de envio de código não configurado. Conecte a instância WhatsApp do owner.',
+    );
   }
 
   async verify(otpId: string, code: string): Promise<{ accessToken: string; user: { id: string; name: string; email: string; role: UserRole; workspaceId: string } }> {

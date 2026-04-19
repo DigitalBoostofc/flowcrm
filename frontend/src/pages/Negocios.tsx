@@ -15,8 +15,6 @@ import { listUsers } from '@/api/users';
 import { useAuthStore } from '@/store/auth.store';
 import type { Company, Contact, Lead, LeadStatus, Pipeline, User } from '@/types/api';
 import NegocioDetailPanel from '@/components/negocios/NegocioDetailPanel';
-import ImportModal from '@/components/ui/ImportModal';
-import { toCSV, downloadCSV } from '@/lib/csv';
 
 const NEGOCIOS_COLS = [
   { key: 'title',       label: 'Título' },
@@ -1000,7 +998,6 @@ export default function Negocios() {
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [addOpen, setAddOpen] = useState(false);
-  const [importOpen, setImportOpen] = useState(false);
   const [filterOpen, setFilterOpen] = useState(false);
   const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
   const [filterStatus, setFilterStatus] = useState('');
@@ -1058,46 +1055,6 @@ export default function Negocios() {
     });
     return result;
   }, [leadsWithPipelineStages, debouncedSearch, filterStatus, filterPipeline, filterAssignee, sort]);
-
-  const handleExport = () => {
-    const rows = filteredLeads.map(l => ({
-      title: l.title ?? '',
-      contact: l.contact?.name ?? '',
-      pipeline: l.pipeline?.name ?? '',
-      stage: l.stage?.name ?? '',
-      value: l.value ?? '',
-      status: l.status,
-      notes: l.notes ?? '',
-    }));
-    const csv = toCSV(rows, NEGOCIOS_COLS);
-    downloadCSV(csv, `negocios_${new Date().toISOString().slice(0, 10)}.csv`);
-  };
-
-  const handleImport = async (rows: Record<string, string>[]) => {
-    let ok = 0; let failed = 0;
-    const defaultPipeline = pipelines.find(p => p.isDefault) ?? pipelines[0];
-    if (!defaultPipeline?.stages?.length) return { ok: 0, failed: rows.length };
-    const firstStage = [...(defaultPipeline.stages)].sort((a, b) => a.position - b.position)[0];
-
-    for (const row of rows) {
-      const contactName = row['Contato'] || row['contact'];
-      if (!contactName) { failed++; continue; }
-      try {
-        const contact = await createContact({ name: contactName });
-        await createLead({
-          contactId: contact.id,
-          pipelineId: defaultPipeline.id,
-          stageId: firstStage.id,
-          title: row['Título'] || row['title'] || undefined,
-          value: row['Valor'] || row['value'] ? parseFloat((row['Valor'] || row['value']).replace(',', '.')) : undefined,
-          notes: row['Observações'] || row['notes'] || undefined,
-        });
-        ok++;
-      } catch { failed++; }
-    }
-    qc.invalidateQueries({ queryKey: ['negocios'] });
-    return { ok, failed };
-  };
 
   const total = filteredLeads.length;
   const totalValue = useMemo(
@@ -1207,22 +1164,6 @@ export default function Negocios() {
         </div>
 
         <div className="flex items-center gap-2">
-          <button
-            onClick={() => setImportOpen(true)}
-            className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium"
-            style={{ color: 'var(--brand-500, #6366f1)' }}
-          >
-            <Upload className="w-4 h-4" />
-            Importar
-          </button>
-          <button
-            onClick={handleExport}
-            className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium"
-            style={{ color: 'var(--brand-500, #6366f1)' }}
-          >
-            <Download className="w-4 h-4" />
-            Exportar
-          </button>
           <button
             onClick={() => setAddOpen(true)}
             className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-white shadow-sm transition-all hover:opacity-90"
@@ -1400,14 +1341,6 @@ export default function Negocios() {
         users={users}
         currentUser={currentUser}
       />
-      <ImportModal
-        open={importOpen}
-        onClose={() => setImportOpen(false)}
-        title="Negócios"
-        columns={NEGOCIOS_COLS}
-        onImport={handleImport}
-      />
-
       {selectedLeadId && (() => {
         const sel = leadsWithPipelineStages.find((l) => l.id === selectedLeadId);
         if (!sel) return null;

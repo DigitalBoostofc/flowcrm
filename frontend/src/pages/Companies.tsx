@@ -1,28 +1,17 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useRef, useState, useEffect, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
-  Search, Filter, ArrowUpDown, Columns3, Download, Upload, Plus, X, Building2, Star, Pencil,
+  Search, Filter, Plus, X, Building2, Star, Pencil, Camera, Trash2,
 } from 'lucide-react';
-import { listCompanies, createCompany, updateCompany } from '@/api/companies';
+import {
+  listCompanies, createCompany, updateCompany,
+  uploadCompanyAvatar, removeCompanyAvatar,
+} from '@/api/companies';
 import { listUsers } from '@/api/users';
 import { listContacts } from '@/api/contacts';
 import { useAuthStore } from '@/store/auth.store';
 import type { Company, CompanyPrivacy, User } from '@/types/api';
-import ImportModal from '@/components/ui/ImportModal';
-import { toCSV, downloadCSV } from '@/lib/csv';
-
-const EMPRESAS_COLS = [
-  { key: 'name',        label: 'Nome',      required: true },
-  { key: 'email',       label: 'Email' },
-  { key: 'telefone',    label: 'Telefone' },
-  { key: 'website',     label: 'Website' },
-  { key: 'cnpj',        label: 'CNPJ' },
-  { key: 'setor',       label: 'Setor' },
-  { key: 'cidade',      label: 'Cidade' },
-  { key: 'estado',      label: 'Estado' },
-  { key: 'cep',         label: 'CEP' },
-  { key: 'descricao',   label: 'Descrição' },
-];
+import Avatar from '@/components/ui/Avatar';
 
 /* ── Form helpers ────────────────────────────────────── */
 
@@ -310,6 +299,13 @@ function AddCompanyModal({ open, onClose, currentUser, users, company }: AddComp
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-8">
+          {isEdit && company && (
+            <section>
+              <SectionTitle title="Logo" subtitle="Imagem de até 5MB (JPG, PNG ou WebP)." />
+              <CompanyAvatarEditor company={company} />
+            </section>
+          )}
+
           {/* ── Dados básicos ── */}
           <section>
             <SectionTitle title="Dados básicos" />
@@ -728,7 +724,6 @@ export default function Companies() {
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [addOpen, setAddOpen] = useState(false);
-  const [importOpen, setImportOpen] = useState(false);
   const [filterOpen, setFilterOpen] = useState(false);
   const [editingCompany, setEditingCompany] = useState<Company | null>(null);
   const [filterSetor, setFilterSetor] = useState('');
@@ -759,36 +754,6 @@ export default function Companies() {
     });
     return result;
   }, [companies, filterSetor, filterResponsavel, sort]);
-
-  const handleExport = () => {
-    const csv = toCSV(companies as any[], EMPRESAS_COLS);
-    downloadCSV(csv, `empresas_${new Date().toISOString().slice(0, 10)}.csv`);
-  };
-
-  const handleImport = async (rows: Record<string, string>[]) => {
-    let ok = 0; let failed = 0;
-    for (const row of rows) {
-      const name = row['Nome'] || row['name'];
-      if (!name) { failed++; continue; }
-      try {
-        await createCompany({
-          name,
-          email: row['Email'] || row['email'] || undefined,
-          telefone: row['Telefone'] || row['telefone'] || undefined,
-          website: row['Website'] || row['website'] || undefined,
-          cnpj: row['CNPJ'] || row['cnpj'] || undefined,
-          setor: row['Setor'] || row['setor'] || undefined,
-          cidade: row['Cidade'] || row['cidade'] || undefined,
-          estado: row['Estado'] || row['estado'] || undefined,
-          cep: row['CEP'] || row['cep'] || undefined,
-          descricao: row['Descrição'] || row['descricao'] || undefined,
-        });
-        ok++;
-      } catch { failed++; }
-    }
-    qc.invalidateQueries({ queryKey: ['companies'] });
-    return { ok, failed };
-  };
 
   return (
     <div className="p-6 space-y-4">
@@ -838,22 +803,6 @@ export default function Companies() {
         </div>
 
         <div className="flex items-center gap-2">
-          <button
-            onClick={() => setImportOpen(true)}
-            className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium"
-            style={{ color: 'var(--brand-500, #6366f1)' }}
-          >
-            <Upload className="w-4 h-4" />
-            Importar
-          </button>
-          <button
-            onClick={handleExport}
-            className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium"
-            style={{ color: 'var(--brand-500, #6366f1)' }}
-          >
-            <Download className="w-4 h-4" />
-            Exportar
-          </button>
           <button
             onClick={() => setAddOpen(true)}
             className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-white shadow-sm transition-all hover:opacity-90"
@@ -934,7 +883,10 @@ export default function Companies() {
                   color: 'var(--ink-1)',
                 }}
               >
-                <div className="font-medium truncate">{c.name}</div>
+                <div className="flex items-center gap-2 min-w-0">
+                  <Avatar name={c.name} url={c.avatarUrl} size={28} />
+                  <span className="font-medium truncate">{c.name}</span>
+                </div>
                 <div className="truncate" style={{ color: 'var(--ink-2)' }}>{c.categoria ?? '—'}</div>
                 <div className="truncate" style={{ color: 'var(--ink-2)' }}>{c.responsible?.name ?? '—'}</div>
                 <div className="truncate" style={{ color: 'var(--ink-2)' }}>{c.email ?? '—'}</div>
@@ -976,13 +928,59 @@ export default function Companies() {
         users={users}
         company={editingCompany}
       />
-      <ImportModal
-        open={importOpen}
-        onClose={() => setImportOpen(false)}
-        title="Empresas"
-        columns={EMPRESAS_COLS}
-        onImport={handleImport}
-      />
+    </div>
+  );
+}
+
+/* ── Avatar editor ───────────────────────────────────── */
+
+function CompanyAvatarEditor({ company }: { company: Company }) {
+  const qc = useQueryClient();
+  const fileRef = useRef<HTMLInputElement | null>(null);
+
+  const uploadMut = useMutation({
+    mutationFn: (file: File) => uploadCompanyAvatar(company.id, file),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['companies'] }),
+  });
+  const removeMut = useMutation({
+    mutationFn: () => removeCompanyAvatar(company.id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['companies'] }),
+  });
+
+  const onPick = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    if (f.size > 5 * 1024 * 1024) return;
+    uploadMut.mutate(f);
+    e.target.value = '';
+  };
+
+  return (
+    <div className="flex items-center gap-4">
+      <div className="relative">
+        <Avatar name={company.name} url={company.avatarUrl} size={72} />
+        <button
+          type="button"
+          onClick={() => fileRef.current?.click()}
+          disabled={uploadMut.isPending}
+          className="absolute -bottom-1 -right-1 p-1.5 rounded-full"
+          style={{ background: 'var(--brand-500)', color: '#fff' }}
+          aria-label="Alterar logo"
+        >
+          <Camera className="w-3.5 h-3.5" />
+        </button>
+        <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={onPick} />
+      </div>
+      {company.avatarUrl && (
+        <button
+          type="button"
+          onClick={() => removeMut.mutate()}
+          className="inline-flex items-center gap-1.5 text-xs"
+          style={{ color: 'var(--danger)' }}
+        >
+          <Trash2 className="w-3.5 h-3.5" /> Remover logo
+        </button>
+      )}
     </div>
   );
 }

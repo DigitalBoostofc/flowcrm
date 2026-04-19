@@ -5,6 +5,7 @@ import { Contact } from './entities/contact.entity';
 import { CreateContactDto } from './dto/create-contact.dto';
 import { UpdateContactDto } from './dto/update-contact.dto';
 import { TenantContext } from '../common/tenant/tenant-context.service';
+import { StorageService } from '../storage/storage.service';
 
 @Injectable()
 export class ContactsService {
@@ -12,6 +13,7 @@ export class ContactsService {
     @InjectRepository(Contact)
     private repo: Repository<Contact>,
     private readonly tenant: TenantContext,
+    private readonly storage: StorageService,
   ) {}
 
   create(dto: CreateContactDto): Promise<Contact> {
@@ -71,6 +73,27 @@ export class ContactsService {
     const workspaceId = this.tenant.requireWorkspaceId();
     const result = await this.repo.delete({ id, workspaceId });
     if (result.affected === 0) throw new NotFoundException('Contato não encontrado');
+  }
+
+  async updateAvatar(id: string, file: { buffer: Buffer; mimetype: string; originalname: string; size: number }): Promise<Contact> {
+    const contact = await this.findOne(id);
+    const uploaded = await this.storage.uploadImage({ folder: 'avatars/contacts', file });
+    const previousKey = contact.avatarKey;
+    contact.avatarUrl = uploaded.url;
+    contact.avatarKey = uploaded.key;
+    const saved = await this.repo.save(contact);
+    if (previousKey && previousKey !== uploaded.key) this.storage.delete(previousKey).catch(() => undefined);
+    return saved;
+  }
+
+  async removeAvatar(id: string): Promise<Contact> {
+    const contact = await this.findOne(id);
+    const previousKey = contact.avatarKey;
+    contact.avatarUrl = null;
+    contact.avatarKey = null;
+    const saved = await this.repo.save(contact);
+    if (previousKey) this.storage.delete(previousKey).catch(() => undefined);
+    return saved;
   }
 
   async bulkCreate(rows: { name: string; phone?: string; email?: string; origin?: string }[]): Promise<{ created: number; skipped: number }> {

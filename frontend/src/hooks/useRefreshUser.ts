@@ -11,9 +11,15 @@ export function useRefreshUser() {
     if (!token) return;
     me()
       .then((fresh) => {
-        if (fresh && (fresh.isPlatformAdmin !== user?.isPlatformAdmin || fresh.role !== user?.role)) {
-          setAuth(token, fresh);
-        }
+        if (!fresh) return;
+        const changed =
+          fresh.isPlatformAdmin !== user?.isPlatformAdmin ||
+          fresh.role !== user?.role ||
+          fresh.name !== user?.name ||
+          fresh.email !== user?.email ||
+          fresh.phone !== user?.phone ||
+          fresh.avatarUrl !== user?.avatarUrl;
+        if (changed) setAuth(token, fresh);
       })
       .catch(() => {});
   }, [token]); // eslint-disable-line react-hooks/exhaustive-deps

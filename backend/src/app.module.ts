@@ -35,6 +35,8 @@ import { SignupModule } from './signup/signup.module';
 import { SubscriptionsModule } from './subscriptions/subscriptions.module';
 import { SubscriptionModule } from './common/subscription/subscription.module';
 import { PlatformAdminModule } from './platform-admin/platform-admin.module';
+import { StorageModule } from './storage/storage.module';
+import { OtpModule } from './otp/otp.module';
 
 @Module({
   imports: [
@@ -89,6 +91,8 @@ import { PlatformAdminModule } from './platform-admin/platform-admin.module';
     SubscriptionsModule,
     SubscriptionModule,
     PlatformAdminModule,
+    StorageModule,
+    OtpModule,
   ],
 })
 export class AppModule {}

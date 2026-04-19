@@ -28,3 +28,17 @@ export async function updateCompany(id: string, data: Partial<CreateCompanyInput
 export async function deleteCompany(id: string): Promise<void> {
   await api.delete(`/companies/${id}`);
 }
+
+export async function uploadCompanyAvatar(id: string, file: File): Promise<Company> {
+  const form = new FormData();
+  form.append('file', file);
+  const res = await api.post<Company>(`/companies/${id}/avatar`, form, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+  return res.data;
+}
+
+export async function removeCompanyAvatar(id: string): Promise<Company> {
+  const res = await api.delete<Company>(`/companies/${id}/avatar`);
+  return res.data;
+}

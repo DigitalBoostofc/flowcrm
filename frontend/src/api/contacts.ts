@@ -61,3 +61,17 @@ export async function updateContact(
   const res = await api.patch<Contact>(`/contacts/${id}`, data);
   return res.data;
 }
+
+export async function uploadContactAvatar(id: string, file: File): Promise<Contact> {
+  const form = new FormData();
+  form.append('file', file);
+  const res = await api.post<Contact>(`/contacts/${id}/avatar`, form, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+  return res.data;
+}
+
+export async function removeContactAvatar(id: string): Promise<Contact> {
+  const res = await api.delete<Contact>(`/contacts/${id}/avatar`);
+  return res.data;
+}

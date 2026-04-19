@@ -6,6 +6,7 @@ import { SignupService } from './signup.service';
 import { SignupController } from './signup.controller';
 import { AuthModule } from '../auth/auth.module';
 import { ChannelsModule } from '../channels/channels.module';
+import { OtpModule } from '../otp/otp.module';
 import { ContactsModule } from '../contacts/contacts.module';
 import { LeadsModule } from '../leads/leads.module';
 import { PipelinesModule } from '../pipelines/pipelines.module';
@@ -15,6 +16,7 @@ import { PipelinesModule } from '../pipelines/pipelines.module';
     TypeOrmModule.forFeature([OtpVerification, User]),
     AuthModule,
     ChannelsModule,
+    OtpModule,
     ContactsModule,
     LeadsModule,
     PipelinesModule,

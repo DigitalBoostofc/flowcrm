@@ -8,6 +8,7 @@ import { useAuthStore } from '@/store/auth.store';
 import { useSidebarStore } from '@/store/sidebar.store';
 import GlobalSearch from './GlobalSearch';
 import ThemeToggle from '@/components/ui/ThemeToggle';
+import Avatar from '@/components/ui/Avatar';
 
 const NAV_ITEMS = [
   { to: '/inicio',                  icon: Home,           label: 'Início' },
@@ -179,18 +180,29 @@ export default function Sidebar() {
 
         {/* User info */}
         {!collapsed && user && (
-          <div className="flex items-center gap-2.5 px-2 py-2.5 mt-1">
-            <div
-              className="w-6 h-6 rounded-full flex items-center justify-center text-white flex-shrink-0 text-[10px] font-semibold"
-              style={{ background: 'var(--brand-500)' }}
-            >
-              {user.name.slice(0, 1).toUpperCase()}
-            </div>
+          <NavLink
+            to="/perfil"
+            title="Meu perfil"
+            className="flex items-center gap-2.5 px-2 py-2.5 mt-1 rounded-md transition-colors"
+            style={({ isActive }) => ({
+              background: isActive ? 'var(--brand-50)' : 'transparent',
+            })}
+          >
+            <Avatar name={user.name} url={user.avatarUrl} size={24} />
             <div className="min-w-0 flex-1 overflow-hidden">
               <div className="text-xs font-medium truncate" style={{ color: 'var(--ink-1)' }}>{user.name}</div>
               <div className="text-[10px] truncate" style={{ color: 'var(--ink-3)' }}>{user.email}</div>
             </div>
-          </div>
+          </NavLink>
+        )}
+        {collapsed && user && (
+          <NavLink
+            to="/perfil"
+            title="Meu perfil"
+            className="flex justify-center py-2 mt-1 rounded-md"
+          >
+            <Avatar name={user.name} url={user.avatarUrl} size={28} />
+          </NavLink>
         )}
 
         <button

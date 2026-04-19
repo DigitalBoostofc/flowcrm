@@ -12,6 +12,7 @@ import Tasks from '@/pages/Tasks';
 import Companies from '@/pages/Companies';
 import Inbox from '@/pages/Inbox';
 import Admin from '@/pages/Admin';
+import Perfil from '@/pages/Perfil';
 import NotFound from '@/pages/NotFound';
 import ProtectedRoute from '@/components/layout/ProtectedRoute';
 import AppShell from '@/components/layout/AppShell';
@@ -58,6 +59,7 @@ function AuthedLayout() {
         <Route path="companies" element={<Companies />} />
         <Route path="analytics" element={<Analytics />} />
         <Route path="settings" element={<Settings />} />
+        <Route path="perfil" element={<Perfil />} />
         <Route path="admin" element={<Admin />} />
         <Route path="assinar" element={<Assinar />} />
         <Route path="*" element={<NotFound />} />

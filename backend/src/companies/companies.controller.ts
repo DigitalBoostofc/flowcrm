@@ -1,6 +1,8 @@
 import {
   Controller, Get, Post, Patch, Delete, Body, Param, Query, UseGuards, HttpCode,
+  UseInterceptors, UploadedFile, BadRequestException,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { CompaniesService } from './companies.service';
 import { CreateCompanyDto } from './dto/create-company.dto';
 import { UpdateCompanyDto } from './dto/update-company.dto';
@@ -35,5 +37,17 @@ export class CompaniesController {
   @HttpCode(204)
   remove(@Param('id') id: string) {
     return this.companiesService.remove(id);
+  }
+
+  @Post(':id/avatar')
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 5 * 1024 * 1024 } }))
+  uploadAvatar(@Param('id') id: string, @UploadedFile() file: Express.Multer.File) {
+    if (!file) throw new BadRequestException('Arquivo de imagem é obrigatório.');
+    return this.companiesService.updateAvatar(id, file);
+  }
+
+  @Delete(':id/avatar')
+  deleteAvatar(@Param('id') id: string) {
+    return this.companiesService.removeAvatar(id);
   }
 }

@@ -5,6 +5,8 @@ export interface User {
   name: string;
   email: string;
   role: UserRole;
+  phone?: string | null;
+  avatarUrl?: string | null;
   workspaceId?: string;
   isPlatformAdmin?: boolean;
 }
@@ -54,6 +56,7 @@ export interface Contact {
   linkedin?: string;
   skype?: string;
   instagram?: string;
+  avatarUrl?: string | null;
   privacy?: ContactPrivacy;
   additionalAccessUserIds?: string[];
   leads?: Lead[];
@@ -197,6 +200,7 @@ export interface Company {
   skype?: string;
   instagram?: string;
   ranking?: number;
+  avatarUrl?: string | null;
   createdAt: string;
   updatedAt: string;
 }

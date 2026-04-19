@@ -5,6 +5,7 @@ import { Company } from './entities/company.entity';
 import { CreateCompanyDto } from './dto/create-company.dto';
 import { UpdateCompanyDto } from './dto/update-company.dto';
 import { TenantContext } from '../common/tenant/tenant-context.service';
+import { StorageService } from '../storage/storage.service';
 
 @Injectable()
 export class CompaniesService {
@@ -12,6 +13,7 @@ export class CompaniesService {
     @InjectRepository(Company)
     private repo: Repository<Company>,
     private readonly tenant: TenantContext,
+    private readonly storage: StorageService,
   ) {}
 
   create(dto: CreateCompanyDto): Promise<Company> {
@@ -62,5 +64,26 @@ export class CompaniesService {
     const workspaceId = this.tenant.requireWorkspaceId();
     const result = await this.repo.delete({ id, workspaceId });
     if (result.affected === 0) throw new NotFoundException('Empresa não encontrada');
+  }
+
+  async updateAvatar(id: string, file: { buffer: Buffer; mimetype: string; originalname: string; size: number }): Promise<Company> {
+    const company = await this.findOne(id);
+    const uploaded = await this.storage.uploadImage({ folder: 'avatars/companies', file });
+    const previousKey = company.avatarKey;
+    company.avatarUrl = uploaded.url;
+    company.avatarKey = uploaded.key;
+    const saved = await this.repo.save(company);
+    if (previousKey && previousKey !== uploaded.key) this.storage.delete(previousKey).catch(() => undefined);
+    return saved;
+  }
+
+  async removeAvatar(id: string): Promise<Company> {
+    const company = await this.findOne(id);
+    const previousKey = company.avatarKey;
+    company.avatarUrl = null;
+    company.avatarKey = null;
+    const saved = await this.repo.save(company);
+    if (previousKey) this.storage.delete(previousKey).catch(() => undefined);
+    return saved;
   }
 }
