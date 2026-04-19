@@ -666,7 +666,7 @@ export default function Companies() {
 
   return (
     <div className="p-6 space-y-4">
-      <h1 className="page-title">Empresas</h1>
+      <h1 className="text-2xl font-bold" style={{ color: 'var(--ink-1)' }}>Empresas</h1>
 
       {/* Header row */}
       <div className="flex items-center justify-between gap-3 flex-wrap">
