@@ -2,7 +2,7 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import {
   Home, Users, Settings as SettingsIcon, LogOut,
-  ListChecks, BarChart2, Zap, CheckSquare, Building2, Briefcase,
+  BarChart2, Zap, CheckSquare, Building2, Briefcase,
 } from 'lucide-react';
 import { useAuthStore } from '@/store/auth.store';
 import { useSidebarStore } from '@/store/sidebar.store';
@@ -12,10 +12,10 @@ import ThemeToggle from '@/components/ui/ThemeToggle';
 const NAV_ITEMS = [
   { to: '/',           end: true,  icon: Home,          label: 'Início' },
   { to: '/analytics',              icon: BarChart2,     label: 'Analytics' },
+  { to: '/tasks',                  icon: CheckSquare,   label: 'Tarefas' },
   { to: '/pessoas',                icon: Users,         label: 'Pessoas' },
   { to: '/companies',              icon: Building2,     label: 'Empresas' },
   { to: '/negocios',               icon: Briefcase,     label: 'Negócios' },
-  { to: '/tasks',                  icon: CheckSquare,   label: 'Tarefas' },
   { to: '/settings',               icon: SettingsIcon,  label: 'Configurações' },
 ];
 
@@ -123,24 +123,6 @@ export default function Sidebar() {
           </NavLink>
         ))}
 
-        {isOwner && (
-          <a
-            href="/admin/queues"
-            target="_blank"
-            rel="noopener noreferrer"
-            title={collapsed ? 'Filas' : undefined}
-            className="flex items-center gap-2.5 px-2.5 py-2 rounded-md text-[13px] transition-colors overflow-hidden"
-            style={{ color: 'var(--ink-3)' }}
-          >
-            <ListChecks className="w-4 h-4 flex-shrink-0" strokeWidth={1.75} />
-            <span
-              className="whitespace-nowrap"
-              style={{ opacity: collapsed ? 0 : 1, maxWidth: collapsed ? 0 : 160, transition: 'opacity 0.15s, max-width 0.22s cubic-bezier(0.4,0,0.2,1)', overflow: 'hidden' }}
-            >
-              Filas de Jobs
-            </span>
-          </a>
-        )}
       </nav>
 
       {/* Bottom */}
