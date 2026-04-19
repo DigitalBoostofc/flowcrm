@@ -10,6 +10,9 @@ export class ScheduledMessage {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
+  @Column({ type: 'uuid' })
+  workspaceId: string;
+
   @ManyToOne(() => Conversation)
   @JoinColumn({ name: 'conversationId' })
   conversation: Conversation;

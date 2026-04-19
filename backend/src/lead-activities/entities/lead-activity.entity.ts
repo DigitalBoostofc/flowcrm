@@ -16,6 +16,9 @@ export class LeadActivity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
+  @Column({ type: 'uuid' })
+  workspaceId: string;
+
   @ManyToOne(() => Lead, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'leadId' })
   lead: Lead;

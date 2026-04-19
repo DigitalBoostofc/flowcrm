@@ -1,11 +1,15 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, Unique } from 'typeorm';
 
 @Entity('loss_reasons')
+@Unique(['workspaceId', 'label'])
 export class LossReason {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column({ unique: true, length: 100 })
+  @Column({ type: 'uuid' })
+  workspaceId: string;
+
+  @Column({ length: 100 })
   label: string;
 
   @CreateDateColumn()

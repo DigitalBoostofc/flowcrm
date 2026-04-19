@@ -35,6 +35,9 @@ export class Task {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
+  @Column({ type: 'uuid' })
+  workspaceId: string;
+
   @Column({ type: 'enum', enum: TaskType })
   @Index()
   type: TaskType;

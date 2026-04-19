@@ -11,6 +11,9 @@ export class AutomationExecution {
   id: string;
 
   @Column({ type: 'uuid' })
+  workspaceId: string;
+
+  @Column({ type: 'uuid' })
   @Index()
   automationId: string;
 

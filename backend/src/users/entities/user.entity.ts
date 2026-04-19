@@ -12,15 +12,24 @@ export class User {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
+  @Column({ type: 'uuid' })
+  workspaceId: string;
+
   @Column()
   name: string;
 
-  @Column({ unique: true })
+  @Column()
   email: string;
 
   @Exclude()
   @Column()
   passwordHash: string;
+
+  @Column({ type: 'varchar', length: 30, nullable: true })
+  phone: string | null;
+
+  @Column({ default: false })
+  phoneVerified: boolean;
 
   @Column({ type: 'enum', enum: UserRole, default: UserRole.AGENT })
   role: UserRole;

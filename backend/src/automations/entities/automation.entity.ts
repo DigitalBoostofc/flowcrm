@@ -13,6 +13,9 @@ export class Automation {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
+  @Column({ type: 'uuid' })
+  workspaceId: string;
+
   @Column({ type: 'varchar', length: 120 })
   name: string;
 

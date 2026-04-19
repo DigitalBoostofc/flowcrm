@@ -8,6 +8,9 @@ export class Conversation {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
+  @Column({ type: 'uuid' })
+  workspaceId: string;
+
   @ManyToOne(() => Lead)
   @JoinColumn({ name: 'leadId' })
   lead: Lead;

@@ -11,6 +11,9 @@ export class Message {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
+  @Column({ type: 'uuid' })
+  workspaceId: string;
+
   @ManyToOne(() => Conversation, (c) => c.messages)
   @JoinColumn({ name: 'conversationId' })
   conversation: Conversation;

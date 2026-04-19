@@ -28,6 +28,9 @@ export class Lead {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
+  @Column({ type: 'uuid' })
+  workspaceId: string;
+
   @ManyToOne(() => Contact, (contact) => contact.leads)
   @JoinColumn({ name: 'contactId' })
   contact: Contact;

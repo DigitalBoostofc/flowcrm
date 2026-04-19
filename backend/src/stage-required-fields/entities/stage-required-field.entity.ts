@@ -9,6 +9,9 @@ export class StageRequiredField {
   id: string;
 
   @Column({ type: 'uuid' })
+  workspaceId: string;
+
+  @Column({ type: 'uuid' })
   stageId: string;
 
   @Column({ type: 'varchar', length: 20 })

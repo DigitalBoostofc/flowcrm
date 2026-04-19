@@ -6,6 +6,9 @@ export class Pipeline {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
+  @Column({ type: 'uuid' })
+  workspaceId: string;
+
   @Column()
   name: string;
 

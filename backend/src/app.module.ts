@@ -26,6 +26,7 @@ import { CustomerOriginsModule } from './customer-origins/customer-origins.modul
 import { CustomerCategoriesModule } from './customer-categories/customer-categories.module';
 import { SectorsModule } from './sectors/sectors.module';
 import { StageRequiredFieldsModule } from './stage-required-fields/stage-required-fields.module';
+import { WorkspacesModule } from './workspaces/workspaces.module';
 
 @Module({
   imports: [
@@ -68,6 +69,7 @@ import { StageRequiredFieldsModule } from './stage-required-fields/stage-require
     CustomerCategoriesModule,
     SectorsModule,
     StageRequiredFieldsModule,
+    WorkspacesModule,
   ],
 })
 export class AppModule {}

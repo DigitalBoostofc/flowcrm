@@ -20,6 +20,9 @@ export class Company {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
+  @Column({ type: 'uuid' })
+  workspaceId: string;
+
   /* ── Dados básicos ── */
   @Column()
   @Index()

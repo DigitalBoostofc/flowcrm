@@ -8,6 +8,9 @@ export class ChannelConfig {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
+  @Column({ type: 'uuid' })
+  workspaceId: string;
+
   @Column()
   name: string;
 
