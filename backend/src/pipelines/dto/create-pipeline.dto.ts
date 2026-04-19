@@ -1,4 +1,4 @@
-import { IsBoolean, IsOptional, IsString, MaxLength } from 'class-validator';
+import { IsBoolean, IsOptional, IsString, IsIn, MaxLength } from 'class-validator';
 
 export class CreatePipelineDto {
   @IsString()
@@ -12,4 +12,8 @@ export class CreatePipelineDto {
   @IsOptional()
   @IsBoolean()
   isDefault?: boolean;
+
+  @IsOptional()
+  @IsIn(['sale', 'management'])
+  kind?: 'sale' | 'management';
 }

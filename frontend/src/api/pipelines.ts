@@ -11,7 +11,12 @@ export async function getPipeline(id: string): Promise<Pipeline> {
   return res.data;
 }
 
-export async function createPipeline(dto: { name: string; sigla?: string; isDefault?: boolean }): Promise<Pipeline> {
+export async function createPipeline(dto: {
+  name: string;
+  sigla?: string;
+  isDefault?: boolean;
+  kind?: 'sale' | 'management';
+}): Promise<Pipeline> {
   const res = await api.post<Pipeline>('/pipelines', dto);
   return res.data;
 }

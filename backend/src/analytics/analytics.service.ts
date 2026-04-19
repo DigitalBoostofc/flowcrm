@@ -1,7 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, Not } from 'typeorm';
 import { Lead, LeadStatus } from '../leads/entities/lead.entity';
+import { Pipeline } from '../pipelines/entities/pipeline.entity';
 import { TenantContext } from '../common/tenant/tenant-context.service';
 
 @Injectable()
@@ -9,22 +10,43 @@ export class AnalyticsService {
   constructor(
     @InjectRepository(Lead)
     private leads: Repository<Lead>,
+    @InjectRepository(Pipeline)
+    private pipelines: Repository<Pipeline>,
     private readonly tenant: TenantContext,
   ) {}
 
   async getSummary(pipelineId?: string) {
     const workspaceId = this.tenant.requireWorkspaceId();
     const where: any = { workspaceId };
-    if (pipelineId) where.pipelineId = pipelineId;
+    if (pipelineId) {
+      where.pipelineId = pipelineId;
+    } else {
+      // Exclui pipelines de gestão do Analytics
+      const salePipelines = await this.pipelines.find({
+        where: { workspaceId, kind: 'sale' },
+        select: ['id'],
+      });
+      const saleIds = salePipelines.map(p => p.id);
+      if (saleIds.length > 0) {
+        where.pipelineId = saleIds.length === 1
+          ? saleIds[0]
+          : Not('') as any; // fallback — raw filter below
+      }
+    }
 
     const all = await this.leads.find({
       where,
-      relations: ['stage', 'assignedTo'],
+      relations: ['stage', 'assignedTo', 'pipeline'],
     });
 
-    const active = all.filter((l) => l.status === LeadStatus.ACTIVE);
-    const won = all.filter((l) => l.status === LeadStatus.WON);
-    const lost = all.filter((l) => l.status === LeadStatus.LOST);
+    // Filtra fora pipelines de gestão quando não há pipelineId específico
+    const filtered = pipelineId
+      ? all
+      : all.filter(l => !l.pipeline || (l.pipeline as any).kind !== 'management');
+
+    const active = filtered.filter((l) => l.status === LeadStatus.ACTIVE);
+    const won = filtered.filter((l) => l.status === LeadStatus.WON);
+    const lost = filtered.filter((l) => l.status === LeadStatus.LOST);
 
     const sum = (arr: Lead[]) =>
       arr.reduce((acc, l) => acc + (Number(l.value) || 0), 0);
@@ -56,7 +78,7 @@ export class AnalyticsService {
     }
 
     const byAgent: Record<string, { name: string; active: number; won: number; lost: number; value: number }> = {};
-    for (const l of all) {
+    for (const l of filtered) {
       const key = l.assignedToId ?? '__unassigned__';
       if (!byAgent[key]) {
         byAgent[key] = { name: l.assignedTo?.name ?? 'Sem responsável', active: 0, won: 0, lost: 0, value: 0 };
@@ -77,7 +99,7 @@ export class AnalyticsService {
 
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    const recentLeads = all.filter((l) => new Date(l.createdAt) >= thirtyDaysAgo);
+    const recentLeads = filtered.filter((l) => new Date(l.createdAt) >= thirtyDaysAgo);
     const leadsByDay: Record<string, number> = {};
     for (const l of recentLeads) {
       const day = new Date(l.createdAt).toISOString().split('T')[0];
@@ -85,7 +107,7 @@ export class AnalyticsService {
     }
 
     return {
-      totals: { active: active.length, won: won.length, lost: lost.length, total: all.length },
+      totals: { active: active.length, won: won.length, lost: lost.length, total: filtered.length },
       values: { active: sum(active), won: sum(won), lost: sum(lost), forecast: sum(active) },
       conversionRate,
       avgDaysToWin,

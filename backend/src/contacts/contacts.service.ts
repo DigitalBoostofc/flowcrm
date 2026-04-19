@@ -56,6 +56,11 @@ export class ContactsService {
     return this.create({ name, phone });
   }
 
+  async findByPhone(phone: string): Promise<Contact | null> {
+    const workspaceId = this.tenant.requireWorkspaceId();
+    return this.repo.findOne({ where: { phone, workspaceId } });
+  }
+
   async update(id: string, dto: UpdateContactDto): Promise<Contact> {
     const contact = await this.findOne(id);
     Object.assign(contact, dto);

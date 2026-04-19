@@ -19,6 +19,7 @@ export interface InboxItem {
   lastMessageSentAt: Date | null;
   unread: boolean;
   updatedAt: Date;
+  pendingClassification: boolean;
 }
 
 @Injectable()
@@ -62,13 +63,13 @@ export class ConversationsService {
         c."channelType",
         c."externalId",
         c."updatedAt",
-        contact.id           AS "contactId",
-        contact.name         AS "contactName",
-        COALESCE(contact.whatsapp, contact.celular, contact.phone) AS "contactPhone",
-        contact.categoria    AS "contactCategoria",
-        lm.body              AS "lastMessageBody",
-        lm.direction         AS "lastMessageDirection",
-        lm."sentAt"          AS "lastMessageSentAt"
+        contact.id                                                  AS "contactId",
+        COALESCE(contact.name, l."externalName")                    AS "contactName",
+        COALESCE(contact.whatsapp, contact.celular, contact.phone, l."externalPhone") AS "contactPhone",
+        contact.categoria                                           AS "contactCategoria",
+        lm.body                                                     AS "lastMessageBody",
+        lm.direction                                                AS "lastMessageDirection",
+        lm."sentAt"                                                 AS "lastMessageSentAt"
       FROM conversations c
       LEFT JOIN leads l        ON l.id = c."leadId"
       LEFT JOIN contacts contact ON contact.id = l."contactId"
@@ -97,6 +98,7 @@ export class ConversationsService {
       lastMessageSentAt: r.lastMessageSentAt,
       unread: r.lastMessageDirection === 'inbound',
       updatedAt: r.updatedAt,
+      pendingClassification: !r.contactId,
     }));
   }
 }

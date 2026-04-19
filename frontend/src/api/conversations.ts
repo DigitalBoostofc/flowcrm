@@ -15,6 +15,7 @@ export interface InboxItem {
   lastMessageSentAt: string | null;
   unread: boolean;
   updatedAt: string;
+  pendingClassification: boolean;
 }
 
 export async function listInbox(): Promise<InboxItem[]> {

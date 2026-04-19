@@ -35,7 +35,7 @@ function colorFor(id: string) {
 /* ── ConvItem ─────────────────────────────────────────── */
 
 function ConvItem({ item, selected, onClick }: { item: InboxItem; selected: boolean; onClick: () => void }) {
-  const pending = !item.contactCategoria;
+  const pending = item.pendingClassification;
   return (
     <button
       onClick={onClick}
@@ -88,7 +88,7 @@ function ConvItem({ item, selected, onClick }: { item: InboxItem; selected: bool
 
 /* ── ChatView ─────────────────────────────────────────── */
 
-function ChatView({ item }: { item: InboxItem }) {
+function ChatView({ item, onQualify }: { item: InboxItem; onQualify: () => void }) {
   const qc = useQueryClient();
   const [body, setBody] = useState('');
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -164,15 +164,26 @@ function ChatView({ item }: { item: InboxItem }) {
             </div>
           )}
         </div>
-        <div
-          className="text-[10px] font-medium px-2 py-0.5 rounded-full"
-          style={{
-            background: item.unread ? 'var(--success-bg)' : 'var(--surface-hover)',
-            color: item.unread ? 'var(--success)' : 'var(--ink-3)',
-          }}
-        >
-          {item.unread ? 'Nova mensagem' : 'WhatsApp'}
-        </div>
+        {item.pendingClassification ? (
+          <button
+            onClick={onQualify}
+            className="flex items-center gap-1 text-[10px] font-semibold px-2.5 py-1 rounded-full transition-opacity hover:opacity-80"
+            style={{ background: 'rgba(245,158,11,0.15)', color: '#f59e0b', border: '1px solid rgba(245,158,11,0.3)' }}
+          >
+            <Sparkles className="w-2.5 h-2.5" strokeWidth={2} />
+            Qualificar
+          </button>
+        ) : (
+          <div
+            className="text-[10px] font-medium px-2 py-0.5 rounded-full"
+            style={{
+              background: item.unread ? 'var(--success-bg)' : 'var(--surface-hover)',
+              color: item.unread ? 'var(--success)' : 'var(--ink-3)',
+            }}
+          >
+            {item.unread ? 'Nova mensagem' : 'WhatsApp'}
+          </div>
+        )}
       </div>
 
       {/* Messages */}
@@ -278,8 +289,8 @@ export default function Inbox() {
     return () => { socket.off('message.received', handler); };
   }, [socket, qc]);
 
-  const pendingCount = inbox.filter(i => !i.contactCategoria).length;
-  const scoped = tab === 'pendentes' ? inbox.filter(i => !i.contactCategoria) : inbox;
+  const pendingCount = inbox.filter(i => i.pendingClassification).length;
+  const scoped = tab === 'pendentes' ? inbox.filter(i => i.pendingClassification) : inbox;
   const filtered = search
     ? scoped.filter(i =>
         (i.contactName ?? '').toLowerCase().includes(search.toLowerCase()) ||
@@ -291,26 +302,26 @@ export default function Inbox() {
   const selected = inbox.find(i => i.id === selectedId) ?? null;
   const unreadCount = inbox.filter(i => i.unread).length;
 
-  async function handleSelect(item: InboxItem) {
-    if (!item.contactCategoria) {
-      try {
-        const lead = await getLead(item.leadId);
-        const fakeMessage: Message = {
-          id: `inbox-${item.id}`,
-          conversationId: item.id,
-          body: item.lastMessageBody ?? '',
-          direction: (item.lastMessageDirection ?? 'inbound') as Message['direction'],
-          type: 'text',
-          status: 'read',
-          sentAt: item.lastMessageSentAt ?? item.updatedAt,
-          createdAt: item.lastMessageSentAt ?? item.updatedAt,
-        };
-        pushQualification({ lead, message: fakeMessage });
-      } catch {
-        setSelectedId(item.id);
-      }
-      return;
+  async function openQualify(item: InboxItem) {
+    try {
+      const lead = await getLead(item.leadId);
+      const fakeMessage: Message = {
+        id: `inbox-${item.id}`,
+        conversationId: item.id,
+        body: item.lastMessageBody ?? '',
+        direction: (item.lastMessageDirection ?? 'inbound') as Message['direction'],
+        type: 'text',
+        status: 'read',
+        sentAt: item.lastMessageSentAt ?? item.updatedAt,
+        createdAt: item.lastMessageSentAt ?? item.updatedAt,
+      };
+      pushQualification({ lead, message: fakeMessage });
+    } catch {
+      /* noop */
     }
+  }
+
+  function handleSelect(item: InboxItem) {
     setSelectedId(item.id);
   }
 
@@ -424,7 +435,7 @@ export default function Inbox() {
       {/* Right: chat or empty state */}
       <div className="flex-1 min-w-0 h-full overflow-hidden">
         {selected ? (
-          <ChatView key={selected.id} item={selected} />
+          <ChatView key={selected.id} item={selected} onQualify={() => openQualify(selected)} />
         ) : (
           <div className="flex flex-col items-center justify-center h-full gap-4" style={{ color: 'var(--ink-3)' }}>
             <div

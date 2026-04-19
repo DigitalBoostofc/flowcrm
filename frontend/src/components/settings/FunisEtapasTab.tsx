@@ -2,7 +2,9 @@ import { useState, useEffect, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Plus, GripVertical, Trash2, Info, ListChecks, Trophy,
+  TrendingUp, LayoutGrid, X,
 } from 'lucide-react';
+import type { PipelineKind } from '@/types/api';
 import { listPipelines, createPipeline, updatePipeline, deletePipeline } from '@/api/pipelines';
 import { createStage, updateStage, deleteStage } from '@/api/stages';
 import type { Pipeline, Stage } from '@/types/api';
@@ -36,6 +38,7 @@ export default function FunisEtapasTab() {
   const [stageNameDrafts, setStageNameDrafts] = useState<Record<string, string>>({});
   const [stageTimeDrafts, setStageTimeDrafts] = useState<Record<string, string>>({});
   const [requiredFieldsStage, setRequiredFieldsStage] = useState<Stage | null>(null);
+  const [kindPickerOpen, setKindPickerOpen] = useState(false);
 
   useEffect(() => {
     if (!selectedId && pipelines.length > 0) {
@@ -81,10 +84,12 @@ export default function FunisEtapasTab() {
   });
 
   const createPipelineMut = useMutation({
-    mutationFn: (name: string) => createPipeline({ name }),
+    mutationFn: ({ name, kind }: { name: string; kind: PipelineKind }) =>
+      createPipeline({ name, kind }),
     onSuccess: (p) => {
       qc.invalidateQueries({ queryKey: ['pipelines'] });
       setSelectedId(p.id);
+      setKindPickerOpen(false);
     },
   });
 
@@ -141,7 +146,7 @@ export default function FunisEtapasTab() {
   };
 
   const handleAddFunil = () => {
-    createPipelineMut.mutate(`Novo funil ${pipelines.length + 1}`);
+    setKindPickerOpen(true);
   };
 
   const handleDeletePipeline = () => {
@@ -174,6 +179,70 @@ export default function FunisEtapasTab() {
         </p>
       </div>
 
+      {/* Modal de seleção de tipo de funil */}
+      {kindPickerOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-fade-in"
+          style={{ background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(3px)' }}
+          onClick={() => setKindPickerOpen(false)}
+        >
+          <div
+            className="w-full max-w-sm animate-fade-up"
+            style={{ background: 'var(--surface)', border: '1px solid var(--edge-strong)', borderRadius: 12, boxShadow: 'var(--shadow-xl)' }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-5 pt-5 pb-4" style={{ borderBottom: '1px solid var(--edge)' }}>
+              <div>
+                <h3 className="text-[15px] font-semibold" style={{ color: 'var(--ink-1)' }}>Criar novo funil</h3>
+                <p className="text-xs mt-0.5" style={{ color: 'var(--ink-3)' }}>Escolha o tipo de funil</p>
+              </div>
+              <button onClick={() => setKindPickerOpen(false)} style={{ color: 'var(--ink-3)' }}>
+                <X className="w-4 h-4" strokeWidth={2} />
+              </button>
+            </div>
+            <div className="p-5 grid grid-cols-2 gap-3">
+              {/* Funil de Vendas */}
+              <button
+                onClick={() => createPipelineMut.mutate({ name: `Funil de Vendas ${pipelines.filter(p => p.kind === 'sale').length + 1}`, kind: 'sale' })}
+                disabled={createPipelineMut.isPending}
+                className="flex flex-col items-center gap-3 p-4 rounded-xl text-center transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50"
+                style={{ background: 'rgba(99,91,255,0.06)', border: '2px solid rgba(99,91,255,0.25)' }}
+              >
+                <div className="w-12 h-12 rounded-xl flex items-center justify-center"
+                  style={{ background: 'linear-gradient(135deg, #635BFF 0%, #4B44E8 100%)', boxShadow: '0 4px 12px rgba(99,91,255,0.4)' }}>
+                  <TrendingUp className="w-6 h-6 text-white" strokeWidth={2} />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold" style={{ color: 'var(--brand-500)' }}>Funil de Vendas</p>
+                  <p className="text-[11px] mt-0.5 leading-relaxed" style={{ color: 'var(--ink-3)' }}>
+                    Conta no Analytics e relatórios
+                  </p>
+                </div>
+              </button>
+
+              {/* Funil de Gestão */}
+              <button
+                onClick={() => createPipelineMut.mutate({ name: `Gestão ${pipelines.filter(p => p.kind === 'management').length + 1}`, kind: 'management' })}
+                disabled={createPipelineMut.isPending}
+                className="flex flex-col items-center gap-3 p-4 rounded-xl text-center transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50"
+                style={{ background: 'rgba(16,185,129,0.06)', border: '2px solid rgba(16,185,129,0.25)' }}
+              >
+                <div className="w-12 h-12 rounded-xl flex items-center justify-center"
+                  style={{ background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)', boxShadow: '0 4px 12px rgba(16,185,129,0.4)' }}>
+                  <LayoutGrid className="w-6 h-6 text-white" strokeWidth={2} />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold" style={{ color: '#10B981' }}>Funil de Gestão</p>
+                  <p className="text-[11px] mt-0.5 leading-relaxed" style={{ color: 'var(--ink-3)' }}>
+                    Estilo Trello — não conta no Analytics
+                  </p>
+                </div>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Pipeline selector */}
       <div className="flex items-center gap-2 mb-5 flex-wrap">
         {pipelines.map((p) => {
@@ -190,15 +259,24 @@ export default function FunisEtapasTab() {
               }}
             >
               <span
-                className="w-6 h-6 rounded-md flex items-center justify-center text-[9px] font-bold tracking-tight"
+                className="w-6 h-6 rounded-md flex items-center justify-center text-[9px] font-bold tracking-tight flex-shrink-0"
                 style={{
-                  background: active ? 'rgba(255,255,255,0.22)' : 'var(--surface-hover)',
-                  color: active ? '#fff' : 'var(--ink-2)',
+                  background: p.kind === 'management'
+                    ? (active ? 'rgba(255,255,255,0.22)' : 'rgba(16,185,129,0.12)')
+                    : (active ? 'rgba(255,255,255,0.22)' : 'var(--surface-hover)'),
+                  color: p.kind === 'management'
+                    ? (active ? '#fff' : '#10B981')
+                    : (active ? '#fff' : 'var(--ink-2)'),
                 }}
               >
                 {siglaOf(p)}
               </span>
-              {p.name}
+              <span className="truncate flex-1">{p.name}</span>
+              {p.kind === 'management' && !active && (
+                <span className="text-[9px] font-semibold px-1 rounded" style={{ background: 'rgba(16,185,129,0.12)', color: '#10B981' }}>
+                  G
+                </span>
+              )}
             </button>
           );
         })}

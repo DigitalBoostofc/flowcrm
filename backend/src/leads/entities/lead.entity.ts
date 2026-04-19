@@ -46,6 +46,12 @@ export class Lead {
   @Column({ type: 'uuid', nullable: true })
   companyId: string | null;
 
+  @Column({ type: 'varchar', nullable: true })
+  externalName: string | null;
+
+  @Column({ type: 'varchar', nullable: true })
+  externalPhone: string | null;
+
   @ManyToOne(() => Stage, (stage) => stage.leads)
   @JoinColumn({ name: 'stageId' })
   stage: Stage;

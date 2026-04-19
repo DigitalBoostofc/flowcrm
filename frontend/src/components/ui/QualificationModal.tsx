@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { MessageCircle, Phone, User, Building2, X } from 'lucide-react';
 import { useQualificationStore } from '@/store/qualification.store';
 import { updateContact } from '@/api/contacts';
-import { moveLead } from '@/api/leads';
+import { classifyLead, moveLead } from '@/api/leads';
 import { listPipelines } from '@/api/pipelines';
 import { usePanelStore } from '@/store/panel.store';
 
@@ -22,7 +22,7 @@ function QualificationForm({ item, onClose }: { item: NonNullable<ReturnType<typ
   const qc = useQueryClient();
   const openPanel = usePanelStore((s) => s.open);
 
-  const [name, setName] = useState(item.lead.contact?.name ?? '');
+  const [name, setName] = useState(item.lead.contact?.name ?? item.lead.externalName ?? '');
   const [type, setType] = useState<ContactType>('pessoa');
   const [company, setCompany] = useState('');
   const [selectedPipelineId, setSelectedPipelineId] = useState('');
@@ -35,13 +35,19 @@ function QualificationForm({ item, onClose }: { item: NonNullable<ReturnType<typ
 
   const saveMut = useMutation({
     mutationFn: async () => {
-      const contactId = item.lead.contact?.id ?? item.lead.contactId;
-      if (!contactId) throw new Error('Contato não encontrado no lead');
-      await updateContact(contactId, {
-        name,
-        categoria: type === 'empresa' ? 'empresa' : 'pessoa',
-        company: type === 'empresa' ? company : undefined,
-      });
+      const existingContactId = item.lead.contact?.id ?? item.lead.contactId;
+      if (existingContactId) {
+        await updateContact(existingContactId, {
+          name,
+          categoria: type === 'empresa' ? 'empresa' : 'pessoa',
+          company: type === 'empresa' ? company : undefined,
+        });
+      } else {
+        await classifyLead(item.lead.id, {
+          name,
+          phone: item.lead.externalPhone ?? undefined,
+        });
+      }
       if (selectedStageId && selectedStageId !== item.lead.stageId) {
         await moveLead(item.lead.id, selectedStageId);
       }
@@ -55,7 +61,7 @@ function QualificationForm({ item, onClose }: { item: NonNullable<ReturnType<typ
     },
   });
 
-  const phone = item.lead.contact?.phone ?? '';
+  const phone = item.lead.contact?.phone ?? item.lead.externalPhone ?? '';
 
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.6)' }}>

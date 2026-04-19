@@ -60,8 +60,6 @@ export class InboundListener {
   }
 
   private async process(evt: InboundEvent, channel: ChannelConfig): Promise<void> {
-    const contact = await this.contacts.findOrCreateByPhone(evt.from, evt.fromName ?? evt.from);
-
     const defaultPipeline = await this.pipelines.findDefault();
     if (!defaultPipeline || !defaultPipeline.stages?.length) {
       this.logger.error('No default pipeline or stages — cannot create lead for inbound message');
@@ -69,14 +67,28 @@ export class InboundListener {
     }
     const firstStage = [...defaultPipeline.stages].sort((a, b) => a.position - b.position)[0];
 
-    let lead = await this.leads.findByContactAndPipeline(contact.id, defaultPipeline.id);
+    const contact = await this.contacts.findByPhone(evt.from);
+
+    let lead = contact
+      ? await this.leads.findByContactAndPipeline(contact.id, defaultPipeline.id)
+      : await this.leads.findByExternalPhoneAndPipeline(evt.from, defaultPipeline.id);
+
     const isNewLead = !lead;
     if (!lead) {
-      lead = await this.leads.create({
-        contactId: contact.id,
-        pipelineId: defaultPipeline.id,
-        stageId: firstStage.id,
-      });
+      lead = await this.leads.create(
+        contact
+          ? {
+              contactId: contact.id,
+              pipelineId: defaultPipeline.id,
+              stageId: firstStage.id,
+            }
+          : {
+              pipelineId: defaultPipeline.id,
+              stageId: firstStage.id,
+              externalName: evt.fromName ?? evt.from,
+              externalPhone: evt.from,
+            },
+      );
       this.events.emit('lead.created', { lead, stageId: firstStage.id });
     }
 

@@ -22,6 +22,12 @@ interface Props {
   onCardClick: (leadId: string) => void;
 }
 
+// Cores por tipo de funil
+const PIPELINE_COLORS = {
+  sale: { accent: '#635BFF', bg: 'rgba(99,91,255,0.08)', bgLight: 'rgba(99,91,255,0.03)', border: 'var(--brand-500)' },
+  management: { accent: '#10B981', bg: 'rgba(16,185,129,0.08)', bgLight: 'rgba(16,185,129,0.03)', border: '#10B981' },
+};
+
 function daysSinceUpdate(dateStr: string): number {
   return Math.floor((Date.now() - new Date(dateStr).getTime()) / 86400000);
 }
@@ -177,6 +183,7 @@ export default function NegocioKanban({ pipeline, leads, onCardClick }: Props) {
             leads={leadsByStage[s.id] ?? []}
             onCardClick={onCardClick}
             isDragging={!!activeLeadId}
+            pipelineKind={(pipeline as any)?.kind ?? 'sale'}
           />
         ))}
       </div>
@@ -187,18 +194,20 @@ export default function NegocioKanban({ pipeline, leads, onCardClick }: Props) {
 /* ── Column ──────────────────────────────────────────── */
 
 function NegocioColumn({
-  stage, leads, onCardClick, isDragging,
+  stage, leads, onCardClick, isDragging, pipelineKind,
 }: {
   stage: Stage;
   leads: Lead[];
   onCardClick: (leadId: string) => void;
   isDragging: boolean;
+  pipelineKind: 'sale' | 'management';
 }) {
   const total = leads.reduce((sum, l) => sum + Number(l.value ?? 0), 0);
   const { setNodeRef, isOver } = useDroppable({
     id: `stage-${stage.id}`,
     data: { type: 'stage', stageId: stage.id },
   });
+  const colors = PIPELINE_COLORS[pipelineKind] ?? PIPELINE_COLORS.sale;
 
   return (
     <div className="flex-shrink-0 flex flex-col" style={{ width: 210 }}>
@@ -220,8 +229,8 @@ function NegocioColumn({
         ref={setNodeRef}
         className="flex-1 rounded-lg p-1.5 space-y-1.5 transition-all"
         style={{
-          background: isOver ? 'rgba(99,91,255,0.08)' : 'rgba(99,91,255,0.03)',
-          border: `1px ${isOver ? 'solid' : 'dashed'} ${isOver ? 'var(--brand-500)' : 'var(--edge)'}`,
+          background: isOver ? colors.bg : colors.bgLight,
+          border: `1px ${isOver ? 'solid' : 'dashed'} ${isOver ? colors.border : 'var(--edge)'}`,
           minHeight: 'calc(100vh - 240px)',
         }}
       >

@@ -4,9 +4,11 @@ import { IsNull, LessThan, Repository } from 'typeorm';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { Lead, LeadStatus } from './entities/lead.entity';
 import { Stage } from '../stages/entities/stage.entity';
+import { Contact } from '../contacts/entities/contact.entity';
 import { CreateLeadDto } from './dto/create-lead.dto';
 import { UpdateLeadDto } from './dto/update-lead.dto';
 import { UpdateLeadStatusDto } from './dto/update-lead-status.dto';
+import { ClassifyLeadDto } from './dto/classify-lead.dto';
 import { TenantContext } from '../common/tenant/tenant-context.service';
 
 @Injectable()
@@ -16,6 +18,8 @@ export class LeadsService {
     private repo: Repository<Lead>,
     @InjectRepository(Stage)
     private stageRepo: Repository<Stage>,
+    @InjectRepository(Contact)
+    private contactRepo: Repository<Contact>,
     private eventEmitter: EventEmitter2,
     private readonly tenant: TenantContext,
   ) {}
@@ -71,6 +75,14 @@ export class LeadsService {
     const workspaceId = this.tenant.requireWorkspaceId();
     return this.repo.findOne({
       where: { contactId, pipelineId, workspaceId },
+      relations: ['contact', 'company', 'stage', 'pipeline', 'assignedTo'],
+    });
+  }
+
+  findByExternalPhoneAndPipeline(phone: string, pipelineId: string): Promise<Lead | null> {
+    const workspaceId = this.tenant.requireWorkspaceId();
+    return this.repo.findOne({
+      where: { externalPhone: phone, pipelineId, workspaceId, contactId: IsNull() },
       relations: ['contact', 'company', 'stage', 'pipeline', 'assignedTo'],
     });
   }
@@ -134,5 +146,38 @@ export class LeadsService {
     const lead = await this.findOne(id);
     lead.archivedAt = null;
     return this.repo.save(lead);
+  }
+
+  async classify(id: string, dto: ClassifyLeadDto): Promise<Lead> {
+    const workspaceId = this.tenant.requireWorkspaceId();
+    const lead = await this.findOne(id);
+
+    const phone = (dto.phone ?? lead.externalPhone ?? '').trim() || null;
+
+    let contact: Contact | null = null;
+    if (phone) {
+      contact = await this.contactRepo.findOne({ where: { phone, workspaceId } });
+    }
+    if (!contact) {
+      contact = this.contactRepo.create({
+        name: dto.name.trim(),
+        phone: phone ?? undefined,
+        email: dto.email?.trim() || undefined,
+        workspaceId,
+      });
+      contact = await this.contactRepo.save(contact);
+    } else {
+      let changed = false;
+      if (!contact.name && dto.name.trim()) { contact.name = dto.name.trim(); changed = true; }
+      if (!contact.email && dto.email?.trim()) { contact.email = dto.email.trim(); changed = true; }
+      if (changed) contact = await this.contactRepo.save(contact);
+    }
+
+    lead.contactId = contact.id;
+    lead.externalName = null;
+    lead.externalPhone = null;
+    await this.repo.save(lead);
+
+    return this.findOne(id);
   }
 }

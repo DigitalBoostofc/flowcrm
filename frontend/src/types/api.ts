@@ -71,11 +71,14 @@ export interface Stage {
   createdAt: string;
 }
 
+export type PipelineKind = 'sale' | 'management';
+
 export interface Pipeline {
   id: string;
   name: string;
   sigla?: string | null;
   isDefault: boolean;
+  kind: PipelineKind;
   stages?: Stage[];
   createdAt: string;
   updatedAt: string;
@@ -87,6 +90,8 @@ export interface Lead {
   contact?: Contact | null;
   companyId?: string | null;
   company?: Company | null;
+  externalName?: string | null;
+  externalPhone?: string | null;
   stageId: string;
   stage?: Stage;
   pipelineId: string;

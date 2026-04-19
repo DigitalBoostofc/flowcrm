@@ -11,6 +11,16 @@ export class CreateLeadDto {
   @IsUUID()
   companyId?: string;
 
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  externalName?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  externalPhone?: string;
+
   @IsNotEmpty()
   @IsUUID()
   stageId: string;

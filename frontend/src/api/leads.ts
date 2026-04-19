@@ -89,3 +89,11 @@ export const archiveLead = (id: string): Promise<Lead> =>
 
 export const unarchiveLead = (id: string): Promise<Lead> =>
   api.patch(`/leads/${id}/unarchive`).then((r) => r.data);
+
+export async function classifyLead(
+  id: string,
+  data: { name: string; phone?: string; email?: string },
+): Promise<Lead> {
+  const res = await api.post<Lead>(`/leads/${id}/classify`, data);
+  return res.data;
+}

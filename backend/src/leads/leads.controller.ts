@@ -4,6 +4,7 @@ import { CreateLeadDto } from './dto/create-lead.dto';
 import { MoveLeadDto } from './dto/move-lead.dto';
 import { UpdateLeadDto } from './dto/update-lead.dto';
 import { UpdateLeadStatusDto } from './dto/update-lead-status.dto';
+import { ClassifyLeadDto } from './dto/classify-lead.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
@@ -61,6 +62,11 @@ export class LeadsController {
   @Patch(':id/unarchive')
   unarchive(@Param('id', new ParseUUIDPipe()) id: string) {
     return this.leadsService.unarchive(id);
+  }
+
+  @Post(':id/classify')
+  classify(@Param('id', new ParseUUIDPipe()) id: string, @Body() dto: ClassifyLeadDto) {
+    return this.leadsService.classify(id, dto);
   }
 
   @Delete(':id')
