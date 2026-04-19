@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Search, Filter, ArrowUpDown, Upload, Download, Plus, List, GitBranch,
   TrendingUp, X, Pencil, Trash2, GripVertical, Link as LinkIcon, Info,
-  ListChecks, Trophy,
+  ListChecks, Trophy, ChevronsRight, Settings as SettingsIcon,
 } from 'lucide-react';
 import { listAllLeads } from '@/api/leads';
 import { listPipelines, createPipeline, updatePipeline, deletePipeline } from '@/api/pipelines';
@@ -491,47 +491,80 @@ function EtapasFunilModal({
 /* ── Pipeline sidebar ────────────────────────────────── */
 
 function PipelineSidebar({
-  pipelines, selectedId, onSelect, onAddClick,
+  pipelines, selectedId, onSelect, onAddClick, onExpand, onSettings,
 }: {
   pipelines: Pipeline[];
   selectedId: string;
   onSelect: (id: string) => void;
   onAddClick: () => void;
+  onExpand: () => void;
+  onSettings: () => void;
 }) {
   return (
     <aside
-      className="flex-shrink-0 flex flex-col items-center gap-1.5 py-1"
-      style={{ width: 44 }}
+      className="flex-shrink-0 flex flex-col items-center justify-between py-3"
+      style={{
+        width: 56,
+        background: 'var(--surface)',
+        borderRight: '1px solid var(--edge)',
+      }}
     >
-      {pipelines.map((p) => {
-        const active = p.id === selectedId;
-        return (
-          <button
-            key={p.id}
-            onClick={() => onSelect(p.id)}
-            title={p.name}
-            className="w-9 h-9 rounded-md flex items-center justify-center text-[10px] font-bold tracking-tight transition-all"
-            style={{
-              background: active ? 'var(--brand-500, #6366f1)' : 'var(--surface)',
-              color: active ? '#fff' : 'var(--ink-2)',
-              border: active ? '1px solid var(--brand-500, #6366f1)' : '1px solid var(--edge)',
-            }}
-          >
-            {siglaOf(p)}
-          </button>
-        );
-      })}
+      <div className="flex flex-col items-center gap-2 w-full">
+        {pipelines.map((p) => {
+          const active = p.id === selectedId;
+          return (
+            <div key={p.id} className="relative flex items-center justify-center w-full">
+              <button
+                onClick={() => onSelect(p.id)}
+                title={p.name}
+                className="w-10 h-10 rounded-lg flex items-center justify-center text-[10px] font-bold tracking-tight transition-all"
+                style={{
+                  background: active ? 'var(--brand-500, #6366f1)' : 'var(--surface-hover)',
+                  color: active ? '#fff' : 'var(--ink-2)',
+                  border: active ? '1px solid var(--brand-500, #6366f1)' : '1px solid var(--edge)',
+                }}
+              >
+                {siglaOf(p)}
+              </button>
+              {active && (
+                <button
+                  onClick={onExpand}
+                  title="Voltar ao menu"
+                  className="absolute -right-1 top-1/2 -translate-y-1/2 w-5 h-5 rounded-md flex items-center justify-center shadow-sm"
+                  style={{
+                    background: 'var(--surface-raised)',
+                    border: '1px solid var(--edge-strong, var(--edge))',
+                    color: 'var(--ink-2)',
+                  }}
+                >
+                  <ChevronsRight className="w-3 h-3" />
+                </button>
+              )}
+            </div>
+          );
+        })}
+
+        <button
+          onClick={onAddClick}
+          title="Personalizar funis"
+          className="w-10 h-10 rounded-lg flex items-center justify-center transition-all hover:bg-[var(--surface-hover)]"
+          style={{
+            background: 'transparent',
+            color: 'var(--brand-500, #6366f1)',
+            border: '1px dashed var(--edge-strong, var(--edge))',
+          }}
+        >
+          <Plus className="w-4 h-4" />
+        </button>
+      </div>
+
       <button
-        onClick={onAddClick}
-        title="Personalizar funis"
-        className="w-9 h-9 rounded-md flex items-center justify-center transition-all hover:bg-[var(--surface-hover)]"
-        style={{
-          background: 'transparent',
-          color: 'var(--brand-500, #6366f1)',
-          border: '1px dashed var(--edge-strong, var(--edge))',
-        }}
+        onClick={onSettings}
+        title="Configurações"
+        className="w-10 h-10 rounded-lg flex items-center justify-center transition-colors hover:bg-[var(--surface-hover)]"
+        style={{ color: 'var(--ink-2)' }}
       >
-        <Plus className="w-4 h-4" />
+        <SettingsIcon className="w-4 h-4" />
       </button>
     </aside>
   );
@@ -614,7 +647,17 @@ export default function Funil() {
   const totalValue = filteredLeads.reduce((s, l) => s + Number(l.value ?? 0), 0);
 
   return (
-    <div className="p-6 space-y-4">
+    <div className="flex h-full min-h-screen">
+      <PipelineSidebar
+        pipelines={pipelines}
+        selectedId={selectedPipelineId}
+        onSelect={setSelectedPipelineId}
+        onAddClick={() => setPersonalizarOpen(true)}
+        onExpand={() => navigate('/')}
+        onSettings={() => navigate('/settings')}
+      />
+
+      <div className="flex-1 min-w-0 p-6 space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div className="flex items-center gap-3 flex-wrap">
@@ -730,50 +773,42 @@ export default function Funil() {
         </div>
       </div>
 
-      {/* Body: narrow sidebar + kanban */}
-      <div className="flex gap-3">
-        <PipelineSidebar
-          pipelines={pipelines}
-          selectedId={selectedPipelineId}
-          onSelect={setSelectedPipelineId}
-          onAddClick={() => setPersonalizarOpen(true)}
-        />
-
-        <div className="flex-1 min-w-0">
-          {isLoading ? (
-            <div
-              className="rounded-xl text-center py-10 text-sm"
-              style={{ background: 'var(--surface)', border: '1px solid var(--edge)', color: 'var(--ink-3)' }}
-            >
-              Carregando...
+      {/* Body: kanban */}
+      <div>
+        {isLoading ? (
+          <div
+            className="rounded-xl text-center py-10 text-sm"
+            style={{ background: 'var(--surface)', border: '1px solid var(--edge)', color: 'var(--ink-3)' }}
+          >
+            Carregando...
+          </div>
+        ) : pipelines.length === 0 ? (
+          <div
+            className="rounded-xl p-10 text-center"
+            style={{ background: 'var(--surface)', border: '1px solid var(--edge)' }}
+          >
+            <div className="text-sm font-medium mb-2" style={{ color: 'var(--ink-1)' }}>
+              Nenhum funil criado ainda
             </div>
-          ) : pipelines.length === 0 ? (
-            <div
-              className="rounded-xl p-10 text-center"
-              style={{ background: 'var(--surface)', border: '1px solid var(--edge)' }}
+            <p className="text-xs mb-4" style={{ color: 'var(--ink-3)' }}>
+              Clique no + ao lado para criar seu primeiro funil.
+            </p>
+            <button
+              onClick={() => setPersonalizarOpen(true)}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-white"
+              style={{ background: 'var(--brand-500, #6366f1)' }}
             >
-              <div className="text-sm font-medium mb-2" style={{ color: 'var(--ink-1)' }}>
-                Nenhum funil criado ainda
-              </div>
-              <p className="text-xs mb-4" style={{ color: 'var(--ink-3)' }}>
-                Clique no + ao lado para criar seu primeiro funil.
-              </p>
-              <button
-                onClick={() => setPersonalizarOpen(true)}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-white"
-                style={{ background: 'var(--brand-500, #6366f1)' }}
-              >
-                <Plus className="w-4 h-4" /> Criar funil
-              </button>
-            </div>
-          ) : (
-            <NegocioKanban
-              pipeline={selectedPipeline}
-              leads={filteredLeads}
-              onCardClick={(id) => setSelectedLeadId(id)}
-            />
-          )}
-        </div>
+              <Plus className="w-4 h-4" /> Criar funil
+            </button>
+          </div>
+        ) : (
+          <NegocioKanban
+            pipeline={selectedPipeline}
+            leads={filteredLeads}
+            onCardClick={(id) => setSelectedLeadId(id)}
+          />
+        )}
+      </div>
       </div>
 
       <PersonalizarFunisModal
