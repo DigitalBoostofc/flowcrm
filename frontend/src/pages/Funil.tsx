@@ -502,14 +502,14 @@ function EtapasFunilModal({
 /* ── Pipeline sidebar ────────────────────────────────── */
 
 function PipelineSidebar({
-  pipelines, selectedId, onSelect, onAddClick, onToggleMainNav, mainNavOpen, onSettings,
+  pipelines, selectedId, onSelect, onAddClick, onToggleMainNav, mainNavExpanded, onSettings,
 }: {
   pipelines: Pipeline[];
   selectedId: string;
   onSelect: (id: string) => void;
   onAddClick: () => void;
   onToggleMainNav: () => void;
-  mainNavOpen: boolean;
+  mainNavExpanded: boolean;
   onSettings: () => void;
 }) {
   return (
@@ -566,8 +566,8 @@ function PipelineSidebar({
 
       <button
         onClick={onToggleMainNav}
-        title={mainNavOpen ? 'Ocultar menu principal' : 'Mostrar menu principal'}
-        aria-label={mainNavOpen ? 'Ocultar menu principal' : 'Mostrar menu principal'}
+        title={mainNavExpanded ? 'Recolher menu' : 'Expandir menu'}
+        aria-label={mainNavExpanded ? 'Recolher menu' : 'Expandir menu'}
         style={{
           position: 'absolute',
           top: '50%',
@@ -587,7 +587,7 @@ function PipelineSidebar({
           cursor: 'pointer',
         }}
       >
-        {mainNavOpen
+        {mainNavExpanded
           ? <ChevronLeft className="w-3 h-3" strokeWidth={2} />
           : <ChevronRight className="w-3 h-3" strokeWidth={2} />}
       </button>
@@ -602,14 +602,13 @@ export default function Funil() {
   const qc = useQueryClient();
   const currentUser = useAuthStore((s) => s.user);
   const sidebarCollapsed = useSidebarStore((s) => s.collapsed);
+  const toggleSidebar = useSidebarStore((s) => s.toggle);
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [selectedPipelineId, setSelectedPipelineId] = useState<string>('');
   const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
   const [personalizarOpen, setPersonalizarOpen] = useState(false);
   const [editingStagesPipelineId, setEditingStagesPipelineId] = useState<string | null>(null);
-  const [mainNavOpen, setMainNavOpen] = useState(false);
-  const mainNavWidth = sidebarCollapsed ? 52 : 216;
 
   const createPipelineMut = useMutation({
     mutationFn: (name: string) => createPipeline({ name }),
@@ -676,24 +675,15 @@ export default function Funil() {
 
   return (
     <div className="flex h-full min-h-screen">
-      <div
-        style={{
-          width: mainNavOpen ? mainNavWidth : 0,
-          overflow: 'hidden',
-          transition: 'width 0.28s cubic-bezier(0.4,0,0.2,1)',
-          flexShrink: 0,
-        }}
-      >
-        <Sidebar />
-      </div>
+      <Sidebar />
 
       <PipelineSidebar
         pipelines={pipelines}
         selectedId={selectedPipelineId}
         onSelect={setSelectedPipelineId}
         onAddClick={() => setPersonalizarOpen(true)}
-        onToggleMainNav={() => setMainNavOpen((v) => !v)}
-        mainNavOpen={mainNavOpen}
+        onToggleMainNav={toggleSidebar}
+        mainNavExpanded={!sidebarCollapsed}
         onSettings={() => navigate('/settings')}
       />
 
