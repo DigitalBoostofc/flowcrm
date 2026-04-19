@@ -14,6 +14,7 @@ import { useAuthStore } from '@/store/auth.store';
 import type { Pipeline, Stage } from '@/types/api';
 import NegocioKanban from '@/components/negocios/NegocioKanban';
 import NegocioDetailPanel from '@/components/negocios/NegocioDetailPanel';
+import RequiredFieldsDrawer from '@/components/settings/RequiredFieldsDrawer';
 import { formatBRL } from '@/lib/format';
 
 function deriveSigla(name: string): string {
@@ -234,6 +235,7 @@ function EtapasFunilModal({
   const [showTooltip, setShowTooltip] = useState(false);
   const [nameDrafts, setNameDrafts] = useState<Record<string, string>>({});
   const [timeDrafts, setTimeDrafts] = useState<Record<string, string>>({});
+  const [requiredFieldsStage, setRequiredFieldsStage] = useState<Stage | null>(null);
 
   const stages = useMemo<Stage[]>(
     () => (pipeline?.stages ?? []).slice().sort((a, b) => a.position - b.position),
@@ -444,6 +446,7 @@ function EtapasFunilModal({
                         onFocus={(e) => (e.currentTarget.style.border = '1px solid var(--edge)')}
                       />
                       <button
+                        onClick={() => setRequiredFieldsStage(s)}
                         className="flex items-center gap-1.5 text-sm font-medium"
                         style={{ color: 'var(--brand-500, #6366f1)' }}
                         title="Configurar campos obrigatórios"
@@ -484,6 +487,12 @@ function EtapasFunilModal({
           )}
         </div>
       </div>
+
+      <RequiredFieldsDrawer
+        open={!!requiredFieldsStage}
+        stage={requiredFieldsStage}
+        onClose={() => setRequiredFieldsStage(null)}
+      />
     </div>
   );
 }

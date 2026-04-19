@@ -6,6 +6,7 @@ import {
 import { listPipelines, createPipeline, updatePipeline, deletePipeline } from '@/api/pipelines';
 import { createStage, updateStage, deleteStage } from '@/api/stages';
 import type { Pipeline, Stage } from '@/types/api';
+import RequiredFieldsDrawer from './RequiredFieldsDrawer';
 
 function deriveSigla(name: string): string {
   const letters = name
@@ -34,6 +35,7 @@ export default function FunisEtapasTab() {
   const [siglaDraft, setSiglaDraft] = useState('');
   const [stageNameDrafts, setStageNameDrafts] = useState<Record<string, string>>({});
   const [stageTimeDrafts, setStageTimeDrafts] = useState<Record<string, string>>({});
+  const [requiredFieldsStage, setRequiredFieldsStage] = useState<Stage | null>(null);
 
   useEffect(() => {
     if (!selectedId && pipelines.length > 0) {
@@ -370,6 +372,7 @@ export default function FunisEtapasTab() {
                           onFocus={(e) => (e.currentTarget.style.border = '1px solid var(--edge)')}
                         />
                         <button
+                          onClick={() => setRequiredFieldsStage(s)}
                           className="flex items-center gap-1.5 text-sm font-medium"
                           style={{ color: 'var(--brand-500, #6366f1)' }}
                           title="Configurar campos obrigatórios"
@@ -411,6 +414,12 @@ export default function FunisEtapasTab() {
           </div>
         </div>
       )}
+
+      <RequiredFieldsDrawer
+        open={!!requiredFieldsStage}
+        stage={requiredFieldsStage}
+        onClose={() => setRequiredFieldsStage(null)}
+      />
     </div>
   );
 }
