@@ -93,7 +93,7 @@ export class InboundListener {
       return;
     }
 
-    this.events.emit('message.received', { message: saved, lead, conversation: conv, isNewLead });
+    this.events.emit('message.received', { message: saved, lead: { ...lead, contact }, conversation: conv, isNewLead });
     void channel;
   }
 }

@@ -35,7 +35,9 @@ function QualificationForm({ item, onClose }: { item: NonNullable<ReturnType<typ
 
   const saveMut = useMutation({
     mutationFn: async () => {
-      await updateContact(item.lead.contact!.id, {
+      const contactId = item.lead.contact?.id ?? item.lead.contactId;
+      if (!contactId) throw new Error('Contato não encontrado no lead');
+      await updateContact(contactId, {
         name,
         categoria: type === 'empresa' ? 'empresa' : 'pessoa',
         company: type === 'empresa' ? company : undefined,
@@ -47,6 +49,7 @@ function QualificationForm({ item, onClose }: { item: NonNullable<ReturnType<typ
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['leads'] });
       qc.invalidateQueries({ queryKey: ['contacts'] });
+      qc.invalidateQueries({ queryKey: ['inbox'] });
       onClose();
       openPanel(item.lead.id);
     },
@@ -162,6 +165,13 @@ function QualificationForm({ item, onClose }: { item: NonNullable<ReturnType<typ
             </div>
           </div>
         </div>
+
+        {/* Erro */}
+        {saveMut.isError && (
+          <div className="mx-5 mb-2 px-3 py-2 rounded-lg text-xs" style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', color: '#f87171' }}>
+            {(saveMut.error as Error)?.message ?? 'Falha ao qualificar contato'}
+          </div>
+        )}
 
         {/* Footer */}
         <div className="flex gap-2 px-5 pb-5">

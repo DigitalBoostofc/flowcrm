@@ -1,12 +1,15 @@
 import { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { MessageCircle, Send, Search, Phone, Loader2 } from 'lucide-react';
+import { MessageCircle, Send, Search, Phone, Loader2, Sparkles } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { listInbox, type InboxItem } from '@/api/conversations';
 import { listMessages, sendMessage } from '@/api/messages';
 import { listChannels } from '@/api/channels';
+import { getLead } from '@/api/leads';
 import { useWs } from '@/hooks/useWebSocket';
+import { useQualificationStore } from '@/store/qualification.store';
+import type { Message } from '@/types/api';
 
 /* ── helpers ──────────────────────────────────────────── */
 
@@ -32,6 +35,7 @@ function colorFor(id: string) {
 /* ── ConvItem ─────────────────────────────────────────── */
 
 function ConvItem({ item, selected, onClick }: { item: InboxItem; selected: boolean; onClick: () => void }) {
+  const pending = !item.contactCategoria;
   return (
     <button
       onClick={onClick}
@@ -62,6 +66,15 @@ function ConvItem({ item, selected, onClick }: { item: InboxItem; selected: bool
         <div className="flex items-center gap-1.5 mt-0.5">
           {item.unread && (
             <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: 'var(--success)' }} />
+          )}
+          {pending && (
+            <span
+              className="flex items-center gap-0.5 text-[9px] font-semibold px-1.5 py-0.5 rounded-full flex-shrink-0"
+              style={{ background: 'rgba(245,158,11,0.15)', color: '#f59e0b' }}
+            >
+              <Sparkles className="w-2.5 h-2.5" strokeWidth={2} />
+              Qualificar
+            </span>
           )}
           <p className="text-xs truncate" style={{ color: item.unread ? 'var(--ink-2)' : 'var(--ink-3)', fontWeight: item.unread ? 500 : 400 }}>
             {item.lastMessageDirection === 'outbound' && <span style={{ color: 'var(--ink-3)' }}>Você: </span>}
@@ -246,8 +259,10 @@ function ChatView({ item }: { item: InboxItem }) {
 export default function Inbox() {
   const qc = useQueryClient();
   const [search, setSearch] = useState('');
+  const [tab, setTab] = useState<'todas' | 'pendentes'>('todas');
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const { socket } = useWs();
+  const pushQualification = useQualificationStore(s => s.push);
 
   const { data: inbox = [], isLoading } = useQuery({
     queryKey: ['inbox'],
@@ -263,16 +278,41 @@ export default function Inbox() {
     return () => { socket.off('message.received', handler); };
   }, [socket, qc]);
 
+  const pendingCount = inbox.filter(i => !i.contactCategoria).length;
+  const scoped = tab === 'pendentes' ? inbox.filter(i => !i.contactCategoria) : inbox;
   const filtered = search
-    ? inbox.filter(i =>
+    ? scoped.filter(i =>
         (i.contactName ?? '').toLowerCase().includes(search.toLowerCase()) ||
         (i.contactPhone ?? '').includes(search) ||
         (i.lastMessageBody ?? '').toLowerCase().includes(search.toLowerCase())
       )
-    : inbox;
+    : scoped;
 
   const selected = inbox.find(i => i.id === selectedId) ?? null;
   const unreadCount = inbox.filter(i => i.unread).length;
+
+  async function handleSelect(item: InboxItem) {
+    if (!item.contactCategoria) {
+      try {
+        const lead = await getLead(item.leadId);
+        const fakeMessage: Message = {
+          id: `inbox-${item.id}`,
+          conversationId: item.id,
+          body: item.lastMessageBody ?? '',
+          direction: (item.lastMessageDirection ?? 'inbound') as Message['direction'],
+          type: 'text',
+          status: 'read',
+          sentAt: item.lastMessageSentAt ?? item.updatedAt,
+          createdAt: item.lastMessageSentAt ?? item.updatedAt,
+        };
+        pushQualification({ lead, message: fakeMessage });
+      } catch {
+        setSelectedId(item.id);
+      }
+      return;
+    }
+    setSelectedId(item.id);
+  }
 
   return (
     <div className="flex h-full" style={{ background: 'var(--canvas)' }}>
@@ -296,6 +336,41 @@ export default function Inbox() {
               </span>
             )}
           </div>
+
+          {/* Tabs */}
+          <div className="flex gap-1 mb-3 p-0.5 rounded-lg" style={{ background: 'var(--surface-hover)' }}>
+            <button
+              onClick={() => setTab('todas')}
+              className="flex-1 px-2 py-1.5 rounded-md text-xs font-medium transition-colors"
+              style={{
+                background: tab === 'todas' ? 'var(--surface)' : 'transparent',
+                color: tab === 'todas' ? 'var(--ink-1)' : 'var(--ink-3)',
+                boxShadow: tab === 'todas' ? 'var(--shadow-sm)' : undefined,
+              }}
+            >
+              Todas
+            </button>
+            <button
+              onClick={() => setTab('pendentes')}
+              className="flex-1 px-2 py-1.5 rounded-md text-xs font-medium transition-colors flex items-center justify-center gap-1"
+              style={{
+                background: tab === 'pendentes' ? 'var(--surface)' : 'transparent',
+                color: tab === 'pendentes' ? 'var(--ink-1)' : 'var(--ink-3)',
+                boxShadow: tab === 'pendentes' ? 'var(--shadow-sm)' : undefined,
+              }}
+            >
+              Qualificar
+              {pendingCount > 0 && (
+                <span
+                  className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full"
+                  style={{ background: 'rgba(245,158,11,0.2)', color: '#f59e0b' }}
+                >
+                  {pendingCount}
+                </span>
+              )}
+            </button>
+          </div>
+
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5" style={{ color: 'var(--ink-3)' }} />
             <input
@@ -316,13 +391,20 @@ export default function Inbox() {
             </div>
           ) : filtered.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 px-6 text-center gap-3">
-              <MessageCircle className="w-10 h-10" style={{ color: 'var(--ink-3)' }} strokeWidth={1.5} />
+              {tab === 'pendentes'
+                ? <Sparkles className="w-10 h-10" style={{ color: 'var(--ink-3)' }} strokeWidth={1.5} />
+                : <MessageCircle className="w-10 h-10" style={{ color: 'var(--ink-3)' }} strokeWidth={1.5} />
+              }
               <div>
                 <p className="text-sm font-medium" style={{ color: 'var(--ink-2)' }}>
-                  {search ? 'Nenhuma conversa encontrada' : 'Nenhuma conversa ainda'}
+                  {search
+                    ? 'Nenhuma conversa encontrada'
+                    : tab === 'pendentes' ? 'Tudo qualificado' : 'Nenhuma conversa ainda'}
                 </p>
                 <p className="text-xs mt-1" style={{ color: 'var(--ink-3)' }}>
-                  {!search && 'As conversas do WhatsApp aparecerão aqui'}
+                  {!search && (tab === 'pendentes'
+                    ? 'Contatos novos do WhatsApp aparecem aqui'
+                    : 'As conversas do WhatsApp aparecerão aqui')}
                 </p>
               </div>
             </div>
@@ -332,7 +414,7 @@ export default function Inbox() {
                 key={item.id}
                 item={item}
                 selected={item.id === selectedId}
-                onClick={() => setSelectedId(item.id)}
+                onClick={() => handleSelect(item)}
               />
             ))
           )}
