@@ -192,9 +192,10 @@ export interface NegocioDetailPanelProps {
   users: User[];
   pipelines: Pipeline[];
   onClose: () => void;
+  onPipelineMoved?: (newPipelineId: string) => void;
 }
 
-export default function NegocioDetailPanel({ lead, currentUser, users, pipelines, onClose }: NegocioDetailPanelProps) {
+export default function NegocioDetailPanel({ lead, currentUser, users, pipelines, onClose, onPipelineMoved }: NegocioDetailPanelProps) {
   const qc = useQueryClient();
   const [composerType, setComposerType] = useState<ComposerType>('note');
   const [activityText, setActivityText] = useState('');
@@ -274,9 +275,10 @@ export default function NegocioDetailPanel({ lead, currentUser, users, pipelines
       if (!firstStage) throw new Error('Funil sem etapas');
       return moveLead(lead.id, firstStage.id);
     },
-    onSuccess: () => {
+    onSuccess: (_, newPipelineId) => {
       qc.invalidateQueries({ queryKey: ['negocios'] });
       setPipelinePickerOpen(false);
+      onPipelineMoved?.(newPipelineId);
       setSelectedPipelineId('');
     },
   });

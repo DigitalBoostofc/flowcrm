@@ -871,7 +871,9 @@ export default function Funil() {
       />
 
       {selectedLeadId && (() => {
-        const sel = filteredLeads.find((l) => l.id === selectedLeadId);
+        // Busca em todos os leads (não só filtrados) para manter o painel aberto durante troca de funil
+        const sel = filteredLeads.find((l) => l.id === selectedLeadId)
+          ?? leads.find((l) => l.id === selectedLeadId);
         if (!sel) return null;
         return (
           <NegocioDetailPanel
@@ -880,6 +882,7 @@ export default function Funil() {
             users={users}
             pipelines={pipelines}
             onClose={() => setSelectedLeadId(null)}
+            onPipelineMoved={(newPipelineId) => setSelectedPipelineId(newPipelineId)}
           />
         );
       })()}
