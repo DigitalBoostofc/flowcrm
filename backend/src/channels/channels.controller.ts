@@ -59,7 +59,8 @@ export class ChannelsController {
     const secret = channel.config.webhookSecret;
     const host = req.get('host');
     const forwardedProto = req.get('x-forwarded-proto');
-    const protocol = forwardedProto || req.protocol || 'https';
+    const isLocal = /^(localhost|127\.|0\.0\.0\.0|::1)/.test(host ?? '');
+    const protocol = forwardedProto || (isLocal ? req.protocol || 'http' : 'https');
     const provider = channel.type === 'uazapi' ? 'uazapi' : 'evolution';
     return `${protocol}://${host}/api/webhooks/${provider}/${id}/${secret}`;
   }
