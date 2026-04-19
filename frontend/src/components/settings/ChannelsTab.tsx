@@ -154,28 +154,24 @@ function QrModal({ channelId, initialQr, onClose }: { channelId: string | null; 
 
     const poll = async () => {
       try {
-        // Verifica status do canal
-        const ch = await getChannel(channelId);
-        if (ch.status === 'connected') {
-          if (!cancelled) {
-            setConnected(true);
-            setPhone((ch.config as any).connectedPhone ?? '');
-            queryClient.invalidateQueries({ queryKey: ['channels'] });
-          }
+        const result = await getChannelQr(channelId);
+        if (cancelled) return false;
+        if (result.connected) {
+          setConnected(true);
+          setPhone(result.phone ?? '');
+          queryClient.invalidateQueries({ queryKey: ['channels'] });
           return true;
         }
-        // Atualiza QR
-        const result = await getChannelQr(channelId);
-        if (!cancelled && result.base64) setQr(result.base64);
+        if (result.base64) setQr(result.base64);
       } catch {}
       return false;
     };
 
-    const first = setTimeout(poll, 5000);
+    const first = setTimeout(poll, 4000);
     const t = setInterval(async () => {
       const done = await poll();
       if (done) clearInterval(t);
-    }, 5000);
+    }, 4000);
 
     return () => { cancelled = true; clearTimeout(first); clearInterval(t); };
   }, [channelId, initialQr, queryClient]);

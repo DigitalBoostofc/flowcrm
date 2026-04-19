@@ -63,7 +63,7 @@ export class ChannelsService {
     await this.repo.update(id, { active: false });
   }
 
-  async getQrCode(id: string): Promise<{ base64: string; pairingCode?: string }> {
+  async getQrCode(id: string): Promise<{ base64: string; pairingCode?: string; connected?: boolean; phone?: string }> {
     const channel = await this.findById(id);
     if (channel.type === 'uazapi') {
       const adapter = this.adapters.get('uazapi') as unknown as UazapiAdapter;

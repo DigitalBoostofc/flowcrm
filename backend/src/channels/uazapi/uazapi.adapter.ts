@@ -121,7 +121,7 @@ export class UazapiAdapter implements ChannelAdapter {
     }
   }
 
-  async getQrCode(channelConfigId: string): Promise<{ base64: string }> {
+  async getQrCode(channelConfigId: string): Promise<{ base64: string; connected: boolean; phone?: string }> {
     const channel = await this.repo.findOneByOrFail({ id: channelConfigId });
     const token = channel.config.instanceToken as string | undefined;
 
@@ -131,17 +131,32 @@ export class UazapiAdapter implements ChannelAdapter {
           headers: this.instanceHeaders(token),
           timeout: 10000,
         });
-        const fresh: string = res.data?.instance?.qrcode ?? '';
-        if (fresh) {
-          await this.saveQrCode(channelConfigId, fresh);
-          return { base64: fresh };
+        const inst = res.data?.instance ?? {};
+        const isConnected: boolean = res.data?.status?.connected === true;
+
+        // Sincroniza status com o banco sem depender do webhook
+        if (isConnected && channel.status !== 'connected') {
+          const phone: string = (inst.owner ?? '').replace('@s.whatsapp.net', '');
+          channel.status = 'connected';
+          channel.config = {
+            ...channel.config,
+            connectedPhone: phone,
+            profileName: inst.profileName ?? '',
+          };
+          await this.repo.save(channel);
+          return { base64: '', connected: true, phone };
         }
+
+        const fresh: string = inst.qrcode ?? '';
+        if (fresh) await this.saveQrCode(channelConfigId, fresh);
+        const base64 = fresh || ((channel.config.lastQrCode as string) ?? '');
+        return { base64, connected: false };
       } catch (err: any) {
-        this.logger.warn(`QR fetch: ${err.message}`);
+        this.logger.warn(`QR/status fetch: ${err.message}`);
       }
     }
 
-    return { base64: (channel.config.lastQrCode as string) ?? '' };
+    return { base64: (channel.config.lastQrCode as string) ?? '', connected: false };
   }
 
   async saveQrCode(channelConfigId: string, base64: string): Promise<void> {
