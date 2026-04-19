@@ -23,14 +23,17 @@ export default function AutomationsTab() {
   const [templateId, setTemplateId] = useState('');
 
   const createMutation = useMutation({
-    mutationFn: () => createAutomation({
-      stageId: selectedStageId,
-      delayMinutes,
-      channelType: 'evolution',
-      channelConfigId: channelId,
-      templateId,
-      active: true,
-    }),
+    mutationFn: () => {
+      const ch = channels.find((c) => c.id === channelId);
+      return createAutomation({
+        stageId: selectedStageId,
+        delayMinutes,
+        channelType: ch?.type ?? 'uazapi',
+        channelConfigId: channelId,
+        templateId,
+        active: true,
+      });
+    },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['automations'] }),
   });
 
