@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Stage } from './entities/stage.entity';
 import { CreateStageDto } from './dto/create-stage.dto';
+import { UpdateStageDto } from './dto/update-stage.dto';
 
 @Injectable()
 export class StagesService {
@@ -14,6 +15,12 @@ export class StagesService {
   async create(pipelineId: string, dto: CreateStageDto): Promise<Stage> {
     const count = await this.repo.count({ where: { pipelineId } });
     const stage = this.repo.create({ ...dto, pipelineId, position: dto.position ?? count });
+    return this.repo.save(stage);
+  }
+
+  async update(id: string, dto: UpdateStageDto): Promise<Stage> {
+    const stage = await this.findOne(id);
+    Object.assign(stage, dto);
     return this.repo.save(stage);
   }
 

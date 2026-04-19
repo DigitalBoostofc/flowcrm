@@ -3,13 +3,15 @@ import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Search, Filter, ArrowUpDown, Upload, Download, Plus, List, GitBranch,
-  TrendingUp, X, Pencil, Trash2, GripVertical, Link as LinkIcon,
+  TrendingUp, X, Pencil, Trash2, GripVertical, Link as LinkIcon, Info,
+  ListChecks, Trophy,
 } from 'lucide-react';
 import { listAllLeads } from '@/api/leads';
 import { listPipelines, createPipeline, updatePipeline, deletePipeline } from '@/api/pipelines';
+import { createStage, updateStage, deleteStage } from '@/api/stages';
 import { listUsers } from '@/api/users';
 import { useAuthStore } from '@/store/auth.store';
-import type { Pipeline } from '@/types/api';
+import type { Pipeline, Stage } from '@/types/api';
 import NegocioKanban from '@/components/negocios/NegocioKanban';
 import NegocioDetailPanel from '@/components/negocios/NegocioDetailPanel';
 import { formatBRL } from '@/lib/format';
@@ -31,12 +33,13 @@ function siglaOf(p: Pipeline): string {
 /* ── Personalizar Funis Modal ────────────────────────── */
 
 function PersonalizarFunisModal({
-  open, onClose, pipelines, onEditStages,
+  open, onClose, pipelines, onEditStages, onAddFunil,
 }: {
   open: boolean;
   onClose: () => void;
   pipelines: Pipeline[];
   onEditStages: (pipelineId: string) => void;
+  onAddFunil: () => void;
 }) {
   const qc = useQueryClient();
   const [drafts, setDrafts] = useState<Record<string, { name: string; sigla: string }>>({});
@@ -56,15 +59,14 @@ function PersonalizarFunisModal({
     onSuccess: () => qc.invalidateQueries({ queryKey: ['pipelines'] }),
   });
 
-  const createMut = useMutation({
-    mutationFn: () => createPipeline({ name: 'Novo funil', sigla: 'NVO' }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['pipelines'] }),
-  });
-
   const deleteMut = useMutation({
     mutationFn: (id: string) => deletePipeline(id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['pipelines'] }),
   });
+
+  const handleAddClick = () => {
+    onAddFunil();
+  };
 
   const saveField = (id: string, field: 'name' | 'sigla', value: string) => {
     const current = pipelines.find((p) => p.id === id);
@@ -202,14 +204,284 @@ function PersonalizarFunisModal({
           )}
 
           <button
-            onClick={() => createMut.mutate()}
-            disabled={createMut.isPending}
-            className="mt-4 flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold text-white shadow-sm transition-all hover:opacity-90 disabled:opacity-50"
+            onClick={handleAddClick}
+            className="mt-4 flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold text-white shadow-sm transition-all hover:opacity-90"
             style={{ background: 'var(--brand-500, #6366f1)' }}
           >
             <Plus className="w-4 h-4" />
             Adicionar funil
           </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── Etapas do Funil modal ───────────────────────────── */
+
+type EtapasTab = 'etapas' | 'status';
+
+function EtapasFunilModal({
+  open, onClose, pipeline, onBack,
+}: {
+  open: boolean;
+  onClose: () => void;
+  pipeline: Pipeline | null;
+  onBack: () => void;
+}) {
+  const qc = useQueryClient();
+  const [tab, setTab] = useState<EtapasTab>('etapas');
+  const [showTooltip, setShowTooltip] = useState(false);
+  const [nameDrafts, setNameDrafts] = useState<Record<string, string>>({});
+  const [timeDrafts, setTimeDrafts] = useState<Record<string, string>>({});
+
+  const stages = useMemo<Stage[]>(
+    () => (pipeline?.stages ?? []).slice().sort((a, b) => a.position - b.position),
+    [pipeline],
+  );
+
+  useEffect(() => {
+    if (!open) return;
+    setTab('etapas');
+    const names: Record<string, string> = {};
+    const times: Record<string, string> = {};
+    for (const s of stages) {
+      names[s.id] = s.name;
+      times[s.id] = s.timeLimitDays == null ? '' : String(s.timeLimitDays);
+    }
+    setNameDrafts(names);
+    setTimeDrafts(times);
+  }, [open, stages]);
+
+  const updateStageMut = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: { name?: string; timeLimitDays?: number | null } }) =>
+      updateStage(pipeline!.id, id, data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['pipelines'] }),
+  });
+
+  const addStageMut = useMutation({
+    mutationFn: () =>
+      createStage(pipeline!.id, { name: 'Nova etapa', position: stages.length }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['pipelines'] }),
+  });
+
+  const deleteStageMut = useMutation({
+    mutationFn: (id: string) => deleteStage(pipeline!.id, id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['pipelines'] }),
+  });
+
+  if (!open || !pipeline) return null;
+
+  const saveName = (id: string, value: string) => {
+    const current = stages.find((s) => s.id === id);
+    if (!current) return;
+    const trimmed = value.trim();
+    if (!trimmed || trimmed === current.name) return;
+    updateStageMut.mutate({ id, data: { name: trimmed } });
+  };
+
+  const saveTime = (id: string, value: string) => {
+    const current = stages.find((s) => s.id === id);
+    if (!current) return;
+    const trimmed = value.trim();
+    if (trimmed === '') {
+      if (current.timeLimitDays == null) return;
+      updateStageMut.mutate({ id, data: { timeLimitDays: null } });
+      return;
+    }
+    const num = parseInt(trimmed, 10);
+    if (Number.isNaN(num) || num < 0) return;
+    if (current.timeLimitDays === num) return;
+    updateStageMut.mutate({ id, data: { timeLimitDays: num } });
+  };
+
+  const onDeleteStage = (s: Stage) => {
+    if (confirm(`Excluir a etapa "${s.name}"?`)) deleteStageMut.mutate(s.id);
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-start justify-center p-4 overflow-y-auto"
+      style={{ background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)' }}
+      onClick={onClose}
+    >
+      <div
+        className="glass-raised rounded-xl shadow-2xl max-w-3xl w-full my-8 animate-fade-up"
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+      >
+        <div
+          className="flex items-center justify-between px-6 py-4"
+          style={{ borderBottom: '1px solid var(--edge)' }}
+        >
+          <h2 className="text-lg font-bold" style={{ color: 'var(--ink-1)' }}>
+            Etapas do {pipeline.name}
+          </h2>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={onBack}
+              className="text-xs font-medium px-2 py-1 rounded hover:bg-[var(--surface-hover)]"
+              style={{ color: 'var(--ink-3)' }}
+            >
+              Voltar
+            </button>
+            <button
+              onClick={onClose}
+              className="p-1 rounded hover:bg-[var(--surface-hover)]"
+              style={{ color: 'var(--ink-3)' }}
+              title="Fechar"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+
+        {/* Tabs */}
+        <div className="flex items-center gap-6 px-6" style={{ borderBottom: '1px solid var(--edge)' }}>
+          <button
+            onClick={() => setTab('etapas')}
+            className="flex items-center gap-2 py-3 text-sm font-medium transition-colors"
+            style={{
+              color: tab === 'etapas' ? 'var(--brand-500, #6366f1)' : 'var(--ink-2)',
+              borderBottom: tab === 'etapas' ? '2px solid var(--brand-500, #6366f1)' : '2px solid transparent',
+            }}
+          >
+            <ListChecks className="w-4 h-4" />
+            Etapas do funil
+          </button>
+          <button
+            onClick={() => setTab('status')}
+            className="flex items-center gap-2 py-3 text-sm font-medium transition-colors"
+            style={{
+              color: tab === 'status' ? 'var(--brand-500, #6366f1)' : 'var(--ink-2)',
+              borderBottom: tab === 'status' ? '2px solid var(--brand-500, #6366f1)' : '2px solid transparent',
+            }}
+          >
+            <Trophy className="w-4 h-4" />
+            Status do negócio neste funil
+          </button>
+        </div>
+
+        <div className="px-6 py-5">
+          {tab === 'etapas' ? (
+            <>
+              {/* Column headers */}
+              <div
+                className="grid items-center gap-3 px-2 py-2 text-xs font-bold uppercase tracking-wide"
+                style={{
+                  gridTemplateColumns: '24px 40px 1.4fr 1fr 160px 40px',
+                  color: 'var(--ink-2)',
+                }}
+              >
+                <div />
+                <div />
+                <div>Nome</div>
+                <div className="flex items-center gap-1 relative">
+                  Tempo limite na etapa
+                  <button
+                    className="p-0.5"
+                    onMouseEnter={() => setShowTooltip(true)}
+                    onMouseLeave={() => setShowTooltip(false)}
+                  >
+                    <Info className="w-3.5 h-3.5" style={{ color: 'var(--ink-3)' }} />
+                  </button>
+                  {showTooltip && (
+                    <div
+                      className="absolute left-8 top-6 z-10 rounded-lg p-3 text-xs font-normal normal-case shadow-lg"
+                      style={{
+                        background: '#1e1b4b',
+                        color: '#fff',
+                        maxWidth: 220,
+                        lineHeight: 1.5,
+                      }}
+                    >
+                      Defina qual é o Tempo Limite que um negócio deve passar nesta etapa. Após isso, ele será destacado no funil para facilitar o acompanhamento.
+                    </div>
+                  )}
+                </div>
+                <div />
+                <div />
+              </div>
+
+              {stages.length === 0 ? (
+                <div className="text-sm py-6 text-center" style={{ color: 'var(--ink-3)' }}>
+                  Nenhuma etapa cadastrada ainda.
+                </div>
+              ) : (
+                <div>
+                  {stages.map((s, idx) => (
+                    <div
+                      key={s.id}
+                      className="grid items-center gap-3 px-2 py-3"
+                      style={{
+                        gridTemplateColumns: '24px 40px 1.4fr 1fr 160px 40px',
+                        borderBottom: '1px solid var(--edge)',
+                      }}
+                    >
+                      <div style={{ color: 'var(--ink-3)' }}>
+                        <GripVertical className="w-4 h-4" />
+                      </div>
+                      <div className="text-sm font-mono tabular-nums" style={{ color: 'var(--ink-3)' }}>
+                        {String(idx + 1).padStart(2, '0')}
+                      </div>
+                      <input
+                        value={nameDrafts[s.id] ?? ''}
+                        onChange={(e) => setNameDrafts((prev) => ({ ...prev, [s.id]: e.target.value }))}
+                        onBlur={(e) => saveName(s.id, e.target.value)}
+                        className="w-full px-2 py-1.5 rounded-md outline-none text-sm bg-transparent"
+                        style={{ border: '1px solid transparent', color: 'var(--ink-1)' }}
+                        onFocus={(e) => (e.currentTarget.style.border = '1px solid var(--edge)')}
+                      />
+                      <input
+                        value={timeDrafts[s.id] ?? ''}
+                        onChange={(e) => setTimeDrafts((prev) => ({ ...prev, [s.id]: e.target.value.replace(/[^\d]/g, '') }))}
+                        onBlur={(e) => saveTime(s.id, e.target.value)}
+                        placeholder="Sem definição"
+                        inputMode="numeric"
+                        className="w-full px-2 py-1.5 rounded-md outline-none text-sm bg-transparent"
+                        style={{ border: '1px solid transparent', color: 'var(--ink-2)' }}
+                        onFocus={(e) => (e.currentTarget.style.border = '1px solid var(--edge)')}
+                      />
+                      <button
+                        className="flex items-center gap-1.5 text-sm font-medium"
+                        style={{ color: 'var(--brand-500, #6366f1)' }}
+                        title="Configurar campos obrigatórios"
+                      >
+                        <ListChecks className="w-4 h-4" />
+                        Campos obrigatórios
+                      </button>
+                      <button
+                        onClick={() => onDeleteStage(s)}
+                        className="p-1.5 rounded-md transition-colors hover:bg-red-500/10 hover:text-red-500"
+                        style={{ color: '#dc2626' }}
+                        title="Excluir etapa"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <button
+                onClick={() => addStageMut.mutate()}
+                disabled={addStageMut.isPending}
+                className="mt-4 flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold text-white shadow-sm transition-all hover:opacity-90 disabled:opacity-50"
+                style={{ background: 'var(--brand-500, #6366f1)' }}
+              >
+                <Plus className="w-4 h-4" />
+                Adicionar etapa
+              </button>
+            </>
+          ) : (
+            <div
+              className="text-sm p-6 text-center rounded-lg"
+              style={{ background: 'var(--surface-hover)', color: 'var(--ink-3)' }}
+            >
+              Configuração de status por funil em breve.
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -228,8 +500,8 @@ function PipelineSidebar({
 }) {
   return (
     <aside
-      className="flex-shrink-0 flex flex-col items-center gap-2 p-2 rounded-xl"
-      style={{ background: 'var(--surface)', border: '1px solid var(--edge)', width: 64 }}
+      className="flex-shrink-0 flex flex-col items-center gap-1.5 py-1"
+      style={{ width: 44 }}
     >
       {pipelines.map((p) => {
         const active = p.id === selectedId;
@@ -238,9 +510,9 @@ function PipelineSidebar({
             key={p.id}
             onClick={() => onSelect(p.id)}
             title={p.name}
-            className="w-12 h-12 rounded-lg flex items-center justify-center text-xs font-bold tracking-wide transition-all"
+            className="w-9 h-9 rounded-md flex items-center justify-center text-[10px] font-bold tracking-tight transition-all"
             style={{
-              background: active ? 'var(--brand-500, #6366f1)' : 'var(--surface-hover)',
+              background: active ? 'var(--brand-500, #6366f1)' : 'var(--surface)',
               color: active ? '#fff' : 'var(--ink-2)',
               border: active ? '1px solid var(--brand-500, #6366f1)' : '1px solid var(--edge)',
             }}
@@ -252,14 +524,14 @@ function PipelineSidebar({
       <button
         onClick={onAddClick}
         title="Personalizar funis"
-        className="w-12 h-12 rounded-lg flex items-center justify-center transition-all hover:bg-[var(--surface-hover)]"
+        className="w-9 h-9 rounded-md flex items-center justify-center transition-all hover:bg-[var(--surface-hover)]"
         style={{
           background: 'transparent',
           color: 'var(--brand-500, #6366f1)',
           border: '1px dashed var(--edge-strong, var(--edge))',
         }}
       >
-        <Plus className="w-5 h-5" />
+        <Plus className="w-4 h-4" />
       </button>
     </aside>
   );
@@ -269,12 +541,22 @@ function PipelineSidebar({
 
 export default function Funil() {
   const navigate = useNavigate();
+  const qc = useQueryClient();
   const currentUser = useAuthStore((s) => s.user);
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [selectedPipelineId, setSelectedPipelineId] = useState<string>('');
   const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
   const [personalizarOpen, setPersonalizarOpen] = useState(false);
+  const [editingStagesPipelineId, setEditingStagesPipelineId] = useState<string | null>(null);
+
+  const createPipelineMut = useMutation({
+    mutationFn: (name: string) => createPipeline({ name }),
+    onSuccess: (created) => {
+      qc.invalidateQueries({ queryKey: ['pipelines'] });
+      setEditingStagesPipelineId(created.id);
+    },
+  });
 
   useEffect(() => {
     const t = setTimeout(() => setDebouncedSearch(search.trim().toLowerCase()), 300);
@@ -498,9 +780,23 @@ export default function Funil() {
         open={personalizarOpen}
         onClose={() => setPersonalizarOpen(false)}
         pipelines={pipelines}
-        onEditStages={() => {
+        onEditStages={(id) => {
           setPersonalizarOpen(false);
-          navigate('/settings');
+          setEditingStagesPipelineId(id);
+        }}
+        onAddFunil={() => {
+          setPersonalizarOpen(false);
+          createPipelineMut.mutate(`Novo funil ${pipelines.length + 1}`);
+        }}
+      />
+
+      <EtapasFunilModal
+        open={!!editingStagesPipelineId}
+        pipeline={pipelines.find((p) => p.id === editingStagesPipelineId) ?? null}
+        onClose={() => setEditingStagesPipelineId(null)}
+        onBack={() => {
+          setEditingStagesPipelineId(null);
+          setPersonalizarOpen(true);
         }}
       />
 

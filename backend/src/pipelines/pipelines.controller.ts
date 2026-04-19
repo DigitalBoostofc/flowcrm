@@ -8,6 +8,7 @@ import { Roles } from '../auth/roles.decorator';
 import { UserRole } from '../users/entities/user.entity';
 import { StagesService } from '../stages/stages.service';
 import { CreateStageDto } from '../stages/dto/create-stage.dto';
+import { UpdateStageDto } from '../stages/dto/update-stage.dto';
 
 @Controller('pipelines')
 @UseGuards(JwtAuthGuard)
@@ -54,6 +55,13 @@ export class PipelinesController {
   @HttpCode(204)
   remove(@Param('id') id: string) {
     return this.pipelinesService.remove(id);
+  }
+
+  @Patch(':pipelineId/stages/:stageId')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.OWNER)
+  updateStage(@Param('stageId') stageId: string, @Body() dto: UpdateStageDto) {
+    return this.stagesService.update(stageId, dto);
   }
 
   @Delete(':pipelineId/stages/:stageId')

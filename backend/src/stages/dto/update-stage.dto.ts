@@ -1,11 +1,13 @@
-import { IsInt, IsNumber, IsOptional, IsString, Min } from 'class-validator';
+import { IsInt, IsOptional, IsString, Min } from 'class-validator';
 
-export class CreateStageDto {
+export class UpdateStageDto {
+  @IsOptional()
   @IsString()
-  name: string;
+  name?: string;
 
   @IsOptional()
-  @IsNumber()
+  @IsInt()
+  @Min(0)
   position?: number;
 
   @IsOptional()

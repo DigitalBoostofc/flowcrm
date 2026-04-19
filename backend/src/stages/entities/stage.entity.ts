@@ -16,6 +16,9 @@ export class Stage {
   @Column({ default: '#3b82f6' })
   color: string;
 
+  @Column({ type: 'int', nullable: true })
+  timeLimitDays: number | null;
+
   @ManyToOne(() => Pipeline, (pipeline) => pipeline.stages, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'pipelineId' })
   pipeline: Pipeline;

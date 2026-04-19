@@ -64,6 +64,7 @@ export interface Stage {
   name: string;
   position: number;
   color: string;
+  timeLimitDays?: number | null;
   pipelineId: string;
   createdAt: string;
 }
