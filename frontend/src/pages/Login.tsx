@@ -3,14 +3,14 @@ import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
-import { Zap } from 'lucide-react';
+import { Zap, Eye, EyeOff } from 'lucide-react';
 import { login } from '@/api/auth';
 import { useAuthStore } from '@/store/auth.store';
 import { useThemeStore } from '@/store/theme.store';
 import ThemeToggle from '@/components/ui/ThemeToggle';
 
 const schema = z.object({
-  email: z.string().email('Email inválido'),
+  email:    z.string().email('Email inválido'),
   password: z.string().min(6, 'Mínimo 6 caracteres'),
 });
 
@@ -18,14 +18,14 @@ type FormData = z.infer<typeof schema>;
 
 export default function Login() {
   const navigate = useNavigate();
-  const setAuth = useAuthStore((s) => s.setAuth);
-  const theme = useThemeStore((s) => s.theme);
+  const setAuth = useAuthStore(s => s.setAuth);
+  const theme = useThemeStore(s => s.theme);
   const [serverError, setServerError] = useState<string | null>(null);
+  const [showPwd, setShowPwd] = useState(false);
 
   useEffect(() => {
     const html = document.documentElement;
-    if (theme === 'dark') html.classList.add('dark');
-    else html.classList.remove('dark');
+    theme === 'dark' ? html.classList.add('dark') : html.classList.remove('dark');
   }, [theme]);
 
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<FormData>({
@@ -48,41 +48,44 @@ export default function Login() {
       className="min-h-screen flex items-center justify-center p-4"
       style={{ backgroundColor: 'var(--canvas)' }}
     >
-      {/* Theme toggle top-right */}
-      <div className="fixed top-4 right-4">
+      <div className="fixed top-4 right-4 z-10">
         <ThemeToggle />
       </div>
 
-      {/* Ambient glow (dark only) */}
-      <div
-        className="absolute top-0 left-1/2 -translate-x-1/2 w-96 h-48 pointer-events-none dark:opacity-100 opacity-0 transition-opacity"
-        style={{
-          background: 'radial-gradient(ellipse at center, rgba(245,158,11,0.10) 0%, transparent 70%)',
-          filter: 'blur(24px)',
-        }}
-      />
-
-      <div className="w-full max-w-sm relative">
-        {/* Card */}
-        <div className="glass-raised rounded-2xl p-8">
-          {/* Logo */}
-          <div className="flex flex-col items-center mb-8">
-            <div
-              className="w-12 h-12 rounded-2xl flex items-center justify-center mb-4 shadow-xl"
-              style={{ background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)' }}
-            >
-              <Zap className="w-6 h-6 text-white" fill="currentColor" />
-            </div>
-            <h1 className="text-xl font-semibold tracking-tight" style={{ color: 'var(--ink-1)' }}>
-              FlowCRM
-            </h1>
-            <p className="text-xs mt-1" style={{ color: 'var(--ink-3)' }}>Acesse sua conta</p>
+      <div className="w-full max-w-[380px]">
+        {/* Logo mark */}
+        <div className="flex flex-col items-center mb-8">
+          <div
+            className="w-10 h-10 rounded-xl flex items-center justify-center mb-5"
+            style={{
+              background: 'linear-gradient(135deg, #635BFF 0%, #4B44E8 100%)',
+              boxShadow: '0 4px 16px rgba(99,91,255,0.4)',
+            }}
+          >
+            <Zap className="w-5 h-5 text-white" strokeWidth={2.5} fill="white" />
           </div>
+          <h1 className="text-xl font-semibold" style={{ color: 'var(--ink-1)', letterSpacing: '-0.02em' }}>
+            Entrar no FlowCRM
+          </h1>
+          <p className="text-sm mt-1" style={{ color: 'var(--ink-3)' }}>
+            Gestão de vendas inteligente
+          </p>
+        </div>
 
+        {/* Card */}
+        <div
+          style={{
+            background: 'var(--surface)',
+            border: '1px solid var(--edge-strong)',
+            borderRadius: 12,
+            boxShadow: 'var(--shadow-lg)',
+            padding: '24px',
+          }}
+        >
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             {/* Email */}
-            <div>
-              <label className="block text-xs font-medium uppercase tracking-wider mb-1.5" style={{ color: 'var(--ink-2)' }}>
+            <div className="space-y-1.5">
+              <label className="block text-xs font-medium" style={{ color: 'var(--ink-2)' }}>
                 Email
               </label>
               <input
@@ -93,29 +96,46 @@ export default function Login() {
                 {...register('email')}
               />
               {errors.email && (
-                <p className="text-red-500 text-xs mt-1.5">{errors.email.message}</p>
+                <p className="text-xs" style={{ color: 'var(--danger)' }}>{errors.email.message}</p>
               )}
             </div>
 
             {/* Password */}
-            <div>
-              <label className="block text-xs font-medium uppercase tracking-wider mb-1.5" style={{ color: 'var(--ink-2)' }}>
+            <div className="space-y-1.5">
+              <label className="block text-xs font-medium" style={{ color: 'var(--ink-2)' }}>
                 Senha
               </label>
-              <input
-                type="password"
-                autoComplete="current-password"
-                className="input-base"
-                placeholder="••••••••"
-                {...register('password')}
-              />
+              <div className="relative">
+                <input
+                  type={showPwd ? 'text' : 'password'}
+                  autoComplete="current-password"
+                  className="input-base pr-10"
+                  placeholder="••••••••"
+                  {...register('password')}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPwd(v => !v)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2"
+                  style={{ color: 'var(--ink-3)' }}
+                  tabIndex={-1}
+                >
+                  {showPwd
+                    ? <EyeOff className="w-4 h-4" strokeWidth={1.75} />
+                    : <Eye className="w-4 h-4" strokeWidth={1.75} />
+                  }
+                </button>
+              </div>
               {errors.password && (
-                <p className="text-red-500 text-xs mt-1.5">{errors.password.message}</p>
+                <p className="text-xs" style={{ color: 'var(--danger)' }}>{errors.password.message}</p>
               )}
             </div>
 
             {serverError && (
-              <div className="text-red-500 text-xs px-3 py-2 rounded-lg bg-red-500/10 border border-red-500/20">
+              <div
+                className="text-xs px-3 py-2.5 rounded-lg"
+                style={{ background: 'var(--danger-bg)', color: 'var(--danger)', border: '1px solid rgba(229,72,77,0.2)' }}
+              >
                 {serverError}
               </div>
             )}
@@ -123,17 +143,17 @@ export default function Login() {
             <button
               type="submit"
               disabled={isSubmitting}
-              className="w-full py-2.5 rounded-xl text-sm font-semibold text-white transition-all duration-200 disabled:opacity-50 mt-2 hover:opacity-90 active:scale-[0.98]"
-              style={{ background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)' }}
+              className="w-full h-9 rounded-lg text-sm font-medium text-white transition-opacity disabled:opacity-50 mt-1"
+              style={{
+                background: 'linear-gradient(135deg, #635BFF 0%, #4B44E8 100%)',
+                boxShadow: '0 1px 3px rgba(99,91,255,0.4), inset 0 1px 0 rgba(255,255,255,0.1)',
+                border: '1px solid rgba(0,0,0,0.08)',
+              }}
             >
               {isSubmitting ? 'Entrando...' : 'Entrar'}
             </button>
           </form>
         </div>
-
-        <p className="text-center text-xs mt-5" style={{ color: 'var(--ink-3)' }}>
-          Gestão de vendas inteligente
-        </p>
       </div>
     </div>
   );

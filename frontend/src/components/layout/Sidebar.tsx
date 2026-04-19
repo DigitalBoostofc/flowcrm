@@ -10,79 +10,72 @@ import GlobalSearch from './GlobalSearch';
 import ThemeToggle from '@/components/ui/ThemeToggle';
 
 const NAV_ITEMS = [
-  { to: '/', end: true,  icon: Home,             label: 'Início' },
-  { to: '/analytics',    icon: BarChart2,        label: 'Analytics' },
-  { to: '/pessoas',      icon: Users,            label: 'Pessoas' },
-  { to: '/companies',    icon: Building2,        label: 'Empresas' },
-  { to: '/negocios',     icon: Briefcase,        label: 'Negócios' },
-  { to: '/tasks',        icon: CheckSquare,      label: 'Tarefas' },
-  { to: '/settings',     icon: SettingsIcon,     label: 'Configurações' },
+  { to: '/',           end: true,  icon: Home,          label: 'Início' },
+  { to: '/analytics',              icon: BarChart2,     label: 'Analytics' },
+  { to: '/pessoas',                icon: Users,         label: 'Pessoas' },
+  { to: '/companies',              icon: Building2,     label: 'Empresas' },
+  { to: '/negocios',               icon: Briefcase,     label: 'Negócios' },
+  { to: '/tasks',                  icon: CheckSquare,   label: 'Tarefas' },
+  { to: '/settings',               icon: SettingsIcon,  label: 'Configurações' },
 ];
 
 export default function Sidebar() {
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
+  const qc = useQueryClient();
   const { user, logout } = useAuthStore();
   const { collapsed, toggle } = useSidebarStore();
   const isOwner = user?.role === 'owner';
 
   const handleLogout = () => {
-    queryClient.clear();
+    qc.clear();
     logout();
     navigate('/login');
   };
 
   return (
     <aside
-      className="relative flex-shrink-0 flex flex-col sidebar-bg border-r overflow-hidden"
+      className="relative flex-shrink-0 flex flex-col sidebar-bg"
       style={{
-        borderColor: 'var(--edge)',
-        width: collapsed ? '60px' : '224px',
-        transition: 'width 0.22s cubic-bezier(0.4, 0, 0.2, 1)',
+        width: collapsed ? 52 : 216,
+        transition: 'width 0.22s cubic-bezier(0.4,0,0.2,1)',
+        minHeight: '100vh',
       }}
     >
-
       {/* Logo */}
       <div
-        className="px-3 pt-5 pb-4 border-b flex-shrink-0 overflow-hidden"
-        style={{ borderColor: 'var(--edge)' }}
+        className="flex items-center px-3 h-[52px] flex-shrink-0 gap-2.5 overflow-hidden"
+        style={{ borderBottom: '1px solid var(--edge)' }}
       >
-        <div className="flex items-center gap-2.5">
-          <div
-            className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 shadow-lg"
-            style={{ background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)' }}
-          >
-            <Zap className="w-3.5 h-3.5 text-white" fill="currentColor" />
-          </div>
-
-          <div
-            className="min-w-0 flex-1 overflow-hidden"
-            style={{
-              opacity: collapsed ? 0 : 1,
-              transition: 'opacity 0.15s ease',
-              whiteSpace: 'nowrap',
-            }}
-          >
-            <div className="text-sm font-semibold tracking-tight" style={{ color: 'var(--ink-1)' }}>
-              FlowCRM
-            </div>
-            <div className="text-[10px] truncate" style={{ color: 'var(--ink-3)' }}>
-              {user?.name}
-            </div>
-          </div>
-
-          {!collapsed && <ThemeToggle />}
+        <div
+          className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
+          style={{
+            background: 'linear-gradient(135deg, #635BFF 0%, #4B44E8 100%)',
+            boxShadow: '0 2px 8px rgba(99,91,255,0.35)',
+          }}
+        >
+          <Zap className="w-3.5 h-3.5 text-white" strokeWidth={2.5} fill="white" />
         </div>
+
+        <div
+          className="flex-1 min-w-0 overflow-hidden"
+          style={{ opacity: collapsed ? 0 : 1, transition: 'opacity 0.15s', whiteSpace: 'nowrap' }}
+        >
+          <div className="text-sm font-semibold tracking-tight" style={{ color: 'var(--ink-1)', letterSpacing: '-0.01em' }}>
+            FlowCRM
+          </div>
+        </div>
+
+        {!collapsed && <ThemeToggle />}
       </div>
 
-      {/* Search — hidden when collapsed */}
+      {/* Search */}
       <div
-        className="border-b flex-shrink-0 overflow-hidden"
+        className="overflow-hidden flex-shrink-0"
         style={{
-          borderColor: 'var(--edge)',
-          maxHeight: collapsed ? '0px' : '56px',
+          maxHeight: collapsed ? 0 : 52,
           opacity: collapsed ? 0 : 1,
-          transition: 'max-height 0.22s cubic-bezier(0.4,0,0.2,1), opacity 0.15s ease',
+          transition: 'max-height 0.22s cubic-bezier(0.4,0,0.2,1), opacity 0.15s',
+          borderBottom: '1px solid var(--edge)',
         }}
       >
         <div className="px-2 py-2">
@@ -91,7 +84,7 @@ export default function Sidebar() {
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 p-2 space-y-0.5 overflow-y-auto overflow-x-hidden">
+      <nav className="flex-1 px-2 py-2 space-y-0.5 overflow-y-auto overflow-x-hidden">
         {NAV_ITEMS.map(({ to, end, icon: Icon, label }) => (
           <NavLink
             key={to}
@@ -99,29 +92,28 @@ export default function Sidebar() {
             end={end}
             title={collapsed ? label : undefined}
             className={({ isActive }) =>
-              `group relative flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all duration-150 overflow-hidden ${
-                isActive
-                  ? 'bg-brand-500/10 text-brand-500 font-medium dark:text-brand-400'
-                  : 'hover:bg-[var(--surface-hover)]'
+              `group flex items-center gap-2.5 px-2.5 py-2 rounded-md text-[13px] transition-all duration-100 overflow-hidden ${
+                isActive ? 'font-medium' : ''
               }`
             }
+            style={({ isActive }) => ({
+              color: isActive ? 'var(--brand-500)' : 'var(--ink-2)',
+              background: isActive ? 'var(--brand-50)' : 'transparent',
+            })}
           >
             {({ isActive }) => (
               <>
-                {isActive && (
-                  <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 bg-brand-500 rounded-r-full dark:bg-brand-400" />
-                )}
                 <Icon
                   className="w-4 h-4 flex-shrink-0"
-                  style={{ color: isActive ? undefined : 'var(--ink-2)' }}
+                  strokeWidth={isActive ? 2 : 1.75}
                 />
                 <span
-                  className="whitespace-nowrap overflow-hidden"
+                  className="whitespace-nowrap"
                   style={{
-                    color: isActive ? undefined : 'var(--ink-2)',
                     opacity: collapsed ? 0 : 1,
-                    maxWidth: collapsed ? '0px' : '200px',
-                    transition: 'opacity 0.15s ease, max-width 0.22s cubic-bezier(0.4,0,0.2,1)',
+                    maxWidth: collapsed ? 0 : 160,
+                    transition: 'opacity 0.15s, max-width 0.22s cubic-bezier(0.4,0,0.2,1)',
+                    overflow: 'hidden',
                   }}
                 >
                   {label}
@@ -136,18 +128,14 @@ export default function Sidebar() {
             href="/admin/queues"
             target="_blank"
             rel="noopener noreferrer"
-            title={collapsed ? 'Filas de Jobs' : undefined}
-            className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all hover:bg-[var(--surface-hover)] overflow-hidden"
+            title={collapsed ? 'Filas' : undefined}
+            className="flex items-center gap-2.5 px-2.5 py-2 rounded-md text-[13px] transition-colors overflow-hidden"
             style={{ color: 'var(--ink-3)' }}
           >
-            <ListChecks className="w-4 h-4 flex-shrink-0" />
+            <ListChecks className="w-4 h-4 flex-shrink-0" strokeWidth={1.75} />
             <span
-              className="whitespace-nowrap overflow-hidden"
-              style={{
-                opacity: collapsed ? 0 : 1,
-                maxWidth: collapsed ? '0px' : '200px',
-                transition: 'opacity 0.15s ease, max-width 0.22s cubic-bezier(0.4,0,0.2,1)',
-              }}
+              className="whitespace-nowrap"
+              style={{ opacity: collapsed ? 0 : 1, maxWidth: collapsed ? 0 : 160, transition: 'opacity 0.15s, max-width 0.22s cubic-bezier(0.4,0,0.2,1)', overflow: 'hidden' }}
             >
               Filas de Jobs
             </span>
@@ -155,27 +143,42 @@ export default function Sidebar() {
         )}
       </nav>
 
-      {/* Bottom: theme toggle (collapsed only) + logout */}
-      <div className="p-2 border-t flex-shrink-0" style={{ borderColor: 'var(--edge)' }}>
+      {/* Bottom */}
+      <div className="px-2 pb-3 flex-shrink-0" style={{ borderTop: '1px solid var(--edge)' }}>
         {collapsed && (
-          <div className="flex justify-center mb-1">
+          <div className="flex justify-center pt-2 mb-1">
             <ThemeToggle />
           </div>
         )}
+
+        {/* User info */}
+        {!collapsed && user && (
+          <div className="flex items-center gap-2.5 px-2 py-2.5 mt-1">
+            <div
+              className="w-6 h-6 rounded-full flex items-center justify-center text-white flex-shrink-0 text-[10px] font-semibold"
+              style={{ background: 'var(--brand-500)' }}
+            >
+              {user.name.slice(0, 1).toUpperCase()}
+            </div>
+            <div className="min-w-0 flex-1 overflow-hidden">
+              <div className="text-xs font-medium truncate" style={{ color: 'var(--ink-1)' }}>{user.name}</div>
+              <div className="text-[10px] truncate" style={{ color: 'var(--ink-3)' }}>{user.email}</div>
+            </div>
+          </div>
+        )}
+
         <button
           onClick={handleLogout}
           title={collapsed ? 'Sair' : undefined}
-          className="flex items-center gap-3 w-full px-3 py-2 rounded-lg text-sm transition-all hover:text-red-500 hover:bg-red-500/[0.08] overflow-hidden"
+          className="flex items-center gap-2.5 w-full px-2.5 py-2 rounded-md text-[13px] transition-colors overflow-hidden"
           style={{ color: 'var(--ink-3)' }}
+          onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.color = 'var(--danger)'; (e.currentTarget as HTMLButtonElement).style.background = 'var(--danger-bg)'; }}
+          onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.color = 'var(--ink-3)'; (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
         >
-          <LogOut className="w-4 h-4 flex-shrink-0" />
+          <LogOut className="w-4 h-4 flex-shrink-0" strokeWidth={1.75} />
           <span
-            className="whitespace-nowrap overflow-hidden"
-            style={{
-              opacity: collapsed ? 0 : 1,
-              maxWidth: collapsed ? '0px' : '200px',
-              transition: 'opacity 0.15s ease, max-width 0.22s cubic-bezier(0.4,0,0.2,1)',
-            }}
+            className="whitespace-nowrap"
+            style={{ opacity: collapsed ? 0 : 1, maxWidth: collapsed ? 0 : 160, transition: 'opacity 0.15s, max-width 0.22s cubic-bezier(0.4,0,0.2,1)', overflow: 'hidden' }}
           >
             Sair
           </span>
