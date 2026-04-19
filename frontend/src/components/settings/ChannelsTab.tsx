@@ -4,22 +4,10 @@ import { Plus, Trash2, QrCode, Loader2 } from 'lucide-react';
 import { listChannels, createChannel, deleteChannel, provisionChannel, getChannelQr } from '@/api/channels';
 import Modal from '@/components/ui/Modal';
 
-type ChannelKind = 'uazapi' | 'meta';
-
 function randomHex(length: number): string {
   const bytes = new Uint8Array(length);
   crypto.getRandomValues(bytes);
   return Array.from(bytes).map((b) => b.toString(16).padStart(2, '0')).join('');
-}
-
-function channelLabel(type: string): string {
-  if (type === 'uazapi') return 'WhatsApp via QR (uazapiGO)';
-  if (type === 'evolution') return 'WhatsApp via QR (Evolution)';
-  return 'WhatsApp Business API (Meta oficial)';
-}
-
-function isQrChannel(type: string): boolean {
-  return type === 'uazapi' || type === 'evolution';
 }
 
 export default function ChannelsTab() {
@@ -28,32 +16,15 @@ export default function ChannelsTab() {
   const [newOpen, setNewOpen] = useState(false);
   const [qrOpen, setQrOpen] = useState<string | null>(null);
   const [initialQr, setInitialQr] = useState<string | undefined>(undefined);
-
-  const [kind, setKind] = useState<ChannelKind>('uazapi');
   const [name, setName] = useState('');
-  // meta fields
-  const [phoneNumberId, setPhoneNumberId] = useState('');
-  const [accessToken, setAccessToken] = useState('');
-
-  const resetForm = () => {
-    setKind('uazapi');
-    setName('');
-    setPhoneNumberId('');
-    setAccessToken('');
-  };
 
   const createMutation = useMutation({
-    mutationFn: () => {
-      const config: Record<string, string> =
-        kind === 'uazapi'
-          ? { webhookSecret: randomHex(16) }
-          : { phoneNumberId, accessToken };
-      return createChannel({ name, type: kind, config });
-    },
+    mutationFn: () =>
+      createChannel({ name, type: 'uazapi', config: { webhookSecret: randomHex(16) } }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['channels'] });
       setNewOpen(false);
-      resetForm();
+      setName('');
     },
   });
 
@@ -74,50 +45,47 @@ export default function ChannelsTab() {
     },
   });
 
-  const isFormValid =
-    !!name &&
-    (kind === 'uazapi' || (!!phoneNumberId && !!accessToken));
-
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h3 className="font-semibold">Canais</h3>
         <button
-          onClick={() => { resetForm(); setNewOpen(true); }}
+          onClick={() => { setName(''); setNewOpen(true); }}
           className="flex items-center gap-1.5 bg-brand-600 hover:bg-brand-500 text-white text-sm px-3 py-1.5 rounded-lg"
         >
           <Plus className="w-4 h-4" /> Novo Canal
         </button>
       </div>
+
       <div className="space-y-2">
         {channels.map((c) => (
           <div key={c.id} className="bg-slate-800 rounded-xl p-4 flex items-center justify-between">
             <div>
               <div className="font-medium text-slate-100">{c.name}</div>
               <div className="text-xs text-slate-500">
-                <span className="capitalize">{channelLabel(c.type)}</span>
+                WhatsApp via QR
                 {' • '}
-                <span className={c.status === 'connected' ? 'text-emerald-400' : c.status === 'error' ? 'text-red-400' : 'text-amber-400'}>
-                  {c.status}
+                <span className={
+                  c.status === 'connected' ? 'text-emerald-400' :
+                  c.status === 'error' ? 'text-red-400' : 'text-amber-400'
+                }>
+                  {c.status === 'connected' ? 'conectado' : c.status === 'disconnected' ? 'desconectado' : c.status}
                 </span>
               </div>
             </div>
             <div className="flex gap-2">
-              {isQrChannel(c.type) && (
-                <button
-                  onClick={() => provisionMutation.mutate(c.id)}
-                  disabled={provisionMutation.isPending && provisionMutation.variables === c.id}
-                  className="flex items-center gap-1.5 bg-slate-700 hover:bg-slate-600 text-slate-200 text-sm px-3 py-1.5 rounded-lg disabled:opacity-60"
-                  title="Conectar WhatsApp via QR"
-                >
-                  {provisionMutation.isPending && provisionMutation.variables === c.id
-                    ? <Loader2 className="w-4 h-4 animate-spin" />
-                    : <QrCode className="w-4 h-4" />}
-                  Conectar
-                </button>
-              )}
               <button
-                onClick={() => confirm(`Excluir canal ${c.name}?`) && deleteMutation.mutate(c.id)}
+                onClick={() => provisionMutation.mutate(c.id)}
+                disabled={provisionMutation.isPending && provisionMutation.variables === c.id}
+                className="flex items-center gap-1.5 bg-slate-700 hover:bg-slate-600 text-slate-200 text-sm px-3 py-1.5 rounded-lg disabled:opacity-60"
+              >
+                {provisionMutation.isPending && provisionMutation.variables === c.id
+                  ? <Loader2 className="w-4 h-4 animate-spin" />
+                  : <QrCode className="w-4 h-4" />}
+                Conectar
+              </button>
+              <button
+                onClick={() => confirm(`Excluir canal "${c.name}"?`) && deleteMutation.mutate(c.id)}
                 className="text-slate-500 hover:text-red-400 p-2"
               >
                 <Trash2 className="w-4 h-4" />
@@ -125,47 +93,13 @@ export default function ChannelsTab() {
             </div>
           </div>
         ))}
-        {channels.length === 0 && <div className="text-sm text-slate-500">Nenhum canal cadastrado</div>}
+        {channels.length === 0 && (
+          <div className="text-sm text-slate-500">Nenhum canal cadastrado</div>
+        )}
       </div>
 
-      <Modal open={newOpen} onClose={() => setNewOpen(false)} title="Novo canal">
+      <Modal open={newOpen} onClose={() => setNewOpen(false)} title="Novo canal WhatsApp">
         <div className="space-y-4">
-          {/* Type selector */}
-          <div>
-            <label className="text-xs text-slate-400 mb-1.5 block">Tipo de conexão</label>
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={() => setKind('uazapi')}
-                className={`text-left rounded-lg border p-3 transition ${
-                  kind === 'uazapi'
-                    ? 'border-brand-500 bg-brand-600/10'
-                    : 'border-slate-700 bg-slate-900 hover:border-slate-600'
-                }`}
-              >
-                <div className="text-sm font-medium text-slate-100">WhatsApp via QR</div>
-                <div className="text-xs text-slate-400 mt-0.5">
-                  Conecte qualquer número escaneando o QR code
-                </div>
-              </button>
-              <button
-                type="button"
-                onClick={() => setKind('meta')}
-                className={`text-left rounded-lg border p-3 transition ${
-                  kind === 'meta'
-                    ? 'border-brand-500 bg-brand-600/10'
-                    : 'border-slate-700 bg-slate-900 hover:border-slate-600'
-                }`}
-              >
-                <div className="text-sm font-medium text-slate-100">WhatsApp Business API</div>
-                <div className="text-xs text-slate-400 mt-0.5">
-                  Oficial (Meta) — requer número verificado
-                </div>
-              </button>
-            </div>
-          </div>
-
-          {/* Nome do canal (comum a todos) */}
           <div>
             <label className="text-xs text-slate-400 mb-1 block">Nome do canal</label>
             <input
@@ -175,49 +109,17 @@ export default function ChannelsTab() {
               className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100"
             />
           </div>
-
-          {/* uazapi: nenhum campo extra */}
-          {kind === 'uazapi' && (
-            <p className="text-xs text-slate-500 leading-relaxed bg-slate-900 rounded-lg px-3 py-2">
-              Após criar, clique em <strong className="text-slate-300">Conectar</strong> para gerar o QR code.
-              Abra o WhatsApp no celular e escaneie para vincular o número.
-            </p>
-          )}
-
-          {/* Meta fields */}
-          {kind === 'meta' && (
-            <>
-              <div>
-                <label className="text-xs text-slate-400 mb-1 block">Phone Number ID</label>
-                <input
-                  value={phoneNumberId}
-                  onChange={(e) => setPhoneNumberId(e.target.value)}
-                  placeholder="ID do número em business.facebook.com"
-                  className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100"
-                />
-              </div>
-              <div>
-                <label className="text-xs text-slate-400 mb-1 block">Access Token (permanente)</label>
-                <input
-                  value={accessToken}
-                  onChange={(e) => setAccessToken(e.target.value)}
-                  placeholder="EAAG... (token do System User)"
-                  className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100"
-                />
-              </div>
-              <p className="text-xs text-slate-500 leading-relaxed">
-                O webhook do Meta deve apontar para <code className="text-slate-400">/api/webhooks/meta</code>.
-              </p>
-            </>
-          )}
-
+          <p className="text-xs text-slate-500 leading-relaxed bg-slate-900 rounded-lg px-3 py-2">
+            Após criar, clique em <strong className="text-slate-300">Conectar</strong> para gerar o QR code
+            e vincular o número do WhatsApp.
+          </p>
           <div className="flex justify-end gap-2 pt-2">
             <button onClick={() => setNewOpen(false)} className="px-3 py-1.5 text-sm text-slate-400">
               Cancelar
             </button>
             <button
               onClick={() => createMutation.mutate()}
-              disabled={!isFormValid || createMutation.isPending}
+              disabled={!name || createMutation.isPending}
               className="px-3 py-1.5 text-sm bg-brand-600 hover:bg-brand-500 disabled:opacity-50 text-white rounded-lg"
             >
               {createMutation.isPending ? 'Criando...' : 'Criar'}
@@ -226,25 +128,28 @@ export default function ChannelsTab() {
         </div>
       </Modal>
 
-      <QrModal channelId={qrOpen} initialQr={initialQr} onClose={() => { setQrOpen(null); setInitialQr(undefined); }} />
+      <QrModal
+        channelId={qrOpen}
+        initialQr={initialQr}
+        onClose={() => { setQrOpen(null); setInitialQr(undefined); }}
+      />
     </div>
   );
 }
 
 function QrModal({ channelId, initialQr, onClose }: { channelId: string | null; initialQr?: string; onClose: () => void }) {
-  const [qr, setQr] = useState<{ base64: string } | null>(initialQr ? { base64: initialQr } : null);
+  const [qr, setQr] = useState<string | null>(initialQr ?? null);
 
   useEffect(() => {
     if (!channelId) { setQr(null); return; }
-    if (initialQr) setQr({ base64: initialQr });
+    if (initialQr) setQr(initialQr);
     let cancelled = false;
     const fetchQr = async () => {
       try {
         const result = await getChannelQr(channelId);
-        if (!cancelled && result.base64) setQr(result);
+        if (!cancelled && result.base64) setQr(result.base64);
       } catch {}
     };
-    // Primeira busca com delay de 5s (QR já veio no provision)
     const first = setTimeout(fetchQr, 5000);
     const t = setInterval(fetchQr, 8000);
     return () => { cancelled = true; clearTimeout(first); clearInterval(t); };
@@ -252,8 +157,8 @@ function QrModal({ channelId, initialQr, onClose }: { channelId: string | null; 
 
   if (!channelId) return null;
 
-  const imgSrc = qr?.base64
-    ? qr.base64.startsWith('data:') ? qr.base64 : `data:image/png;base64,${qr.base64}`
+  const imgSrc = qr
+    ? qr.startsWith('data:') ? qr : `data:image/png;base64,${qr}`
     : '';
 
   return (
