@@ -12,6 +12,7 @@ import { listContacts } from '@/api/contacts';
 import { listUsers } from '@/api/users';
 import { useAuthStore } from '@/store/auth.store';
 import type { Contact, Lead, LeadStatus, Pipeline, User } from '@/types/api';
+import NegocioDetailPanel from '@/components/negocios/NegocioDetailPanel';
 
 /* ── Avatar helpers ──────────────────────────────────── */
 
@@ -916,6 +917,7 @@ export default function Negocios() {
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [view, setView] = useState<ViewMode>('lista');
   const [addOpen, setAddOpen] = useState(false);
+  const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
 
   useEffect(() => {
     const t = setTimeout(() => setDebouncedSearch(search.trim().toLowerCase()), 300);
@@ -1146,6 +1148,7 @@ export default function Negocios() {
               return (
                 <div
                   key={lead.id}
+                  onClick={() => setSelectedLeadId(lead.id)}
                   className="grid gap-3 px-6 py-3 text-sm transition-colors hover:bg-[var(--surface-hover)] cursor-pointer items-center"
                   style={{
                     gridTemplateColumns: gridCols,
@@ -1232,6 +1235,20 @@ export default function Negocios() {
         users={users}
         currentUser={currentUser}
       />
+
+      {selectedLeadId && (() => {
+        const sel = leadsWithPipelineStages.find((l) => l.id === selectedLeadId);
+        if (!sel) return null;
+        return (
+          <NegocioDetailPanel
+            lead={sel}
+            currentUser={currentUser}
+            users={users}
+            pipelines={pipelines}
+            onClose={() => setSelectedLeadId(null)}
+          />
+        );
+      })()}
     </div>
   );
 }
