@@ -11,10 +11,12 @@ interface WsContextValue {
 const WsContext = createContext<WsContextValue>({ socket: null, connected: false });
 
 export function WsProvider({ children }: { children: ReactNode }) {
-  const token = useAuthStore((s) => s.token);
-  const logout = useAuthStore((s) => s.logout);
+  const token = useAuthStore(s => s.token);
+  const logout = useAuthStore(s => s.logout);
   const socketRef = useRef<Socket | null>(null);
   const [connected, setConnected] = useState(false);
+  // Conta falhas consecutivas de auth antes de deslogar
+  const authFailCount = useRef(0);
 
   useEffect(() => {
     if (!token) {
@@ -24,20 +26,38 @@ export function WsProvider({ children }: { children: ReactNode }) {
       return;
     }
 
+    authFailCount.current = 0;
+
     const socket = io('/', {
       auth: { token },
       transports: ['websocket', 'polling'],
       reconnection: true,
+      reconnectionAttempts: 10,
+      reconnectionDelay: 2000,
     });
 
-    socket.on('connect', () => setConnected(true));
+    socket.on('connect', () => {
+      authFailCount.current = 0;
+      setConnected(true);
+    });
+
     socket.on('disconnect', () => setConnected(false));
+
     socket.on('connect_error', (err) => {
       setConnected(false);
-      const msg = String(err?.message ?? '');
-      if (msg.toLowerCase().includes('unauth') || msg.toLowerCase().includes('jwt')) {
-        logout();
-        window.location.href = '/login';
+      const msg = String(err?.message ?? '').toLowerCase();
+      const isAuthError = msg.includes('unauthorized') || msg === 'jwt expired' || msg === 'invalid token';
+
+      if (isAuthError) {
+        authFailCount.current += 1;
+        // Só desloga após 3 falhas consecutivas de auth para evitar falsos positivos
+        if (authFailCount.current >= 3) {
+          logout();
+          window.location.href = '/login';
+        }
+      } else {
+        // Erro de rede — não desloga, deixa o socket.io reconectar
+        authFailCount.current = 0;
       }
     });
 
