@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   X, Star, MoreHorizontal, Plus, Mail, Phone, MessageSquare, FileText,
   PhoneCall, Users as UsersIcon, MapPin, StickyNote, Clock, Check,
-  Trophy, Ban, TrendingDown, Copy, Pin, HelpCircle, ChevronRight,
+  Trophy, Ban, TrendingDown, Copy, Pin, HelpCircle, ChevronRight, ChevronDown,
 } from 'lucide-react';
 import type { Lead, LeadStatus, LeadActivity, ActivityType, Pipeline, User, Stage } from '@/types/api';
 import { updateLead, updateLeadStatus, moveLead } from '@/api/leads';
@@ -200,6 +200,8 @@ export default function NegocioDetailPanel({ lead, currentUser, users, pipelines
   const [activityText, setActivityText] = useState('');
   const [subTab, setSubTab] = useState<'historico' | 'fixadas'>('historico');
   const [copied, setCopied] = useState(false);
+  const [pipelinePickerOpen, setPipelinePickerOpen] = useState(false);
+  const [selectedPipelineId, setSelectedPipelineId] = useState('');
 
   /* ESC to close */
   useEffect(() => {
@@ -261,6 +263,20 @@ export default function NegocioDetailPanel({ lead, currentUser, users, pipelines
   const stageMut = useMutation({
     mutationFn: (stageId: string) => moveLead(lead.id, stageId),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['negocios'] }),
+  });
+
+  const pipelineMut = useMutation({
+    mutationFn: (pipelineId: string) => {
+      const target = pipelines.find(p => p.id === pipelineId);
+      const firstStage = target?.stages?.slice().sort((a, b) => a.position - b.position)[0];
+      if (!firstStage) throw new Error('Funil sem etapas');
+      return moveLead(lead.id, firstStage.id);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['negocios'] });
+      setPipelinePickerOpen(false);
+      setSelectedPipelineId('');
+    },
   });
 
   const contactMut = useMutation({
@@ -410,12 +426,67 @@ export default function NegocioDetailPanel({ lead, currentUser, users, pipelines
               className="flex items-stretch rounded-lg overflow-hidden"
               style={{ background: 'var(--surface)', border: '1px solid var(--edge)' }}
             >
-              <div
-                className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium flex-shrink-0"
-                style={{ color: 'var(--ink-2)', borderRight: '1px solid var(--edge)' }}
-              >
-                <span className="w-4 h-4 rounded-full border-2" style={{ borderColor: 'var(--brand-500, #6366f1)' }} />
-                {pipeline?.name ?? 'Funil'}
+              <div className="relative flex-shrink-0" style={{ borderRight: '1px solid var(--edge)' }}>
+                <button
+                  onClick={() => {
+                    setSelectedPipelineId(lead.pipelineId ?? '');
+                    setPipelinePickerOpen(o => !o);
+                  }}
+                  className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium transition-colors hover:bg-[var(--surface-hover)]"
+                  style={{ color: 'var(--ink-2)' }}
+                  title="Trocar funil"
+                >
+                  <span className="w-4 h-4 rounded-full border-2 flex-shrink-0" style={{ borderColor: 'var(--brand-500, #6366f1)' }} />
+                  {pipeline?.name ?? 'Funil'}
+                  <ChevronDown className="w-3 h-3 opacity-60" />
+                </button>
+
+                {pipelinePickerOpen && (
+                  <>
+                    <div className="fixed inset-0 z-10" onClick={() => setPipelinePickerOpen(false)} />
+                    <div
+                      className="absolute top-full left-0 mt-1 rounded-xl shadow-xl z-20 min-w-[220px] py-2"
+                      style={{ background: 'var(--surface-raised)', border: '1px solid var(--edge-strong)' }}
+                    >
+                      <p className="px-3 pb-1.5 text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--ink-3)' }}>
+                        Selecione o funil
+                      </p>
+                      {pipelines.map(p => (
+                        <button
+                          key={p.id}
+                          onClick={() => setSelectedPipelineId(p.id)}
+                          className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left transition-colors hover:bg-[var(--surface-hover)]"
+                          style={{ color: selectedPipelineId === p.id ? 'var(--brand-500)' : 'var(--ink-1)', fontWeight: selectedPipelineId === p.id ? 600 : 400 }}
+                        >
+                          <span
+                            className="w-2 h-2 rounded-full flex-shrink-0"
+                            style={{ background: selectedPipelineId === p.id ? 'var(--brand-500)' : 'var(--edge-strong)' }}
+                          />
+                          {p.name}
+                          {p.id === lead.pipelineId && (
+                            <span className="ml-auto text-[10px]" style={{ color: 'var(--ink-3)' }}>atual</span>
+                          )}
+                        </button>
+                      ))}
+                      <div className="px-3 pt-2 mt-1" style={{ borderTop: '1px solid var(--edge)' }}>
+                        <button
+                          onClick={() => {
+                            if (selectedPipelineId && selectedPipelineId !== lead.pipelineId) {
+                              pipelineMut.mutate(selectedPipelineId);
+                            } else {
+                              setPipelinePickerOpen(false);
+                            }
+                          }}
+                          disabled={!selectedPipelineId || pipelineMut.isPending}
+                          className="w-full h-8 rounded-lg text-xs font-semibold text-white disabled:opacity-40"
+                          style={{ background: 'var(--brand-500)' }}
+                        >
+                          {pipelineMut.isPending ? 'Salvando...' : 'Salvar'}
+                        </button>
+                      </div>
+                    </div>
+                  </>
+                )}
               </div>
               {stages.map((s, idx) => {
                 const isCurrent = idx === currentStageIdx;
