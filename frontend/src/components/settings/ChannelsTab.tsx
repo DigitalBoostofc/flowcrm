@@ -68,6 +68,10 @@ export default function ChannelsTab() {
       setInitialQr(data.qrCode);
       setQrOpen(id);
     },
+    onError: (err: any) => {
+      const msg = err?.response?.data?.message ?? err?.message ?? 'Erro desconhecido';
+      alert(`Erro ao conectar: ${msg}`);
+    },
   });
 
   const isFormValid =
