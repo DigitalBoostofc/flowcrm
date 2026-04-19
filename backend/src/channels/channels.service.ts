@@ -53,6 +53,12 @@ export class ChannelsService {
     await this.repo.update(id, { status });
   }
 
+  async updateConfig(id: string, extra: Record<string, string>): Promise<void> {
+    const channel = await this.findById(id);
+    channel.config = { ...channel.config, ...extra };
+    await this.repo.save(channel);
+  }
+
   async remove(id: string): Promise<void> {
     await this.repo.update(id, { active: false });
   }

@@ -40,6 +40,12 @@ export class UazapiWebhookController {
       const connected: boolean = payload?.data?.connected ?? false;
       const status = connected ? 'connected' : 'disconnected';
       await this.channels.updateStatus(channelConfigId, status);
+      // Salva o número conectado se disponível
+      if (connected) {
+        const phone: string = (payload?.data?.instance?.owner ?? '').replace('@s.whatsapp.net', '');
+        const profileName: string = payload?.data?.instance?.profileName ?? '';
+        if (phone) await this.channels.updateConfig(channelConfigId, { connectedPhone: phone, profileName });
+      }
       this.events.emit('channel.status.changed', { channelConfigId, status });
       this.logger.log(`Canal ${channelConfigId} → ${status}`);
       return { ok: true };

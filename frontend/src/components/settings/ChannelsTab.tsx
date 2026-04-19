@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Trash2, QrCode, Loader2 } from 'lucide-react';
-import { listChannels, createChannel, deleteChannel, provisionChannel, getChannelQr } from '@/api/channels';
+import { Plus, Trash2, QrCode, Loader2, CheckCircle2 } from 'lucide-react';
+import { listChannels, createChannel, deleteChannel, provisionChannel, getChannelQr, getChannel } from '@/api/channels';
 import Modal from '@/components/ui/Modal';
 
 function randomHex(length: number): string {
@@ -142,28 +142,69 @@ export default function ChannelsTab() {
 }
 
 function QrModal({ channelId, initialQr, onClose }: { channelId: string | null; initialQr?: string; onClose: () => void }) {
+  const queryClient = useQueryClient();
   const [qr, setQr] = useState<string | null>(initialQr ?? null);
+  const [connected, setConnected] = useState(false);
+  const [phone, setPhone] = useState('');
 
   useEffect(() => {
-    if (!channelId) { setQr(null); return; }
+    if (!channelId) { setQr(null); setConnected(false); setPhone(''); return; }
     if (initialQr) setQr(initialQr);
     let cancelled = false;
-    const fetchQr = async () => {
+
+    const poll = async () => {
       try {
+        // Verifica status do canal
+        const ch = await getChannel(channelId);
+        if (ch.status === 'connected') {
+          if (!cancelled) {
+            setConnected(true);
+            setPhone((ch.config as any).connectedPhone ?? '');
+            queryClient.invalidateQueries({ queryKey: ['channels'] });
+          }
+          return true;
+        }
+        // Atualiza QR
         const result = await getChannelQr(channelId);
         if (!cancelled && result.base64) setQr(result.base64);
       } catch {}
+      return false;
     };
-    const first = setTimeout(fetchQr, 5000);
-    const t = setInterval(fetchQr, 8000);
+
+    const first = setTimeout(poll, 5000);
+    const t = setInterval(async () => {
+      const done = await poll();
+      if (done) clearInterval(t);
+    }, 5000);
+
     return () => { cancelled = true; clearTimeout(first); clearInterval(t); };
-  }, [channelId, initialQr]);
+  }, [channelId, initialQr, queryClient]);
 
   if (!channelId) return null;
 
   const imgSrc = qr
     ? qr.startsWith('data:') ? qr : `data:image/png;base64,${qr}`
     : '';
+
+  if (connected) {
+    return (
+      <Modal open={!!channelId} onClose={onClose} title="WhatsApp conectado!">
+        <div className="text-center space-y-4 py-4">
+          <CheckCircle2 className="w-16 h-16 text-emerald-400 mx-auto" />
+          <div>
+            <p className="text-slate-100 font-medium text-lg">Número conectado com sucesso!</p>
+            {phone && <p className="text-slate-400 text-sm mt-1">+{phone}</p>}
+          </div>
+          <button
+            onClick={onClose}
+            className="px-6 py-2 bg-brand-600 hover:bg-brand-500 text-white rounded-lg text-sm"
+          >
+            Fechar
+          </button>
+        </div>
+      </Modal>
+    );
+  }
 
   return (
     <Modal open={!!channelId} onClose={onClose} title="Conectar WhatsApp">
@@ -179,7 +220,7 @@ function QrModal({ channelId, initialQr, onClose }: { channelId: string | null; 
             <span className="text-sm">Gerando QR code...</span>
           </div>
         )}
-        {imgSrc && <p className="text-xs text-slate-500">QR atualiza automaticamente a cada 8s</p>}
+        {imgSrc && <p className="text-xs text-slate-500">QR atualiza automaticamente a cada 5s</p>}
       </div>
     </Modal>
   );

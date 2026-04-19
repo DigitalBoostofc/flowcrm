@@ -28,3 +28,8 @@ export async function getChannelQr(id: string): Promise<{ base64: string; pairin
   const res = await api.get(`/channels/${id}/qr`, { headers: { Accept: 'application/json' } });
   return res.data;
 }
+
+export async function getChannel(id: string): Promise<ChannelConfig> {
+  const res = await api.get<ChannelConfig>(`/channels/${id}`);
+  return res.data;
+}
