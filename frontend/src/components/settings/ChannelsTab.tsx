@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Trash2, QrCode } from 'lucide-react';
+import { Plus, Trash2, QrCode, Loader2 } from 'lucide-react';
 import { listChannels, createChannel, deleteChannel, provisionChannel, getChannelQr } from '@/api/channels';
 import Modal from '@/components/ui/Modal';
 
@@ -30,9 +30,6 @@ export default function ChannelsTab() {
 
   const [kind, setKind] = useState<ChannelKind>('uazapi');
   const [name, setName] = useState('');
-  // uazapi fields
-  const [baseUrl, setBaseUrl] = useState('');
-  const [token, setToken] = useState('');
   // meta fields
   const [phoneNumberId, setPhoneNumberId] = useState('');
   const [accessToken, setAccessToken] = useState('');
@@ -40,8 +37,6 @@ export default function ChannelsTab() {
   const resetForm = () => {
     setKind('uazapi');
     setName('');
-    setBaseUrl('');
-    setToken('');
     setPhoneNumberId('');
     setAccessToken('');
   };
@@ -50,7 +45,7 @@ export default function ChannelsTab() {
     mutationFn: () => {
       const config: Record<string, string> =
         kind === 'uazapi'
-          ? { baseUrl: baseUrl.replace(/\/$/, ''), token, webhookSecret: randomHex(16) }
+          ? { webhookSecret: randomHex(16) }
           : { phoneNumberId, accessToken };
       return createChannel({ name, type: kind, config });
     },
@@ -73,9 +68,7 @@ export default function ChannelsTab() {
 
   const isFormValid =
     !!name &&
-    (kind === 'uazapi'
-      ? !!baseUrl && !!token
-      : !!phoneNumberId && !!accessToken);
+    (kind === 'uazapi' || (!!phoneNumberId && !!accessToken));
 
   return (
     <div className="space-y-4">
@@ -105,11 +98,14 @@ export default function ChannelsTab() {
               {isQrChannel(c.type) && (
                 <button
                   onClick={() => provisionMutation.mutate(c.id)}
-                  disabled={provisionMutation.isPending}
-                  className="flex items-center gap-1.5 bg-slate-700 hover:bg-slate-600 text-slate-200 text-sm px-3 py-1.5 rounded-lg"
+                  disabled={provisionMutation.isPending && provisionMutation.variables === c.id}
+                  className="flex items-center gap-1.5 bg-slate-700 hover:bg-slate-600 text-slate-200 text-sm px-3 py-1.5 rounded-lg disabled:opacity-60"
                   title="Conectar WhatsApp via QR"
                 >
-                  <QrCode className="w-4 h-4" /> Conectar
+                  {provisionMutation.isPending && provisionMutation.variables === c.id
+                    ? <Loader2 className="w-4 h-4 animate-spin" />
+                    : <QrCode className="w-4 h-4" />}
+                  Conectar
                 </button>
               )}
               <button
@@ -141,7 +137,7 @@ export default function ChannelsTab() {
               >
                 <div className="text-sm font-medium text-slate-100">WhatsApp via QR</div>
                 <div className="text-xs text-slate-400 mt-0.5">
-                  Não-oficial (uazapiGO) — lê QR code no celular
+                  Conecte qualquer número escaneando o QR code
                 </div>
               </button>
               <button
@@ -155,13 +151,13 @@ export default function ChannelsTab() {
               >
                 <div className="text-sm font-medium text-slate-100">WhatsApp Business API</div>
                 <div className="text-xs text-slate-400 mt-0.5">
-                  Oficial (Meta) — requer número verificado e conta de desenvolvedor
+                  Oficial (Meta) — requer número verificado
                 </div>
               </button>
             </div>
           </div>
 
-          {/* Common */}
+          {/* Nome do canal (comum a todos) */}
           <div>
             <label className="text-xs text-slate-400 mb-1 block">Nome do canal</label>
             <input
@@ -172,32 +168,12 @@ export default function ChannelsTab() {
             />
           </div>
 
-          {/* uazapi fields */}
+          {/* uazapi: nenhum campo extra */}
           {kind === 'uazapi' && (
-            <>
-              <div>
-                <label className="text-xs text-slate-400 mb-1 block">URL do servidor uazapiGO</label>
-                <input
-                  value={baseUrl}
-                  onChange={(e) => setBaseUrl(e.target.value)}
-                  placeholder="https://api.seuservidor.com"
-                  className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100"
-                />
-              </div>
-              <div>
-                <label className="text-xs text-slate-400 mb-1 block">Token da instância</label>
-                <input
-                  value={token}
-                  onChange={(e) => setToken(e.target.value)}
-                  placeholder="Token gerado pelo uazapiGO"
-                  className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100"
-                />
-              </div>
-              <p className="text-xs text-slate-500 leading-relaxed">
-                Crie uma instância no painel do uazapiGO, copie o token e a URL base do servidor.
-                Após criar o canal, clique em <strong className="text-slate-400">Conectar</strong> para gerar o QR code.
-              </p>
-            </>
+            <p className="text-xs text-slate-500 leading-relaxed bg-slate-900 rounded-lg px-3 py-2">
+              Após criar, clique em <strong className="text-slate-300">Conectar</strong> para gerar o QR code.
+              Abra o WhatsApp no celular e escaneie para vincular o número.
+            </p>
           )}
 
           {/* Meta fields */}
@@ -223,8 +199,6 @@ export default function ChannelsTab() {
               </div>
               <p className="text-xs text-slate-500 leading-relaxed">
                 O webhook do Meta deve apontar para <code className="text-slate-400">/api/webhooks/meta</code>.
-                As variáveis <code className="text-slate-400">META_VERIFY_TOKEN</code> e{' '}
-                <code className="text-slate-400">META_APP_SECRET</code> precisam estar configuradas no servidor.
               </p>
             </>
           )}
@@ -238,7 +212,7 @@ export default function ChannelsTab() {
               disabled={!isFormValid || createMutation.isPending}
               className="px-3 py-1.5 text-sm bg-brand-600 hover:bg-brand-500 disabled:opacity-50 text-white rounded-lg"
             >
-              Criar
+              {createMutation.isPending ? 'Criando...' : 'Criar'}
             </button>
           </div>
         </div>
@@ -250,7 +224,7 @@ export default function ChannelsTab() {
 }
 
 function QrModal({ channelId, onClose }: { channelId: string | null; onClose: () => void }) {
-  const [qr, setQr] = useState<{ base64: string; pairingCode?: string } | null>(null);
+  const [qr, setQr] = useState<{ base64: string } | null>(null);
 
   useEffect(() => {
     if (!channelId) { setQr(null); return; }
@@ -262,7 +236,7 @@ function QrModal({ channelId, onClose }: { channelId: string | null; onClose: ()
       } catch {}
     };
     fetchQr();
-    const t = setInterval(fetchQr, 15000);
+    const t = setInterval(fetchQr, 8000);
     return () => { cancelled = true; clearInterval(t); };
   }, [channelId]);
 
@@ -274,14 +248,19 @@ function QrModal({ channelId, onClose }: { channelId: string | null; onClose: ()
 
   return (
     <Modal open={!!channelId} onClose={onClose} title="Conectar WhatsApp">
-      <div className="text-center space-y-3">
-        <p className="text-sm text-slate-400">Abra WhatsApp → Dispositivos conectados → Conectar um dispositivo</p>
+      <div className="text-center space-y-4">
+        <p className="text-sm text-slate-400">
+          Abra o WhatsApp → <strong>Dispositivos conectados</strong> → <strong>Conectar um dispositivo</strong>
+        </p>
         {imgSrc ? (
-          <img src={imgSrc} alt="QR Code" className="w-64 h-64 mx-auto bg-white rounded-lg p-2" />
+          <img src={imgSrc} alt="QR Code" className="w-64 h-64 mx-auto bg-white rounded-xl p-2" />
         ) : (
-          <div className="text-slate-500 py-12">Gerando QR...</div>
+          <div className="flex flex-col items-center gap-3 py-12 text-slate-500">
+            <Loader2 className="w-8 h-8 animate-spin text-brand-500" />
+            <span className="text-sm">Gerando QR code...</span>
+          </div>
         )}
-        <p className="text-xs text-slate-500">O QR atualiza a cada 15s</p>
+        {imgSrc && <p className="text-xs text-slate-500">QR atualiza automaticamente a cada 8s</p>}
       </div>
     </Modal>
   );
