@@ -4,6 +4,7 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 import Sidebar from './Sidebar';
 import LeadPanel from '@/components/lead-panel/LeadPanel';
 import Toaster from '@/components/ui/Toaster';
+import QualificationModal from '@/components/ui/QualificationModal';
 import { useThemeStore } from '@/store/theme.store';
 import { useSidebarStore } from '@/store/sidebar.store';
 
@@ -28,6 +29,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
       <main className="flex-1 overflow-auto min-w-0">{children}</main>
       <LeadPanel />
       <Toaster />
+      <QualificationModal />
 
       {!hideSidebar && (
         <button
