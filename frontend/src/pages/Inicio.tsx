@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Mail, Phone, MessageCircle, FileText, MapPin, Users as UsersIcon,
-  Pencil, Trash2, Upload, Download, Building2, User as UserIcon, DollarSign,
+  Pencil, Trash2, Building2, User as UserIcon, DollarSign,
   ChevronDown, CheckCircle2,
 } from 'lucide-react';
 import { listTasks, completeTask, reopenTask, deleteTask } from '@/api/tasks';
@@ -274,7 +274,7 @@ function ActivityCard({
 
 function SidebarActionButton({
   icon: Icon, label, variant = 'solid',
-}: { icon: typeof Upload; label: string; variant?: 'solid' | 'ghost' }) {
+}: { icon: typeof Building2; label: string; variant?: 'solid' | 'ghost' }) {
   const isSolid = variant === 'solid';
   return (
     <button
@@ -401,8 +401,6 @@ export default function Inicio() {
 
         {/* Right sidebar */}
         <aside className="space-y-3">
-          <SidebarActionButton icon={Upload} label="Importar" variant="ghost" />
-          <SidebarActionButton icon={Download} label="Exportar" variant="ghost" />
           <SidebarActionButton icon={Building2} label="Adicionar uma empresa" />
           <SidebarActionButton icon={UserIcon} label="Adicionar uma pessoa" />
           <SidebarActionButton icon={DollarSign} label="Adicionar um negócio" />
