@@ -1,9 +1,9 @@
 import { create } from 'zustand';
-import type { Lead, Contact, Message } from '@/types/api';
+import type { Lead, Message } from '@/types/api';
 
 export interface QualificationItem {
   id: string;
-  lead: Lead & { contact?: Contact };
+  lead: Lead;
   message: Message;
 }
 

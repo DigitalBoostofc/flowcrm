@@ -284,8 +284,10 @@ export default function NegocioDetailPanel({ lead, currentUser, users, pipelines
   });
 
   const contactMut = useMutation({
-    mutationFn: ({ field, value }: { field: string; value: string | null }) =>
-      updateContact(lead.contactId, { [field]: value ?? undefined } as any),
+    mutationFn: ({ field, value }: { field: string; value: string | null }) => {
+      if (!lead.contactId) throw new Error('Negócio sem pessoa vinculada');
+      return updateContact(lead.contactId, { [field]: value ?? undefined } as any);
+    },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['negocios'] });
       qc.invalidateQueries({ queryKey: ['pessoas'] });
