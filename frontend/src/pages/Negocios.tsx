@@ -990,6 +990,8 @@ function AddNegocioModal({
 
 /* ── Page ────────────────────────────────────────────── */
 
+type SortNegocios = 'recente' | 'antigo' | 'valor_asc' | 'valor_desc';
+
 export default function Negocios() {
   const navigate = useNavigate();
   const currentUser = useAuthStore((s) => s.user);
@@ -998,7 +1000,13 @@ export default function Negocios() {
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [addOpen, setAddOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
+  const [filterOpen, setFilterOpen] = useState(false);
   const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
+  const [filterStatus, setFilterStatus] = useState('');
+  const [filterPipeline, setFilterPipeline] = useState('');
+  const [filterAssignee, setFilterAssignee] = useState('');
+  const [sort, setSort] = useState<SortNegocios>('recente');
+  const activeFilters = [filterStatus, filterPipeline, filterAssignee].filter(Boolean).length;
 
   useEffect(() => {
     const t = setTimeout(() => setDebouncedSearch(search.trim().toLowerCase()), 300);
@@ -1029,23 +1037,26 @@ export default function Negocios() {
   }, [leads, pipelines]);
 
   const filteredLeads = useMemo(() => {
-    if (!debouncedSearch) return leadsWithPipelineStages;
-    return leadsWithPipelineStages.filter((l) => {
-      const text = [
-        l.title,
-        l.contact?.name,
-        l.contact?.company,
-        l.contact?.email,
-        l.createdBy?.name,
-        l.assignedTo?.name,
-        l.stage?.name,
-      ]
-        .filter(Boolean)
-        .join(' ')
-        .toLowerCase();
-      return text.includes(debouncedSearch);
+    let result = debouncedSearch
+      ? leadsWithPipelineStages.filter((l) => {
+          const text = [l.title, l.contact?.name, l.contact?.company, l.contact?.email, l.createdBy?.name, l.assignedTo?.name, l.stage?.name]
+            .filter(Boolean).join(' ').toLowerCase();
+          return text.includes(debouncedSearch);
+        })
+      : leadsWithPipelineStages;
+
+    if (filterStatus) result = result.filter(l => l.status === filterStatus);
+    if (filterPipeline) result = result.filter(l => l.pipelineId === filterPipeline);
+    if (filterAssignee) result = result.filter(l => l.assignedToId === filterAssignee);
+
+    result = [...result].sort((a, b) => {
+      if (sort === 'valor_asc') return Number(a.value ?? 0) - Number(b.value ?? 0);
+      if (sort === 'valor_desc') return Number(b.value ?? 0) - Number(a.value ?? 0);
+      if (sort === 'antigo') return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
     });
-  }, [leadsWithPipelineStages, debouncedSearch]);
+    return result;
+  }, [leadsWithPipelineStages, debouncedSearch, filterStatus, filterPipeline, filterAssignee, sort]);
 
   const handleExport = () => {
     const rows = filteredLeads.map(l => ({
@@ -1173,26 +1184,25 @@ export default function Negocios() {
           </div>
 
           <button
-            className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors hover:bg-[var(--surface-hover)]"
-            style={{ background: 'var(--surface)', border: '1px solid var(--edge)', color: 'var(--ink-1)' }}
+            onClick={() => setFilterOpen(o => !o)}
+            className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors"
+            style={{
+              background: filterOpen || activeFilters > 0 ? 'var(--brand-50)' : 'var(--surface)',
+              border: `1px solid ${activeFilters > 0 ? 'var(--brand-500)' : 'var(--edge)'}`,
+              color: activeFilters > 0 ? 'var(--brand-500)' : 'var(--ink-1)',
+            }}
           >
             <Filter className="w-4 h-4" />
-            Filtros
+            Filtros{activeFilters > 0 && ` (${activeFilters})`}
           </button>
-          <button
-            className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium"
-            style={{ color: 'var(--brand-500, #6366f1)' }}
-          >
-            <ArrowUpDown className="w-4 h-4" />
-            Ordenar
-          </button>
-          <button
-            className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium"
-            style={{ color: 'var(--brand-500, #6366f1)' }}
-          >
-            <Columns3 className="w-4 h-4" />
-            Colunas
-          </button>
+          <select value={sort} onChange={e => setSort(e.target.value as SortNegocios)}
+            className="px-3 py-2 rounded-lg text-sm font-medium outline-none"
+            style={{ background: 'var(--surface)', border: '1px solid var(--edge)', color: 'var(--ink-1)' }}>
+            <option value="recente">Mais recentes</option>
+            <option value="antigo">Mais antigos</option>
+            <option value="valor_desc">Maior valor</option>
+            <option value="valor_asc">Menor valor</option>
+          </select>
         </div>
 
         <div className="flex items-center gap-2">
@@ -1222,6 +1232,43 @@ export default function Negocios() {
           </button>
         </div>
       </div>
+
+      {/* Filter bar */}
+      {filterOpen && (
+        <div className="flex items-center gap-3 flex-wrap px-4 py-3 rounded-xl"
+          style={{ background: 'var(--surface)', border: '1px solid var(--edge)' }}>
+          <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)}
+            className="px-3 py-1.5 rounded-lg text-sm outline-none"
+            style={{ background: 'var(--surface-hover)', border: '1px solid var(--edge)', color: 'var(--ink-1)' }}>
+            <option value="">Status</option>
+            <option value="active">Em andamento</option>
+            <option value="won">Ganho</option>
+            <option value="lost">Perdido</option>
+          </select>
+          <select value={filterPipeline} onChange={e => setFilterPipeline(e.target.value)}
+            className="px-3 py-1.5 rounded-lg text-sm outline-none"
+            style={{ background: 'var(--surface-hover)', border: '1px solid var(--edge)', color: 'var(--ink-1)' }}>
+            <option value="">Funil</option>
+            {pipelines.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+          </select>
+          <select value={filterAssignee} onChange={e => setFilterAssignee(e.target.value)}
+            className="px-3 py-1.5 rounded-lg text-sm outline-none"
+            style={{ background: 'var(--surface-hover)', border: '1px solid var(--edge)', color: 'var(--ink-1)' }}>
+            <option value="">Responsável</option>
+            {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
+          </select>
+          {activeFilters > 0 && (
+            <button onClick={() => { setFilterStatus(''); setFilterPipeline(''); setFilterAssignee(''); }}
+              className="text-xs px-2.5 py-1.5 rounded-lg"
+              style={{ color: 'var(--danger)', background: 'var(--danger-bg)' }}>
+              Limpar filtros
+            </button>
+          )}
+          <span className="text-xs ml-auto" style={{ color: 'var(--ink-3)' }}>
+            {filteredLeads.length} de {leads.length} registros
+          </span>
+        </div>
+      )}
 
       {/* Table */}
       <div
