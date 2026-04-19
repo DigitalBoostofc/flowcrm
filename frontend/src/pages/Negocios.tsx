@@ -4,6 +4,7 @@ import {
   Search, Filter, ArrowUpDown, Columns3, Download, Upload, Plus,
   List, GitBranch, Map as MapIcon, TrendingUp, Star, Pencil, Trash2,
   ChevronDown, Briefcase, X, Settings as SettingsIcon, Lock, Users as UsersIcon,
+  DollarSign,
 } from 'lucide-react';
 import { listAllLeads, createLead, updateLead, updateLeadStatus, moveLead, deleteLead } from '@/api/leads';
 import type { LeadItemInput } from '@/api/leads';
@@ -13,6 +14,7 @@ import { listUsers } from '@/api/users';
 import { useAuthStore } from '@/store/auth.store';
 import type { Contact, Lead, LeadStatus, Pipeline, User } from '@/types/api';
 import NegocioDetailPanel from '@/components/negocios/NegocioDetailPanel';
+import NegocioKanban from '@/components/negocios/NegocioKanban';
 
 /* ── Avatar helpers ──────────────────────────────────── */
 
@@ -918,6 +920,8 @@ export default function Negocios() {
   const [view, setView] = useState<ViewMode>('lista');
   const [addOpen, setAddOpen] = useState(false);
   const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
+  const [selectedPipelineId, setSelectedPipelineId] = useState<string>('');
+  const [pipelineMenuOpen, setPipelineMenuOpen] = useState(false);
 
   useEffect(() => {
     const t = setTimeout(() => setDebouncedSearch(search.trim().toLowerCase()), 300);
@@ -930,6 +934,18 @@ export default function Negocios() {
     queryKey: ['negocios'],
     queryFn: listAllLeads,
   });
+
+  useEffect(() => {
+    if (!selectedPipelineId && pipelines.length > 0) {
+      const def = pipelines.find((p) => p.isDefault) ?? pipelines[0];
+      setSelectedPipelineId(def.id);
+    }
+  }, [pipelines, selectedPipelineId]);
+
+  const selectedPipeline = useMemo(
+    () => pipelines.find((p) => p.id === selectedPipelineId) ?? null,
+    [pipelines, selectedPipelineId],
+  );
 
   const userById = useMemo(() => {
     const m = new Map<string, User>();
@@ -947,7 +963,7 @@ export default function Negocios() {
     });
   }, [leads, pipelines]);
 
-  const filteredLeads = useMemo(() => {
+  const searchFilteredLeads = useMemo(() => {
     if (!debouncedSearch) return leadsWithPipelineStages;
     return leadsWithPipelineStages.filter((l) => {
       const text = [
@@ -966,6 +982,11 @@ export default function Negocios() {
     });
   }, [leadsWithPipelineStages, debouncedSearch]);
 
+  const filteredLeads = useMemo(() => {
+    if (view !== 'funil' || !selectedPipelineId) return searchFilteredLeads;
+    return searchFilteredLeads.filter((l) => l.pipelineId === selectedPipelineId);
+  }, [searchFilteredLeads, view, selectedPipelineId]);
+
   const total = filteredLeads.length;
   const totalValue = useMemo(
     () => filteredLeads.reduce((sum, l) => sum + Number(l.value ?? 0), 0),
@@ -979,10 +1000,48 @@ export default function Negocios() {
       {/* Header */}
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div className="flex items-center gap-3 flex-wrap">
-          <h1 className="text-2xl font-bold" style={{ color: 'var(--ink-1)' }}>
-            Negócios
-          </h1>
-          <span className="text-sm" style={{ color: 'var(--ink-3)' }}>
+          {view === 'funil' ? (
+            <div className="relative">
+              <button
+                onClick={() => setPipelineMenuOpen((o) => !o)}
+                className="flex items-center gap-2 rounded-lg px-2 py-1 -mx-2 hover:bg-[var(--surface-hover)] transition-colors"
+              >
+                <h1 className="text-2xl font-bold" style={{ color: 'var(--ink-1)' }}>
+                  {selectedPipeline?.name ?? 'Funil de vendas'}
+                </h1>
+                <ChevronDown className="w-5 h-5" style={{ color: 'var(--ink-3)' }} />
+              </button>
+              {pipelineMenuOpen && (
+                <>
+                  <div className="fixed inset-0 z-10" onClick={() => setPipelineMenuOpen(false)} />
+                  <div
+                    className="absolute top-full left-0 mt-1 rounded-lg shadow-lg z-20 min-w-[220px] py-1 max-h-72 overflow-y-auto"
+                    style={{ background: 'var(--surface-raised)', border: '1px solid var(--edge)' }}
+                  >
+                    {pipelines.map((p) => (
+                      <button
+                        key={p.id}
+                        onClick={() => { setSelectedPipelineId(p.id); setPipelineMenuOpen(false); }}
+                        className="w-full text-left px-3 py-1.5 text-sm hover:bg-[var(--surface-hover)] transition-colors"
+                        style={{
+                          color: p.id === selectedPipelineId ? 'var(--brand-500, #6366f1)' : 'var(--ink-1)',
+                          fontWeight: p.id === selectedPipelineId ? 600 : 400,
+                        }}
+                      >
+                        {p.name}{p.isDefault && ' (padrão)'}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+          ) : (
+            <h1 className="text-2xl font-bold" style={{ color: 'var(--ink-1)' }}>
+              Negócios
+            </h1>
+          )}
+          <span className="inline-flex items-center gap-1 text-sm" style={{ color: 'var(--ink-3)' }}>
+            {view === 'funil' && <DollarSign className="w-3.5 h-3.5" />}
             {formatBRL(totalValue)}
           </span>
           <span
@@ -993,7 +1052,7 @@ export default function Negocios() {
               border: '1px solid var(--edge)',
             }}
           >
-            {total}
+            {view === 'funil' ? `${total} negócio${total !== 1 ? 's' : ''}` : total}
           </span>
         </div>
 
@@ -1047,7 +1106,7 @@ export default function Negocios() {
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Buscar por nome do negócio, contato ou empresa"
+              placeholder={view === 'funil' ? 'Buscar no funil' : 'Buscar por nome do negócio, contato ou empresa'}
               className="w-full pl-9 pr-3 py-2 rounded-lg outline-none text-sm"
               style={{
                 background: 'var(--surface)',
@@ -1071,13 +1130,15 @@ export default function Negocios() {
             <ArrowUpDown className="w-4 h-4" />
             Ordenar
           </button>
-          <button
-            className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium"
-            style={{ color: 'var(--brand-500, #6366f1)' }}
-          >
-            <Columns3 className="w-4 h-4" />
-            Colunas
-          </button>
+          {view !== 'funil' && (
+            <button
+              className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium"
+              style={{ color: 'var(--brand-500, #6366f1)' }}
+            >
+              <Columns3 className="w-4 h-4" />
+              Colunas
+            </button>
+          )}
         </div>
 
         <div className="flex items-center gap-2">
@@ -1106,7 +1167,30 @@ export default function Negocios() {
         </div>
       </div>
 
-      {/* Table */}
+      {/* Content */}
+      {view === 'funil' ? (
+        isLoading ? (
+          <div
+            className="rounded-xl text-center py-10 text-sm"
+            style={{ background: 'var(--surface)', border: '1px solid var(--edge)', color: 'var(--ink-3)' }}
+          >
+            Carregando...
+          </div>
+        ) : (
+          <NegocioKanban
+            pipeline={selectedPipeline}
+            leads={filteredLeads}
+            onCardClick={(id) => setSelectedLeadId(id)}
+          />
+        )
+      ) : view === 'mapa' ? (
+        <div
+          className="rounded-xl p-10 text-center text-sm"
+          style={{ background: 'var(--surface)', border: '1px solid var(--edge)', color: 'var(--ink-3)' }}
+        >
+          Visualização em mapa em breve.
+        </div>
+      ) : (
       <div
         className="rounded-xl overflow-hidden"
         style={{ background: 'var(--surface)', border: '1px solid var(--edge)' }}
@@ -1222,11 +1306,14 @@ export default function Negocios() {
           </div>
         )}
       </div>
+      )}
 
       {/* Footer */}
-      <div className="flex justify-end text-xs" style={{ color: 'var(--ink-3)' }}>
-        Exibindo {total} de {total} negócio{total !== 1 ? 's' : ''}
-      </div>
+      {view === 'lista' && (
+        <div className="flex justify-end text-xs" style={{ color: 'var(--ink-3)' }}>
+          Exibindo {total} de {total} negócio{total !== 1 ? 's' : ''}
+        </div>
+      )}
 
       <AddNegocioModal
         open={addOpen}
