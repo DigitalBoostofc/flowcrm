@@ -3,14 +3,14 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { UserRole } from '../users/entities/user.entity';
-import { LossReasonsService } from './loss-reasons.service';
-import { CreateLossReasonDto } from './dto/create-loss-reason.dto';
-import { UpdateLossReasonDto } from './dto/update-loss-reason.dto';
+import { SectorsService } from './sectors.service';
+import { CreateSectorDto } from './dto/create-sector.dto';
+import { UpdateSectorDto } from './dto/update-sector.dto';
 
-@Controller('loss-reasons')
+@Controller('sectors')
 @UseGuards(JwtAuthGuard)
-export class LossReasonsController {
-  constructor(private service: LossReasonsService) {}
+export class SectorsController {
+  constructor(private service: SectorsService) {}
 
   @Get()
   findAll() {
@@ -20,14 +20,14 @@ export class LossReasonsController {
   @Post()
   @UseGuards(RolesGuard)
   @Roles(UserRole.OWNER)
-  create(@Body() dto: CreateLossReasonDto) {
+  create(@Body() dto: CreateSectorDto) {
     return this.service.create(dto);
   }
 
   @Patch(':id')
   @UseGuards(RolesGuard)
   @Roles(UserRole.OWNER)
-  update(@Param('id', new ParseUUIDPipe()) id: string, @Body() dto: UpdateLossReasonDto) {
+  update(@Param('id', new ParseUUIDPipe()) id: string, @Body() dto: UpdateSectorDto) {
     return this.service.update(id, dto);
   }
 

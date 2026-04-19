@@ -12,5 +12,8 @@ export const listLossReasons = (): Promise<LossReason[]> =>
 export const createLossReason = (label: string): Promise<LossReason> =>
   api.post('/loss-reasons', { label }).then((r) => r.data);
 
+export const updateLossReason = (id: string, label: string): Promise<LossReason> =>
+  api.patch(`/loss-reasons/${id}`, { label }).then((r) => r.data);
+
 export const deleteLossReason = (id: string): Promise<void> =>
   api.delete(`/loss-reasons/${id}`).then((r) => r.data);

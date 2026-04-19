@@ -22,6 +22,9 @@ import { AnalyticsModule } from './analytics/analytics.module';
 import { SearchModule } from './search/search.module';
 import { TasksModule } from './tasks/tasks.module';
 import { CompaniesModule } from './companies/companies.module';
+import { CustomerOriginsModule } from './customer-origins/customer-origins.module';
+import { CustomerCategoriesModule } from './customer-categories/customer-categories.module';
+import { SectorsModule } from './sectors/sectors.module';
 
 @Module({
   imports: [
@@ -60,6 +63,9 @@ import { CompaniesModule } from './companies/companies.module';
     SearchModule,
     TasksModule,
     CompaniesModule,
+    CustomerOriginsModule,
+    CustomerCategoriesModule,
+    SectorsModule,
   ],
 })
 export class AppModule {}
