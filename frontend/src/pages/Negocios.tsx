@@ -4,12 +4,13 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Search, Filter, ArrowUpDown, Columns3, Download, Upload, Plus,
   List, GitBranch, TrendingUp, Star, Pencil, Trash2,
-  ChevronDown, Briefcase, X, Settings as SettingsIcon, Lock, Users as UsersIcon,
+  ChevronDown, Briefcase, Building2, X, Settings as SettingsIcon, Lock, Users as UsersIcon,
 } from 'lucide-react';
 import { listAllLeads, createLead, updateLead, updateLeadStatus, moveLead, deleteLead } from '@/api/leads';
 import type { LeadItemInput } from '@/api/leads';
 import { listPipelines } from '@/api/pipelines';
 import { listContacts, createContact } from '@/api/contacts';
+import { listCompanies } from '@/api/companies';
 import { listUsers } from '@/api/users';
 import { useAuthStore } from '@/store/auth.store';
 import type { Contact, Lead, LeadStatus, Pipeline, User } from '@/types/api';
@@ -354,16 +355,42 @@ function ContactAutocomplete({
     return () => document.removeEventListener('mousedown', onDocClick);
   }, []);
 
-  const { data: results = [] } = useQuery({
+  const { data: contactResults = [] } = useQuery({
     queryKey: ['contacts-autocomplete', debounced],
     queryFn: () => listContacts(debounced || undefined),
     enabled: open,
   });
 
+  const { data: companyResults = [] } = useQuery({
+    queryKey: ['companies-autocomplete', debounced],
+    queryFn: () => listCompanies(debounced || undefined),
+    enabled: open,
+  });
+
+  const [creatingFromCompany, setCreatingFromCompany] = useState(false);
+
+  const handlePickCompany = async (companyName: string) => {
+    setCreatingFromCompany(true);
+    try {
+      const existing = await listContacts(companyName);
+      const exact = existing.find(
+        (c) => c.name.toLowerCase() === companyName.toLowerCase() && c.company === companyName,
+      );
+      const contact = exact ?? (await createContact({ name: companyName, company: companyName }));
+      onChange(contact);
+      setQuery(contact.name);
+      setOpen(false);
+    } finally {
+      setCreatingFromCompany(false);
+    }
+  };
+
+  const hasResults = contactResults.length > 0 || companyResults.length > 0;
+
   return (
     <div className="relative" ref={ref}>
       <FieldInput
-        placeholder={label ?? 'Digite o nome do cliente'}
+        placeholder={label ?? 'Digite o nome do cliente ou empresa'}
         value={query}
         onFocus={() => setOpen(true)}
         onChange={(e) => {
@@ -383,32 +410,71 @@ function ContactAutocomplete({
           <X className="w-3.5 h-3.5" />
         </button>
       )}
-      {open && results.length > 0 && (
+      {open && hasResults && (
         <div
-          className="absolute top-full left-0 right-0 mt-1 rounded-lg shadow-lg z-30 max-h-64 overflow-y-auto py-1"
+          className="absolute top-full left-0 right-0 mt-1 rounded-lg shadow-lg z-30 max-h-72 overflow-y-auto py-1"
           style={{ background: 'var(--surface-raised)', border: '1px solid var(--edge)' }}
         >
-          {results.slice(0, 20).map((c) => (
-            <button
-              key={c.id}
-              type="button"
-              onClick={() => {
-                onChange(c);
-                setQuery(c.name);
-                setOpen(false);
-              }}
-              className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-[var(--surface-hover)] text-left"
-              style={{ color: 'var(--ink-1)' }}
-            >
-              <Avatar name={c.name} id={c.id} size={24} />
-              <div className="min-w-0">
-                <div className="truncate">{c.name}</div>
-                {c.company && (
-                  <div className="text-xs truncate" style={{ color: 'var(--ink-3)' }}>{c.company}</div>
-                )}
+          {companyResults.length > 0 && (
+            <>
+              <div className="px-3 pt-1 pb-0.5 text-[10px] uppercase tracking-wide" style={{ color: 'var(--ink-3)' }}>
+                Empresas
               </div>
-            </button>
-          ))}
+              {companyResults.slice(0, 10).map((co) => (
+                <button
+                  key={`co-${co.id}`}
+                  type="button"
+                  disabled={creatingFromCompany}
+                  onClick={() => handlePickCompany(co.name)}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-[var(--surface-hover)] text-left disabled:opacity-50"
+                  style={{ color: 'var(--ink-1)' }}
+                >
+                  <span
+                    className="w-6 h-6 rounded flex items-center justify-center flex-shrink-0"
+                    style={{ background: 'var(--surface-hover)', color: 'var(--brand-500, #6366f1)' }}
+                  >
+                    <Building2 className="w-3.5 h-3.5" />
+                  </span>
+                  <div className="min-w-0">
+                    <div className="truncate">{co.name}</div>
+                    {co.setor && (
+                      <div className="text-xs truncate" style={{ color: 'var(--ink-3)' }}>{co.setor}</div>
+                    )}
+                  </div>
+                </button>
+              ))}
+            </>
+          )}
+          {contactResults.length > 0 && (
+            <>
+              {companyResults.length > 0 && (
+                <div className="px-3 pt-2 pb-0.5 text-[10px] uppercase tracking-wide" style={{ color: 'var(--ink-3)' }}>
+                  Pessoas
+                </div>
+              )}
+              {contactResults.slice(0, 20).map((c) => (
+                <button
+                  key={`ct-${c.id}`}
+                  type="button"
+                  onClick={() => {
+                    onChange(c);
+                    setQuery(c.name);
+                    setOpen(false);
+                  }}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-[var(--surface-hover)] text-left"
+                  style={{ color: 'var(--ink-1)' }}
+                >
+                  <Avatar name={c.name} id={c.id} size={24} />
+                  <div className="min-w-0">
+                    <div className="truncate">{c.name}</div>
+                    {c.company && (
+                      <div className="text-xs truncate" style={{ color: 'var(--ink-3)' }}>{c.company}</div>
+                    )}
+                  </div>
+                </button>
+              ))}
+            </>
+          )}
         </div>
       )}
     </div>

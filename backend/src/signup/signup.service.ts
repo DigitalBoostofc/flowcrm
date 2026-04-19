@@ -13,6 +13,8 @@ import * as bcrypt from 'bcrypt';
 import { OtpVerification } from './entities/otp-verification.entity';
 import { User, UserRole } from '../users/entities/user.entity';
 import { Workspace } from '../workspaces/entities/workspace.entity';
+import { Pipeline } from '../pipelines/entities/pipeline.entity';
+import { Stage } from '../stages/entities/stage.entity';
 import { AppSettingsService } from '../app-settings/app-settings.service';
 import { ChannelsService } from '../channels/channels.service';
 import { ContactsService } from '../contacts/contacts.service';
@@ -157,6 +159,29 @@ export class SignupService {
 
       savedWs.ownerUserId = savedUser.id;
       await manager.save(savedWs);
+
+      const pipeline = manager.create(Pipeline, {
+        workspaceId: savedWs.id,
+        name: 'Funil Principal',
+        isDefault: true,
+      });
+      const savedPipeline = await manager.save(pipeline);
+
+      const defaultStages = [
+        { name: 'Novos leads', color: '#3b82f6', position: 0 },
+        { name: 'Em contato', color: '#8b5cf6', position: 1 },
+        { name: 'Proposta', color: '#f59e0b', position: 2 },
+        { name: 'Negociação', color: '#ef4444', position: 3 },
+        { name: 'Fechado', color: '#10b981', position: 4 },
+      ];
+      const stages = defaultStages.map((s) => manager.create(Stage, {
+        workspaceId: savedWs.id,
+        pipelineId: savedPipeline.id,
+        name: s.name,
+        color: s.color,
+        position: s.position,
+      }));
+      await manager.save(stages);
 
       otp.consumedAt = new Date();
       otp.payload = {};
