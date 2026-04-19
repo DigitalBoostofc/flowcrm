@@ -767,20 +767,6 @@ export default function Funil() {
 
         <div className="flex items-center gap-2">
           <button
-            className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium"
-            style={{ color: 'var(--brand-500, #6366f1)' }}
-          >
-            <Upload className="w-4 h-4" />
-            Importar
-          </button>
-          <button
-            className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium"
-            style={{ color: 'var(--brand-500, #6366f1)' }}
-          >
-            <Download className="w-4 h-4" />
-            Exportar
-          </button>
-          <button
             onClick={() => navigate('/negocios')}
             className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-white shadow-sm transition-all hover:opacity-90"
             style={{ background: 'var(--brand-500, #6366f1)' }}

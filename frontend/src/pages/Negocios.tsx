@@ -9,11 +9,23 @@ import {
 import { listAllLeads, createLead, updateLead, updateLeadStatus, moveLead, deleteLead } from '@/api/leads';
 import type { LeadItemInput } from '@/api/leads';
 import { listPipelines } from '@/api/pipelines';
-import { listContacts } from '@/api/contacts';
+import { listContacts, createContact } from '@/api/contacts';
 import { listUsers } from '@/api/users';
 import { useAuthStore } from '@/store/auth.store';
 import type { Contact, Lead, LeadStatus, Pipeline, User } from '@/types/api';
 import NegocioDetailPanel from '@/components/negocios/NegocioDetailPanel';
+import ImportModal from '@/components/ui/ImportModal';
+import { toCSV, downloadCSV } from '@/lib/csv';
+
+const NEGOCIOS_COLS = [
+  { key: 'title',       label: 'Título' },
+  { key: 'contact',     label: 'Contato',   required: true },
+  { key: 'pipeline',    label: 'Funil' },
+  { key: 'stage',       label: 'Etapa' },
+  { key: 'value',       label: 'Valor' },
+  { key: 'status',      label: 'Status' },
+  { key: 'notes',       label: 'Observações' },
+];
 
 /* ── Avatar helpers ──────────────────────────────────── */
 
@@ -913,9 +925,11 @@ function AddNegocioModal({
 export default function Negocios() {
   const navigate = useNavigate();
   const currentUser = useAuthStore((s) => s.user);
+  const qc = useQueryClient();
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [addOpen, setAddOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -964,6 +978,46 @@ export default function Negocios() {
       return text.includes(debouncedSearch);
     });
   }, [leadsWithPipelineStages, debouncedSearch]);
+
+  const handleExport = () => {
+    const rows = filteredLeads.map(l => ({
+      title: l.title ?? '',
+      contact: l.contact?.name ?? '',
+      pipeline: l.pipeline?.name ?? '',
+      stage: l.stage?.name ?? '',
+      value: l.value ?? '',
+      status: l.status,
+      notes: l.notes ?? '',
+    }));
+    const csv = toCSV(rows, NEGOCIOS_COLS);
+    downloadCSV(csv, `negocios_${new Date().toISOString().slice(0, 10)}.csv`);
+  };
+
+  const handleImport = async (rows: Record<string, string>[]) => {
+    let ok = 0; let failed = 0;
+    const defaultPipeline = pipelines.find(p => p.isDefault) ?? pipelines[0];
+    if (!defaultPipeline?.stages?.length) return { ok: 0, failed: rows.length };
+    const firstStage = [...(defaultPipeline.stages)].sort((a, b) => a.position - b.position)[0];
+
+    for (const row of rows) {
+      const contactName = row['Contato'] || row['contact'];
+      if (!contactName) { failed++; continue; }
+      try {
+        const contact = await createContact({ name: contactName });
+        await createLead({
+          contactId: contact.id,
+          pipelineId: defaultPipeline.id,
+          stageId: firstStage.id,
+          title: row['Título'] || row['title'] || undefined,
+          value: row['Valor'] || row['value'] ? parseFloat((row['Valor'] || row['value']).replace(',', '.')) : undefined,
+          notes: row['Observações'] || row['notes'] || undefined,
+        });
+        ok++;
+      } catch { failed++; }
+    }
+    qc.invalidateQueries({ queryKey: ['negocios'] });
+    return { ok, failed };
+  };
 
   const total = filteredLeads.length;
   const totalValue = useMemo(
@@ -1075,6 +1129,7 @@ export default function Negocios() {
 
         <div className="flex items-center gap-2">
           <button
+            onClick={() => setImportOpen(true)}
             className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium"
             style={{ color: 'var(--brand-500, #6366f1)' }}
           >
@@ -1082,6 +1137,7 @@ export default function Negocios() {
             Importar
           </button>
           <button
+            onClick={handleExport}
             className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium"
             style={{ color: 'var(--brand-500, #6366f1)' }}
           >
@@ -1227,6 +1283,13 @@ export default function Negocios() {
         pipelines={pipelines}
         users={users}
         currentUser={currentUser}
+      />
+      <ImportModal
+        open={importOpen}
+        onClose={() => setImportOpen(false)}
+        title="Negócios"
+        columns={NEGOCIOS_COLS}
+        onImport={handleImport}
       />
 
       {selectedLeadId && (() => {

@@ -8,6 +8,21 @@ import { listUsers } from '@/api/users';
 import { listContacts } from '@/api/contacts';
 import { useAuthStore } from '@/store/auth.store';
 import type { Company, CompanyPrivacy, User } from '@/types/api';
+import ImportModal from '@/components/ui/ImportModal';
+import { toCSV, downloadCSV } from '@/lib/csv';
+
+const EMPRESAS_COLS = [
+  { key: 'name',        label: 'Nome',      required: true },
+  { key: 'email',       label: 'Email' },
+  { key: 'telefone',    label: 'Telefone' },
+  { key: 'website',     label: 'Website' },
+  { key: 'cnpj',        label: 'CNPJ' },
+  { key: 'setor',       label: 'Setor' },
+  { key: 'cidade',      label: 'Cidade' },
+  { key: 'estado',      label: 'Estado' },
+  { key: 'cep',         label: 'CEP' },
+  { key: 'descricao',   label: 'Descrição' },
+];
 
 /* ── Form helpers ────────────────────────────────────── */
 
@@ -649,9 +664,11 @@ function EmptyState({ onAdd }: { onAdd: () => void }) {
 
 export default function Companies() {
   const user = useAuthStore((s) => s.user);
+  const qc = useQueryClient();
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [addOpen, setAddOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
 
   useEffect(() => {
     const t = setTimeout(() => setDebouncedSearch(search), 300);
@@ -663,6 +680,36 @@ export default function Companies() {
     queryKey: ['companies', debouncedSearch],
     queryFn: () => listCompanies(debouncedSearch || undefined),
   });
+
+  const handleExport = () => {
+    const csv = toCSV(companies as any[], EMPRESAS_COLS);
+    downloadCSV(csv, `empresas_${new Date().toISOString().slice(0, 10)}.csv`);
+  };
+
+  const handleImport = async (rows: Record<string, string>[]) => {
+    let ok = 0; let failed = 0;
+    for (const row of rows) {
+      const name = row['Nome'] || row['name'];
+      if (!name) { failed++; continue; }
+      try {
+        await createCompany({
+          name,
+          email: row['Email'] || row['email'] || undefined,
+          telefone: row['Telefone'] || row['telefone'] || undefined,
+          website: row['Website'] || row['website'] || undefined,
+          cnpj: row['CNPJ'] || row['cnpj'] || undefined,
+          setor: row['Setor'] || row['setor'] || undefined,
+          cidade: row['Cidade'] || row['cidade'] || undefined,
+          estado: row['Estado'] || row['estado'] || undefined,
+          cep: row['CEP'] || row['cep'] || undefined,
+          descricao: row['Descrição'] || row['descricao'] || undefined,
+        });
+        ok++;
+      } catch { failed++; }
+    }
+    qc.invalidateQueries({ queryKey: ['companies'] });
+    return { ok, failed };
+  };
 
   return (
     <div className="p-6 space-y-4">
@@ -714,6 +761,7 @@ export default function Companies() {
 
         <div className="flex items-center gap-2">
           <button
+            onClick={() => setImportOpen(true)}
             className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium"
             style={{ color: 'var(--brand-500, #6366f1)' }}
           >
@@ -721,6 +769,7 @@ export default function Companies() {
             Importar
           </button>
           <button
+            onClick={handleExport}
             className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium"
             style={{ color: 'var(--brand-500, #6366f1)' }}
           >
@@ -793,6 +842,13 @@ export default function Companies() {
         onClose={() => setAddOpen(false)}
         currentUser={user}
         users={users}
+      />
+      <ImportModal
+        open={importOpen}
+        onClose={() => setImportOpen(false)}
+        title="Empresas"
+        columns={EMPRESAS_COLS}
+        onImport={handleImport}
       />
     </div>
   );

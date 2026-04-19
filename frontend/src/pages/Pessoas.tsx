@@ -8,6 +8,20 @@ import { listUsers } from '@/api/users';
 import { useAuthStore } from '@/store/auth.store';
 import type { Contact, ContactPrivacy, User } from '@/types/api';
 import PessoaDetailPanel from '@/components/pessoas/PessoaDetailPanel';
+import ImportModal from '@/components/ui/ImportModal';
+import { toCSV, downloadCSV } from '@/lib/csv';
+
+const PESSOAS_COLS = [
+  { key: 'name',    label: 'Nome',    required: true },
+  { key: 'email',   label: 'Email' },
+  { key: 'celular', label: 'Celular' },
+  { key: 'whatsapp',label: 'WhatsApp' },
+  { key: 'company', label: 'Empresa' },
+  { key: 'role',    label: 'Cargo' },
+  { key: 'origem',  label: 'Origem' },
+  { key: 'cidade',  label: 'Cidade' },
+  { key: 'estado',  label: 'Estado' },
+];
 
 /* ── Form helpers ────────────────────────────────────── */
 
@@ -699,10 +713,41 @@ function EmptyState({ onAdd }: { onAdd: () => void }) {
 
 export default function Pessoas() {
   const user = useAuthStore((s) => s.user);
+  const qc = useQueryClient();
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [addOpen, setAddOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   const [selectedPessoa, setSelectedPessoa] = useState<Contact | null>(null);
+
+  const handleExport = () => {
+    const csv = toCSV(contacts as unknown as Record<string, unknown>[], PESSOAS_COLS);
+    downloadCSV(csv, `pessoas_${new Date().toISOString().slice(0, 10)}.csv`);
+  };
+
+  const handleImport = async (rows: Record<string, string>[]) => {
+    let ok = 0; let failed = 0;
+    for (const row of rows) {
+      const name = row['Nome'] || row['name'];
+      if (!name) { failed++; continue; }
+      try {
+        await createContact({
+          name,
+          email: row['Email'] || row['email'] || undefined,
+          celular: row['Celular'] || row['celular'] || undefined,
+          whatsapp: row['WhatsApp'] || row['whatsapp'] || undefined,
+          company: row['Empresa'] || row['company'] || undefined,
+          role: row['Cargo'] || row['role'] || undefined,
+          origem: row['Origem'] || row['origem'] || undefined,
+          cidade: row['Cidade'] || row['cidade'] || undefined,
+          estado: row['Estado'] || row['estado'] || undefined,
+        });
+        ok++;
+      } catch { failed++; }
+    }
+    qc.invalidateQueries({ queryKey: ['contacts'] });
+    return { ok, failed };
+  };
 
   useEffect(() => {
     const t = setTimeout(() => setDebouncedSearch(search), 300);
@@ -773,6 +818,7 @@ export default function Pessoas() {
 
         <div className="flex items-center gap-2">
           <button
+            onClick={() => setImportOpen(true)}
             className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium"
             style={{ color: 'var(--brand-500, #6366f1)' }}
           >
@@ -780,6 +826,7 @@ export default function Pessoas() {
             Importar
           </button>
           <button
+            onClick={handleExport}
             className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium"
             style={{ color: 'var(--brand-500, #6366f1)' }}
           >
@@ -885,6 +932,14 @@ export default function Pessoas() {
         onClose={() => setAddOpen(false)}
         currentUser={user}
         users={users}
+      />
+
+      <ImportModal
+        open={importOpen}
+        onClose={() => setImportOpen(false)}
+        title="Pessoas"
+        columns={PESSOAS_COLS}
+        onImport={handleImport}
       />
 
       {selectedPessoa && (
