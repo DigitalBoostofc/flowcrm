@@ -2,7 +2,7 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import {
   Home, Users, Settings as SettingsIcon, LogOut,
-  BarChart2, Zap, CheckSquare, Building2, Briefcase, MessageCircle,
+  BarChart2, Zap, CheckSquare, Building2, Briefcase, MessageCircle, Shield,
 } from 'lucide-react';
 import { useAuthStore } from '@/store/auth.store';
 import { useSidebarStore } from '@/store/sidebar.store';
@@ -26,6 +26,7 @@ export default function Sidebar() {
   const { user, logout } = useAuthStore();
   const { collapsed, toggle } = useSidebarStore();
   const isOwner = user?.role === 'owner';
+  const isPlatformAdmin = !!user?.isPlatformAdmin;
 
   const handleLogout = () => {
     qc.clear();
@@ -124,6 +125,48 @@ export default function Sidebar() {
           </NavLink>
         ))}
 
+        {isPlatformAdmin && (
+          <>
+            <div
+              className="my-2"
+              style={{
+                borderTop: '1px solid var(--edge)',
+                opacity: collapsed ? 0.5 : 1,
+                transition: 'opacity 0.15s',
+              }}
+            />
+            <NavLink
+              to="/admin"
+              title={collapsed ? 'Admin' : undefined}
+              className={({ isActive }) =>
+                `group flex items-center gap-2.5 px-2.5 py-2 rounded-md text-[13px] transition-all duration-100 overflow-hidden ${
+                  isActive ? 'font-medium' : ''
+                }`
+              }
+              style={({ isActive }) => ({
+                color: isActive ? 'var(--brand-500)' : 'var(--ink-2)',
+                background: isActive ? 'var(--brand-50)' : 'transparent',
+              })}
+            >
+              {({ isActive }) => (
+                <>
+                  <Shield className="w-4 h-4 flex-shrink-0" strokeWidth={isActive ? 2 : 1.75} />
+                  <span
+                    className="whitespace-nowrap"
+                    style={{
+                      opacity: collapsed ? 0 : 1,
+                      maxWidth: collapsed ? 0 : 160,
+                      transition: 'opacity 0.15s, max-width 0.22s cubic-bezier(0.4,0,0.2,1)',
+                      overflow: 'hidden',
+                    }}
+                  >
+                    Admin
+                  </span>
+                </>
+              )}
+            </NavLink>
+          </>
+        )}
       </nav>
 
       {/* Bottom */}

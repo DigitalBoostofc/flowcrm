@@ -8,6 +8,7 @@ import * as bcrypt from 'bcrypt';
 import axios from 'axios';
 import { UsersService } from '../users/users.service';
 import { User } from '../users/entities/user.entity';
+import { isPlatformAdminEmail } from '../common/platform-admin.util';
 
 @Injectable()
 export class AuthService {
@@ -32,7 +33,27 @@ export class AuthService {
     const payload = { sub: user.id, email: user.email, role: user.role, workspaceId: user.workspaceId };
     return {
       accessToken: this.jwtService.sign(payload),
-      user: { id: user.id, name: user.name, email: user.email, role: user.role, workspaceId: user.workspaceId },
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        workspaceId: user.workspaceId,
+        isPlatformAdmin: isPlatformAdminEmail(user.email),
+      },
+    };
+  }
+
+  async me(userId: string) {
+    const user = await this.userRepo.findOne({ where: { id: userId } });
+    if (!user) throw new UnauthorizedException('Usuário não encontrado');
+    return {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      workspaceId: user.workspaceId,
+      isPlatformAdmin: isPlatformAdminEmail(user.email),
     };
   }
 

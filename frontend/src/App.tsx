@@ -11,13 +11,16 @@ import Analytics from '@/pages/Analytics';
 import Tasks from '@/pages/Tasks';
 import Companies from '@/pages/Companies';
 import Inbox from '@/pages/Inbox';
+import Admin from '@/pages/Admin';
 import NotFound from '@/pages/NotFound';
 import ProtectedRoute from '@/components/layout/ProtectedRoute';
 import AppShell from '@/components/layout/AppShell';
 import ConnectionBanner from '@/components/layout/ConnectionBanner';
+import BroadcastBanner from '@/components/layout/BroadcastBanner';
 import { WsProvider } from '@/hooks/useWebSocket';
 import { useInvalidateOnEvent } from '@/hooks/useInvalidateOnEvent';
 import { useNotifications } from '@/hooks/useNotifications';
+import { useRefreshUser } from '@/hooks/useRefreshUser';
 import { useAuthStore } from '@/store/auth.store';
 import { useWorkspace } from '@/hooks/useWorkspace';
 import { Loader2 } from 'lucide-react';
@@ -25,6 +28,7 @@ import { Loader2 } from 'lucide-react';
 function AuthedLayout() {
   useInvalidateOnEvent();
   useNotifications();
+  useRefreshUser();
   const { data: workspace, isLoading } = useWorkspace();
 
   if (isLoading && !workspace) {
@@ -42,6 +46,7 @@ function AuthedLayout() {
   return (
     <AppShell>
       <ConnectionBanner />
+      <BroadcastBanner />
       <Routes>
         <Route index element={<Inicio />} />
         <Route path="pessoas" element={<Pessoas />} />
@@ -52,6 +57,7 @@ function AuthedLayout() {
         <Route path="companies" element={<Companies />} />
         <Route path="analytics" element={<Analytics />} />
         <Route path="settings" element={<Settings />} />
+        <Route path="admin" element={<Admin />} />
         <Route path="assinar" element={<Assinar />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
