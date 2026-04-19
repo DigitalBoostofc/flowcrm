@@ -10,6 +10,7 @@ import Settings from '@/pages/Settings';
 import Analytics from '@/pages/Analytics';
 import Tasks from '@/pages/Tasks';
 import Companies from '@/pages/Companies';
+import Inbox from '@/pages/Inbox';
 import NotFound from '@/pages/NotFound';
 import ProtectedRoute from '@/components/layout/ProtectedRoute';
 import AppShell from '@/components/layout/AppShell';
@@ -47,6 +48,7 @@ function AuthedLayout() {
         <Route path="negocios" element={<Negocios />} />
         <Route path="funil" element={<Funil />} />
         <Route path="tasks" element={<Tasks />} />
+        <Route path="inbox" element={<Inbox />} />
         <Route path="companies" element={<Companies />} />
         <Route path="analytics" element={<Analytics />} />
         <Route path="settings" element={<Settings />} />

@@ -2,7 +2,7 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import {
   Home, Users, Settings as SettingsIcon, LogOut,
-  BarChart2, Zap, CheckSquare, Building2, Briefcase,
+  BarChart2, Zap, CheckSquare, Building2, Briefcase, MessageCircle,
 } from 'lucide-react';
 import { useAuthStore } from '@/store/auth.store';
 import { useSidebarStore } from '@/store/sidebar.store';
@@ -10,13 +10,14 @@ import GlobalSearch from './GlobalSearch';
 import ThemeToggle from '@/components/ui/ThemeToggle';
 
 const NAV_ITEMS = [
-  { to: '/',           end: true,  icon: Home,          label: 'Início' },
-  { to: '/analytics',              icon: BarChart2,     label: 'Analytics' },
-  { to: '/tasks',                  icon: CheckSquare,   label: 'Tarefas' },
-  { to: '/pessoas',                icon: Users,         label: 'Pessoas' },
-  { to: '/companies',              icon: Building2,     label: 'Empresas' },
-  { to: '/negocios',               icon: Briefcase,     label: 'Negócios' },
-  { to: '/settings',               icon: SettingsIcon,  label: 'Configurações' },
+  { to: '/',           end: true,  icon: Home,           label: 'Início' },
+  { to: '/analytics',              icon: BarChart2,      label: 'Analytics' },
+  { to: '/tasks',                  icon: CheckSquare,    label: 'Tarefas' },
+  { to: '/inbox',                  icon: MessageCircle,  label: 'Inbox' },
+  { to: '/pessoas',                icon: Users,          label: 'Pessoas' },
+  { to: '/companies',              icon: Building2,      label: 'Empresas' },
+  { to: '/negocios',               icon: Briefcase,      label: 'Negócios' },
+  { to: '/settings',               icon: SettingsIcon,   label: 'Configurações' },
 ];
 
 export default function Sidebar() {

@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
-  Search, Filter, ArrowUpDown, Columns3, Download, Upload, Plus, X, Building2, Star,
+  Search, Filter, ArrowUpDown, Columns3, Download, Upload, Plus, X, Building2, Star, Pencil,
 } from 'lucide-react';
-import { listCompanies, createCompany } from '@/api/companies';
+import { listCompanies, createCompany, updateCompany } from '@/api/companies';
 import { listUsers } from '@/api/users';
 import { listContacts } from '@/api/contacts';
 import { useAuthStore } from '@/store/auth.store';
@@ -119,11 +119,14 @@ interface AddCompanyModalProps {
   onClose: () => void;
   currentUser: User | null;
   users: User[];
+  company?: Company | null;
 }
 
-function AddCompanyModal({ open, onClose, currentUser, users }: AddCompanyModalProps) {
+function AddCompanyModal({ open, onClose, currentUser, users, company }: AddCompanyModalProps) {
   const qc = useQueryClient();
-  const [form, setForm] = useState(() => ({
+  const isEdit = !!company;
+
+  const emptyForm = () => ({
     name: '',
     cnpj: '',
     razaoSocial: '',
@@ -157,7 +160,46 @@ function AddCompanyModal({ open, onClose, currentUser, users }: AddCompanyModalP
     skype: '',
     instagram: '',
     ranking: 0,
-  }));
+  });
+
+  const formFromCompany = (c: Company) => ({
+    ...emptyForm(),
+    name: c.name ?? '',
+    cnpj: c.cnpj ?? '',
+    razaoSocial: c.razaoSocial ?? '',
+    categoria: c.categoria ?? '',
+    origem: c.origem ?? '',
+    setor: c.setor ?? '',
+    descricao: c.descricao ?? '',
+    responsibleId: c.responsibleId ?? currentUser?.id ?? '',
+    privacy: (c.privacy ?? 'all') as CompanyPrivacy,
+    additionalAccessUserIds: c.additionalAccessUserIds ?? [],
+    email: c.email ?? '',
+    whatsapp: c.whatsapp ?? '',
+    telefone: c.telefone ?? '',
+    celular: c.celular ?? '',
+    fax: c.fax ?? '',
+    ramal: c.ramal ?? '',
+    website: c.website ?? '',
+    cep: c.cep ?? '',
+    pais: c.pais ?? 'Brasil',
+    estado: c.estado ?? '',
+    cidade: c.cidade ?? '',
+    bairro: c.bairro ?? '',
+    rua: c.rua ?? '',
+    numero: c.numero ?? '',
+    complemento: c.complemento ?? '',
+    produtos: c.produtos ?? [],
+    pessoaIds: c.pessoaIds ?? [],
+    facebook: c.facebook ?? '',
+    twitter: c.twitter ?? '',
+    linkedin: c.linkedin ?? '',
+    skype: c.skype ?? '',
+    instagram: c.instagram ?? '',
+    ranking: c.ranking ?? 0,
+  });
+
+  const [form, setForm] = useState(emptyForm);
   const [error, setError] = useState('');
   const [peopleSearch, setPeopleSearch] = useState('');
   const [productInput, setProductInput] = useState('');
@@ -170,25 +212,31 @@ function AddCompanyModal({ open, onClose, currentUser, users }: AddCompanyModalP
 
   useEffect(() => {
     if (!open) {
+      setForm(emptyForm());
       setError('');
       setPeopleSearch('');
       setProductInput('');
+      return;
     }
-  }, [open]);
+    setForm(company ? formFromCompany(company) : emptyForm());
+    setError('');
+    setPeopleSearch('');
+    setProductInput('');
+  }, [open, company]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const set = <K extends keyof typeof form>(key: K, value: (typeof form)[K]) =>
     setForm((f) => ({ ...f, [key]: value }));
 
   const mutation = useMutation({
-    mutationFn: () => createCompany({
-      ...form,
-      ranking: form.ranking || undefined,
-    }),
+    mutationFn: () => {
+      const payload = { ...form, ranking: form.ranking || undefined };
+      return company ? updateCompany(company.id, payload) : createCompany(payload);
+    },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['companies'] });
       onClose();
     },
-    onError: () => setError('Erro ao criar empresa.'),
+    onError: () => setError(isEdit ? 'Erro ao atualizar empresa.' : 'Erro ao criar empresa.'),
   });
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -240,7 +288,7 @@ function AddCompanyModal({ open, onClose, currentUser, users }: AddCompanyModalP
           style={{ borderBottom: '1px solid var(--edge)', background: 'var(--surface-raised)', borderRadius: '12px 12px 0 0' }}
         >
           <h2 className="font-semibold text-lg" style={{ color: 'var(--ink-1)' }}>
-            Adicionar nova empresa
+            {isEdit ? 'Editar empresa' : 'Adicionar nova empresa'}
           </h2>
           <button
             onClick={onClose}
@@ -623,7 +671,7 @@ function AddCompanyModal({ open, onClose, currentUser, users }: AddCompanyModalP
             className="px-5 py-2 rounded-lg text-sm font-semibold text-white disabled:opacity-50"
             style={{ background: 'var(--brand-500, #6366f1)' }}
           >
-            {mutation.isPending ? 'Salvando...' : 'Salvar empresa'}
+            {mutation.isPending ? 'Salvando...' : isEdit ? 'Salvar alterações' : 'Salvar empresa'}
           </button>
         </div>
       </div>
@@ -669,6 +717,7 @@ export default function Companies() {
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [addOpen, setAddOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
+  const [editingCompany, setEditingCompany] = useState<Company | null>(null);
 
   useEffect(() => {
     const t = setTimeout(() => setDebouncedSearch(search), 300);
@@ -793,8 +842,12 @@ export default function Companies() {
         style={{ background: 'var(--surface)', border: '1px solid var(--edge)' }}
       >
         <div
-          className="grid grid-cols-6 gap-4 px-6 py-3 text-xs font-bold uppercase tracking-wide"
-          style={{ borderBottom: '1px solid var(--edge)', color: 'var(--ink-2)' }}
+          className="grid gap-4 px-6 py-3 text-xs font-bold uppercase tracking-wide"
+          style={{
+            gridTemplateColumns: 'repeat(6, minmax(0, 1fr)) 36px',
+            borderBottom: '1px solid var(--edge)',
+            color: 'var(--ink-2)',
+          }}
         >
           <div>Nome</div>
           <div>Categoria</div>
@@ -802,6 +855,7 @@ export default function Companies() {
           <div>Email</div>
           <div>Telefone</div>
           <div>Ranking</div>
+          <div></div>
         </div>
 
         {isLoading ? (

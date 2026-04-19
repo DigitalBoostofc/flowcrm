@@ -1,0 +1,363 @@
+import { useState, useEffect, useRef } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { MessageCircle, Send, Search, Phone, Loader2 } from 'lucide-react';
+import { formatDistanceToNow } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
+import { listInbox, type InboxItem } from '@/api/conversations';
+import { listMessages, sendMessage } from '@/api/messages';
+import { listChannels } from '@/api/channels';
+import { useWs } from '@/hooks/useWebSocket';
+
+/* ── helpers ──────────────────────────────────────────── */
+
+function timeAgo(iso: string | null) {
+  if (!iso) return '';
+  try {
+    return formatDistanceToNow(new Date(iso), { locale: ptBR, addSuffix: false });
+  } catch { return ''; }
+}
+
+function initials(name: string | null) {
+  if (!name) return '?';
+  return name.split(' ').filter(Boolean).slice(0, 2).map(p => p[0].toUpperCase()).join('');
+}
+
+const COLORS = ['#635BFF', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#06B6D4', '#EC4899'];
+function colorFor(id: string) {
+  let h = 0;
+  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
+  return COLORS[h % COLORS.length];
+}
+
+/* ── ConvItem ─────────────────────────────────────────── */
+
+function ConvItem({ item, selected, onClick }: { item: InboxItem; selected: boolean; onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      className="w-full flex items-center gap-3 px-4 py-3 text-left transition-colors"
+      style={{
+        background: selected ? 'var(--brand-50)' : 'transparent',
+        borderBottom: '1px solid var(--edge)',
+        borderLeft: selected ? '2px solid var(--brand-500)' : '2px solid transparent',
+      }}
+    >
+      {/* Avatar */}
+      <div
+        className="w-9 h-9 rounded-full flex items-center justify-center text-white text-xs font-semibold flex-shrink-0"
+        style={{ background: colorFor(item.id) }}
+      >
+        {initials(item.contactName)}
+      </div>
+
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-sm font-medium truncate" style={{ color: 'var(--ink-1)' }}>
+            {item.contactName ?? item.externalId ?? 'Desconhecido'}
+          </span>
+          <span className="text-[10px] flex-shrink-0" style={{ color: 'var(--ink-3)' }}>
+            {timeAgo(item.lastMessageSentAt ?? item.updatedAt)}
+          </span>
+        </div>
+        <div className="flex items-center gap-1.5 mt-0.5">
+          {item.unread && (
+            <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: 'var(--success)' }} />
+          )}
+          <p className="text-xs truncate" style={{ color: item.unread ? 'var(--ink-2)' : 'var(--ink-3)', fontWeight: item.unread ? 500 : 400 }}>
+            {item.lastMessageDirection === 'outbound' && <span style={{ color: 'var(--ink-3)' }}>Você: </span>}
+            {item.lastMessageBody ?? 'Nenhuma mensagem'}
+          </p>
+        </div>
+      </div>
+    </button>
+  );
+}
+
+/* ── ChatView ─────────────────────────────────────────── */
+
+function ChatView({ item }: { item: InboxItem }) {
+  const qc = useQueryClient();
+  const [body, setBody] = useState('');
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const { socket } = useWs();
+
+  const { data: channels = [] } = useQuery({ queryKey: ['channels'], queryFn: listChannels });
+  const activeChannels = channels.filter(c => c.active && c.status === 'connected');
+  const [channelId, setChannelId] = useState('');
+
+  useEffect(() => {
+    if (!channelId && activeChannels.length) setChannelId(activeChannels[0].id);
+  }, [activeChannels.length]);
+
+  const { data: rawMessages = [], isLoading } = useQuery({
+    queryKey: ['messages', item.id],
+    queryFn: () => listMessages(item.id),
+  });
+
+  const messages = [...rawMessages].sort((a, b) => new Date(a.sentAt).getTime() - new Date(b.sentAt).getTime());
+
+  useEffect(() => {
+    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
+  }, [messages.length]);
+
+  // Atualiza mensagens em tempo real via WebSocket
+  useEffect(() => {
+    if (!socket) return;
+    const handler = () => {
+      qc.invalidateQueries({ queryKey: ['messages', item.id] });
+      qc.invalidateQueries({ queryKey: ['inbox'] });
+    };
+    socket.on('message.received', handler);
+    return () => { socket.off('message.received', handler); };
+  }, [socket, item.id, qc]);
+
+  const sendMut = useMutation({
+    mutationFn: () => sendMessage({ conversationId: item.id, channelConfigId: channelId, body: body.trim() }),
+    onSuccess: () => {
+      setBody('');
+      qc.invalidateQueries({ queryKey: ['messages', item.id] });
+      qc.invalidateQueries({ queryKey: ['inbox'] });
+    },
+  });
+
+  const handleSend = () => {
+    if (!body.trim() || !channelId || sendMut.isPending) return;
+    sendMut.mutate();
+  };
+
+  const phone = item.contactPhone ?? item.externalId;
+
+  return (
+    <div className="flex flex-col h-full">
+      {/* Header */}
+      <div
+        className="flex items-center gap-3 px-5 py-3.5 flex-shrink-0"
+        style={{ borderBottom: '1px solid var(--edge)', background: 'var(--surface)' }}
+      >
+        <div
+          className="w-9 h-9 rounded-full flex items-center justify-center text-white text-xs font-semibold"
+          style={{ background: colorFor(item.id) }}
+        >
+          {initials(item.contactName)}
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="text-sm font-semibold" style={{ color: 'var(--ink-1)' }}>
+            {item.contactName ?? 'Desconhecido'}
+          </div>
+          {phone && (
+            <div className="flex items-center gap-1 text-xs" style={{ color: 'var(--ink-3)' }}>
+              <Phone className="w-3 h-3" strokeWidth={1.75} />
+              {phone}
+            </div>
+          )}
+        </div>
+        <div
+          className="text-[10px] font-medium px-2 py-0.5 rounded-full"
+          style={{
+            background: item.unread ? 'var(--success-bg)' : 'var(--surface-hover)',
+            color: item.unread ? 'var(--success)' : 'var(--ink-3)',
+          }}
+        >
+          {item.unread ? 'Nova mensagem' : 'WhatsApp'}
+        </div>
+      </div>
+
+      {/* Messages */}
+      <div ref={scrollRef} className="flex-1 overflow-y-auto px-5 py-4 space-y-2" style={{ background: 'var(--canvas)' }}>
+        {isLoading ? (
+          <div className="flex items-center justify-center h-full">
+            <Loader2 className="w-6 h-6 animate-spin" style={{ color: 'var(--ink-3)' }} />
+          </div>
+        ) : messages.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-full gap-2" style={{ color: 'var(--ink-3)' }}>
+            <MessageCircle className="w-8 h-8" strokeWidth={1.5} />
+            <p className="text-sm">Nenhuma mensagem ainda</p>
+          </div>
+        ) : (
+          messages.map(m => (
+            <div key={m.id} className={`flex ${m.direction === 'outbound' ? 'justify-end' : 'justify-start'}`}>
+              <div
+                className="max-w-[70%] px-3 py-2 rounded-2xl text-sm leading-relaxed"
+                style={m.direction === 'outbound'
+                  ? { background: 'var(--brand-500)', color: '#fff', borderBottomRightRadius: 4 }
+                  : { background: 'var(--surface)', border: '1px solid var(--edge)', color: 'var(--ink-1)', borderBottomLeftRadius: 4 }
+                }
+              >
+                <p className="whitespace-pre-wrap break-words">{m.body}</p>
+                <p className={`text-[10px] mt-1 ${m.direction === 'outbound' ? 'text-white/60 text-right' : ''}`} style={m.direction === 'inbound' ? { color: 'var(--ink-3)' } : {}}>
+                  {new Date(m.sentAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                </p>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
+      {/* Composer */}
+      <div
+        className="flex-shrink-0 px-4 py-3 space-y-2"
+        style={{ borderTop: '1px solid var(--edge)', background: 'var(--surface)' }}
+      >
+        {activeChannels.length === 0 && (
+          <p className="text-xs text-center" style={{ color: 'var(--warning)' }}>
+            Nenhum canal WhatsApp conectado. Vá em Configurações → Canais.
+          </p>
+        )}
+        {activeChannels.length > 1 && (
+          <select
+            value={channelId}
+            onChange={e => setChannelId(e.target.value)}
+            className="w-full text-xs rounded-lg px-2 py-1.5 outline-none"
+            style={{ background: 'var(--surface-hover)', border: '1px solid var(--edge)', color: 'var(--ink-2)' }}
+          >
+            {activeChannels.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </select>
+        )}
+        <div className="flex gap-2">
+          <textarea
+            value={body}
+            onChange={e => setBody(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
+            placeholder="Digite uma mensagem... (Enter para enviar)"
+            rows={2}
+            className="flex-1 text-sm rounded-xl px-3 py-2 resize-none outline-none"
+            style={{ background: 'var(--surface-hover)', border: '1px solid var(--edge)', color: 'var(--ink-1)' }}
+            disabled={activeChannels.length === 0}
+          />
+          <button
+            onClick={handleSend}
+            disabled={!body.trim() || !channelId || sendMut.isPending || activeChannels.length === 0}
+            className="w-10 h-10 rounded-xl flex items-center justify-center self-end disabled:opacity-40 transition-opacity"
+            style={{ background: 'var(--brand-500)', color: '#fff' }}
+          >
+            {sendMut.isPending
+              ? <Loader2 className="w-4 h-4 animate-spin" />
+              : <Send className="w-4 h-4" strokeWidth={2} />
+            }
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── Inbox Page ───────────────────────────────────────── */
+
+export default function Inbox() {
+  const qc = useQueryClient();
+  const [search, setSearch] = useState('');
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const { socket } = useWs();
+
+  const { data: inbox = [], isLoading } = useQuery({
+    queryKey: ['inbox'],
+    queryFn: listInbox,
+    refetchInterval: 30000,
+  });
+
+  // Atualiza inbox em tempo real
+  useEffect(() => {
+    if (!socket) return;
+    const handler = () => qc.invalidateQueries({ queryKey: ['inbox'] });
+    socket.on('message.received', handler);
+    return () => { socket.off('message.received', handler); };
+  }, [socket, qc]);
+
+  const filtered = search
+    ? inbox.filter(i =>
+        (i.contactName ?? '').toLowerCase().includes(search.toLowerCase()) ||
+        (i.contactPhone ?? '').includes(search) ||
+        (i.lastMessageBody ?? '').toLowerCase().includes(search.toLowerCase())
+      )
+    : inbox;
+
+  const selected = inbox.find(i => i.id === selectedId) ?? null;
+  const unreadCount = inbox.filter(i => i.unread).length;
+
+  return (
+    <div className="flex h-full" style={{ background: 'var(--canvas)' }}>
+      {/* Left: conversation list */}
+      <div
+        className="flex-shrink-0 flex flex-col"
+        style={{ width: 320, background: 'var(--surface)', borderRight: '1px solid var(--edge)' }}
+      >
+        {/* Header */}
+        <div className="px-4 pt-5 pb-3 flex-shrink-0" style={{ borderBottom: '1px solid var(--edge)' }}>
+          <div className="flex items-center gap-2 mb-3">
+            <h1 className="text-[15px] font-semibold flex-1" style={{ color: 'var(--ink-1)', letterSpacing: '-0.01em' }}>
+              Inbox
+            </h1>
+            {unreadCount > 0 && (
+              <span
+                className="text-[10px] font-semibold px-2 py-0.5 rounded-full"
+                style={{ background: 'var(--success-bg)', color: 'var(--success)' }}
+              >
+                {unreadCount} nova{unreadCount !== 1 ? 's' : ''}
+              </span>
+            )}
+          </div>
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5" style={{ color: 'var(--ink-3)' }} />
+            <input
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Buscar conversa..."
+              className="w-full pl-8 pr-3 py-2 rounded-lg text-xs outline-none"
+              style={{ background: 'var(--surface-hover)', border: '1px solid var(--edge)', color: 'var(--ink-1)' }}
+            />
+          </div>
+        </div>
+
+        {/* List */}
+        <div className="flex-1 overflow-y-auto">
+          {isLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="w-5 h-5 animate-spin" style={{ color: 'var(--ink-3)' }} />
+            </div>
+          ) : filtered.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-16 px-6 text-center gap-3">
+              <MessageCircle className="w-10 h-10" style={{ color: 'var(--ink-3)' }} strokeWidth={1.5} />
+              <div>
+                <p className="text-sm font-medium" style={{ color: 'var(--ink-2)' }}>
+                  {search ? 'Nenhuma conversa encontrada' : 'Nenhuma conversa ainda'}
+                </p>
+                <p className="text-xs mt-1" style={{ color: 'var(--ink-3)' }}>
+                  {!search && 'As conversas do WhatsApp aparecerão aqui'}
+                </p>
+              </div>
+            </div>
+          ) : (
+            filtered.map(item => (
+              <ConvItem
+                key={item.id}
+                item={item}
+                selected={item.id === selectedId}
+                onClick={() => setSelectedId(item.id)}
+              />
+            ))
+          )}
+        </div>
+      </div>
+
+      {/* Right: chat or empty state */}
+      <div className="flex-1 min-w-0 h-full overflow-hidden">
+        {selected ? (
+          <ChatView key={selected.id} item={selected} />
+        ) : (
+          <div className="flex flex-col items-center justify-center h-full gap-4" style={{ color: 'var(--ink-3)' }}>
+            <div
+              className="w-16 h-16 rounded-2xl flex items-center justify-center"
+              style={{ background: 'var(--brand-50)' }}
+            >
+              <MessageCircle className="w-8 h-8" style={{ color: 'var(--brand-500)' }} strokeWidth={1.5} />
+            </div>
+            <div className="text-center">
+              <p className="text-sm font-medium" style={{ color: 'var(--ink-2)' }}>Selecione uma conversa</p>
+              <p className="text-xs mt-1" style={{ color: 'var(--ink-3)' }}>Clique em uma conversa para ver as mensagens</p>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}

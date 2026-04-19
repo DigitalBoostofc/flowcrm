@@ -5,6 +5,21 @@ import { Conversation } from './entities/conversation.entity';
 import { CreateConversationDto } from './dto/create-conversation.dto';
 import { TenantContext } from '../common/tenant/tenant-context.service';
 
+export interface InboxItem {
+  id: string;
+  leadId: string;
+  channelType: string;
+  externalId: string | null;
+  contactId: string | null;
+  contactName: string | null;
+  contactPhone: string | null;
+  lastMessageBody: string | null;
+  lastMessageDirection: string | null;
+  lastMessageSentAt: Date | null;
+  unread: boolean;
+  updatedAt: Date;
+}
+
 @Injectable()
 export class ConversationsService {
   constructor(
@@ -34,5 +49,51 @@ export class ConversationsService {
     const c = await this.repo.findOne({ where: { id, workspaceId } });
     if (!c) throw new NotFoundException('Conversa não encontrada');
     return c;
+  }
+
+  async findInbox(): Promise<InboxItem[]> {
+    const workspaceId = this.tenant.requireWorkspaceId();
+
+    const rows: any[] = await this.repo.query(`
+      SELECT
+        c.id,
+        c."leadId",
+        c."channelType",
+        c."externalId",
+        c."updatedAt",
+        contact.id           AS "contactId",
+        contact.name         AS "contactName",
+        COALESCE(contact.whatsapp, contact.celular, contact.phone) AS "contactPhone",
+        lm.body              AS "lastMessageBody",
+        lm.direction         AS "lastMessageDirection",
+        lm."sentAt"          AS "lastMessageSentAt"
+      FROM conversations c
+      LEFT JOIN leads l        ON l.id = c."leadId"
+      LEFT JOIN contacts contact ON contact.id = l."contactId"
+      LEFT JOIN LATERAL (
+        SELECT body, direction, "sentAt"
+        FROM messages
+        WHERE "conversationId" = c.id
+        ORDER BY "sentAt" DESC
+        LIMIT 1
+      ) lm ON true
+      WHERE c."workspaceId" = $1
+      ORDER BY COALESCE(lm."sentAt", c."updatedAt") DESC
+    `, [workspaceId]);
+
+    return rows.map(r => ({
+      id: r.id,
+      leadId: r.leadId,
+      channelType: r.channelType,
+      externalId: r.externalId,
+      contactId: r.contactId,
+      contactName: r.contactName,
+      contactPhone: r.contactPhone,
+      lastMessageBody: r.lastMessageBody,
+      lastMessageDirection: r.lastMessageDirection,
+      lastMessageSentAt: r.lastMessageSentAt,
+      unread: r.lastMessageDirection === 'inbound',
+      updatedAt: r.updatedAt,
+    }));
   }
 }

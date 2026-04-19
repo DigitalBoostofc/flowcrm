@@ -1,9 +1,9 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
-  Search, Filter, ArrowUpDown, Columns3, Download, Upload, Plus, X, Users,
+  Search, Filter, ArrowUpDown, Columns3, Download, Upload, Plus, X, Users, Pencil,
 } from 'lucide-react';
-import { listContacts, createContact } from '@/api/contacts';
+import { listContacts, createContact, updateContact } from '@/api/contacts';
 import { listUsers } from '@/api/users';
 import { useAuthStore } from '@/store/auth.store';
 import type { Contact, ContactPrivacy, User } from '@/types/api';
@@ -145,14 +145,16 @@ const ORIGENS = ['Site', 'Indicação', 'Redes sociais', 'E-mail', 'Evento', 'Ou
 /* ── AddPessoaModal ──────────────────────────────────── */
 
 function AddPessoaModal({
-  open, onClose, currentUser, users,
+  open, onClose, currentUser, users, contact,
 }: {
   open: boolean;
   onClose: () => void;
   currentUser: User | null;
   users: User[];
+  contact?: Contact | null;
 }) {
   const qc = useQueryClient();
+  const isEdit = !!contact;
 
   const emptyForm = () => ({
     name: '',
@@ -189,6 +191,42 @@ function AddPessoaModal({
     instagram: '',
   });
 
+  const formFromContact = (c: Contact) => ({
+    ...emptyForm(),
+    name: c.name ?? '',
+    cpf: c.cpf ?? '',
+    company: c.company ?? '',
+    role: c.role ?? '',
+    birthDay: c.birthDay ?? '',
+    birthYear: c.birthYear ? String(c.birthYear) : '',
+    responsibleId: c.responsibleId ?? currentUser?.id ?? '',
+    categoria: c.categoria ?? '',
+    origem: c.origem ?? '',
+    descricao: c.descricao ?? '',
+    privacy: (c.privacy ?? 'all') as ContactPrivacy,
+    additionalAccessUserIds: c.additionalAccessUserIds ?? [],
+    email: c.email ?? '',
+    whatsapp: c.whatsapp ?? '',
+    phone: c.phone ?? '',
+    celular: c.celular ?? '',
+    fax: c.fax ?? '',
+    ramal: c.ramal ?? '',
+    zipCode: c.zipCode ?? '',
+    pais: c.pais ?? 'Brasil',
+    estado: c.estado ?? '',
+    cidade: c.cidade ?? '',
+    bairro: c.bairro ?? '',
+    rua: c.rua ?? '',
+    numero: c.numero ?? '',
+    complemento: c.complemento ?? '',
+    produtos: c.produtos ?? [],
+    facebook: c.facebook ?? '',
+    twitter: c.twitter ?? '',
+    linkedin: c.linkedin ?? '',
+    skype: c.skype ?? '',
+    instagram: c.instagram ?? '',
+  });
+
   const [form, setForm] = useState(emptyForm);
   const [productInput, setProductInput] = useState('');
   const [error, setError] = useState('');
@@ -198,8 +236,12 @@ function AddPessoaModal({
       setForm(emptyForm());
       setProductInput('');
       setError('');
+      return;
     }
-  }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
+    setForm(contact ? formFromContact(contact) : emptyForm());
+    setProductInput('');
+    setError('');
+  }, [open, contact]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const set = <K extends keyof ReturnType<typeof emptyForm>>(key: K, value: ReturnType<typeof emptyForm>[K]) =>
     setForm((f) => ({ ...f, [key]: value }));
@@ -221,8 +263,8 @@ function AddPessoaModal({
   };
 
   const mutation = useMutation({
-    mutationFn: () =>
-      createContact({
+    mutationFn: () => {
+      const payload = {
         name: form.name.trim(),
         cpf: form.cpf.trim() || undefined,
         company: form.company.trim() || undefined,
@@ -255,13 +297,15 @@ function AddPessoaModal({
         linkedin: form.linkedin.trim() || undefined,
         skype: form.skype.trim() || undefined,
         instagram: form.instagram.trim() || undefined,
-      }),
+      };
+      return contact ? updateContact(contact.id, payload) : createContact(payload);
+    },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['pessoas'] });
       qc.invalidateQueries({ queryKey: ['contacts'] });
       onClose();
     },
-    onError: () => setError('Erro ao criar pessoa.'),
+    onError: () => setError(isEdit ? 'Erro ao atualizar pessoa.' : 'Erro ao criar pessoa.'),
   });
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -294,7 +338,7 @@ function AddPessoaModal({
           style={{ borderBottom: '1px solid var(--edge)', background: 'var(--surface-raised)', borderRadius: '12px 12px 0 0' }}
         >
           <h2 className="font-semibold text-lg" style={{ color: 'var(--ink-1)' }}>
-            Adicionar nova pessoa
+            {isEdit ? 'Editar pessoa' : 'Adicionar nova pessoa'}
           </h2>
           <button
             onClick={onClose}
@@ -672,7 +716,7 @@ function AddPessoaModal({
             className="px-5 py-2 rounded-lg text-sm font-semibold text-white disabled:opacity-50"
             style={{ background: 'var(--brand-500, #6366f1)' }}
           >
-            {mutation.isPending ? 'Salvando...' : 'Salvar pessoa'}
+            {mutation.isPending ? 'Salvando...' : isEdit ? 'Salvar alterações' : 'Salvar pessoa'}
           </button>
         </div>
       </div>
@@ -719,6 +763,7 @@ export default function Pessoas() {
   const [addOpen, setAddOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [selectedPessoa, setSelectedPessoa] = useState<Contact | null>(null);
+  const [editingPessoa, setEditingPessoa] = useState<Contact | null>(null);
 
   const handleExport = () => {
     const csv = toCSV(contacts as unknown as Record<string, unknown>[], PESSOAS_COLS);
@@ -852,7 +897,7 @@ export default function Pessoas() {
         <div
           className="grid gap-4 px-6 py-3 text-xs font-bold uppercase tracking-wide"
           style={{
-            gridTemplateColumns: '48px 2fr 1.4fr 1fr 1.4fr 1.6fr',
+            gridTemplateColumns: '48px 2fr 1.4fr 1fr 1.4fr 1.6fr 36px',
             borderBottom: '1px solid var(--edge)',
             color: 'var(--ink-2)',
           }}
@@ -863,6 +908,7 @@ export default function Pessoas() {
           <div>Categoria</div>
           <div>Responsável</div>
           <div>Email</div>
+          <div></div>
         </div>
 
         {isLoading ? (
@@ -879,9 +925,9 @@ export default function Pessoas() {
                 <div
                   key={c.id}
                   onClick={() => setSelectedPessoa(c)}
-                  className="grid gap-4 px-6 py-3 text-sm transition-colors hover:bg-[var(--surface-hover)] cursor-pointer items-center"
+                  className="group grid gap-4 px-6 py-3 text-sm transition-colors hover:bg-[var(--surface-hover)] cursor-pointer items-center"
                   style={{
-                    gridTemplateColumns: '48px 2fr 1.4fr 1fr 1.4fr 1.6fr',
+                    gridTemplateColumns: '48px 2fr 1.4fr 1fr 1.4fr 1.6fr 36px',
                     borderBottom: '1px solid var(--edge)',
                     color: 'var(--ink-1)',
                   }}
@@ -915,6 +961,15 @@ export default function Pessoas() {
                     )}
                   </div>
                   <div className="truncate" style={{ color: 'var(--ink-2)' }}>{c.email ?? '—'}</div>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setEditingPessoa(c); }}
+                    className="p-1.5 rounded-md opacity-0 group-hover:opacity-100 transition-opacity hover:bg-[var(--edge)]"
+                    style={{ color: 'var(--ink-3)' }}
+                    title="Editar pessoa"
+                    aria-label="Editar pessoa"
+                  >
+                    <Pencil className="w-4 h-4" />
+                  </button>
                 </div>
               );
             })}
@@ -932,6 +987,14 @@ export default function Pessoas() {
         onClose={() => setAddOpen(false)}
         currentUser={user}
         users={users}
+      />
+
+      <AddPessoaModal
+        open={!!editingPessoa}
+        onClose={() => setEditingPessoa(null)}
+        currentUser={user}
+        users={users}
+        contact={editingPessoa}
       />
 
       <ImportModal

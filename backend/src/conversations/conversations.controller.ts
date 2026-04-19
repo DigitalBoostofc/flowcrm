@@ -7,6 +7,11 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 export class ConversationsController {
   constructor(private service: ConversationsService) {}
 
+  @Get('inbox')
+  findInbox() {
+    return this.service.findInbox();
+  }
+
   @Get()
   findByLead(@Query('leadId') leadId: string) {
     return this.service.findByLead(leadId);
