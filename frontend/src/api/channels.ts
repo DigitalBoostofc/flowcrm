@@ -20,7 +20,8 @@ export async function deleteChannel(id: string): Promise<void> {
 }
 
 export async function provisionChannel(id: string): Promise<{ ok: boolean; webhookUrl: string; qrCode?: string }> {
-  const res = await api.post<{ ok: boolean; webhookUrl: string; qrCode?: string }>(`/channels/${id}/provision`);
+  // Timeout maior: criar instância + webhook + conectar pode levar >15s
+  const res = await api.post<{ ok: boolean; webhookUrl: string; qrCode?: string }>(`/channels/${id}/provision`, {}, { timeout: 45000 });
   return res.data;
 }
 

@@ -59,11 +59,10 @@ export class UazapiAdapter implements ChannelAdapter {
     const existing = channel.config.instanceToken as string | undefined;
 
     if (existing) {
-      // Valida se o token ainda é válido
       try {
         await axios.get(`${this.baseUrl}/instance/status`, {
           headers: this.instanceHeaders(existing),
-          timeout: 10000,
+          timeout: 12000,
         });
         return existing;
       } catch (err: any) {
@@ -71,7 +70,9 @@ export class UazapiAdapter implements ChannelAdapter {
         if (status === 401) {
           this.logger.warn(`Token expirado para canal ${channelConfigId}, recriando instância...`);
         } else {
-          throw err;
+          // Timeout ou erro de rede: tenta reconectar com token existente em vez de recriar
+          this.logger.warn(`Status check falhou (${err.message}), tentando reconectar com token existente`);
+          return existing;
         }
       }
     }
@@ -83,18 +84,18 @@ export class UazapiAdapter implements ChannelAdapter {
   async connectSession(channelConfigId: string, webhookUrl: string): Promise<string> {
     const token = await this.ensureToken(channelConfigId);
 
-    // Configura webhook
+    // Configura webhook (ignora erros)
     await axios.post(
       `${this.baseUrl}/webhook`,
       { url: webhookUrl, enabled: true, events: ['message', 'qrcode', 'connection'] },
-      { headers: this.instanceHeaders(token), timeout: 15000 },
+      { headers: this.instanceHeaders(token), timeout: 20000 },
     ).catch((err: any) => this.logger.warn(`webhook set: ${err.message}`));
 
     // Conecta sessão → retorna QR imediatamente
     const res = await axios.post(
       `${this.baseUrl}/instance/connect`,
       {},
-      { headers: this.instanceHeaders(token), timeout: 20000 },
+      { headers: this.instanceHeaders(token), timeout: 30000 },
     );
 
     const qrcode: string = res.data?.instance?.qrcode ?? res.data?.qrcode ?? '';
