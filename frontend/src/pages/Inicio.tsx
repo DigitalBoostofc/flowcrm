@@ -1,13 +1,20 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Mail, Phone, MessageCircle, FileText, MapPin, Users as UsersIcon,
   Pencil, Trash2, Building2, User as UserIcon, DollarSign,
-  ChevronDown, CheckCircle2,
+  ChevronDown, CheckCircle2, X, Loader2,
 } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Sparkles } from 'lucide-react';
 import { listTasks, completeTask, reopenTask, deleteTask } from '@/api/tasks';
 import { listUsers } from '@/api/users';
+import { createContact, listContacts } from '@/api/contacts';
+import { createCompany } from '@/api/companies';
+import { createLead } from '@/api/leads';
+import { listPipelines } from '@/api/pipelines';
 import { useAuthStore } from '@/store/auth.store';
+import { useWorkspace } from '@/hooks/useWorkspace';
 import type { Task, TaskType, User } from '@/types/api';
 
 const TYPE_META: Record<TaskType, { label: string; icon: typeof Mail; title: string }> = {
@@ -293,6 +300,58 @@ function SidebarActionButton({
 
 type TypeFilter = TaskType | 'all';
 
+function TrialBanner() {
+  const { data: ws } = useWorkspace();
+  if (!ws || ws.subscriptionStatus !== 'trial') return null;
+  const daysLeft = ws.trialDaysLeft;
+  const urgent = daysLeft <= 3;
+  return (
+    <Link
+      to="/assinar"
+      className="flex items-center justify-between gap-3 px-4 py-3 rounded-xl mb-4 transition-all hover:shadow-md"
+      style={{
+        background: urgent
+          ? 'linear-gradient(135deg, rgba(229,72,77,0.08) 0%, rgba(229,72,77,0.04) 100%)'
+          : 'linear-gradient(135deg, rgba(99,91,255,0.08) 0%, rgba(99,91,255,0.04) 100%)',
+        border: `1px solid ${urgent ? 'rgba(229,72,77,0.25)' : 'rgba(99,91,255,0.25)'}`,
+      }}
+    >
+      <div className="flex items-center gap-3">
+        <div
+          className="w-9 h-9 rounded-lg flex items-center justify-center"
+          style={{
+            background: urgent
+              ? 'linear-gradient(135deg, #F0585D 0%, #D94448 100%)'
+              : 'linear-gradient(135deg, #635BFF 0%, #4B44E8 100%)',
+          }}
+        >
+          <Sparkles className="w-4.5 h-4.5 text-white" strokeWidth={2} />
+        </div>
+        <div>
+          <div className="text-sm font-semibold" style={{ color: 'var(--ink-1)' }}>
+            {daysLeft > 0
+              ? `Faltam ${daysLeft} ${daysLeft === 1 ? 'dia' : 'dias'} de trial`
+              : 'Seu trial termina hoje'}
+          </div>
+          <div className="text-xs mt-0.5" style={{ color: 'var(--ink-3)' }}>
+            Assine um plano para continuar com todos os dados e recursos.
+          </div>
+        </div>
+      </div>
+      <span
+        className="text-sm font-medium px-3.5 py-1.5 rounded-lg text-white whitespace-nowrap"
+        style={{
+          background: urgent
+            ? 'linear-gradient(135deg, #F0585D 0%, #D94448 100%)'
+            : 'linear-gradient(135deg, #635BFF 0%, #4B44E8 100%)',
+        }}
+      >
+        Assinar →
+      </span>
+    </Link>
+  );
+}
+
 export default function Inicio() {
   const currentUser = useAuthStore((s) => s.user);
 
@@ -332,6 +391,7 @@ export default function Inicio() {
 
   return (
     <div className="p-6">
+      <TrialBanner />
       <div className="grid gap-6" style={{ gridTemplateColumns: 'minmax(0, 1fr) 300px' }}>
         {/* Main column */}
         <div className="space-y-4">

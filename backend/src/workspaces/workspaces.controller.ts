@@ -13,6 +13,6 @@ export class WorkspacesController {
 
   @Get('me')
   getMine(@Req() req: AuthedRequest) {
-    return this.service.findOne(req.user.workspaceId);
+    return this.service.findOneWithTrial(req.user.workspaceId);
   }
 }

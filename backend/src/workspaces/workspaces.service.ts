@@ -3,6 +3,11 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Workspace } from './entities/workspace.entity';
 
+export interface WorkspaceWithTrial extends Workspace {
+  trialDaysLeft: number;
+  isBlocked: boolean;
+}
+
 @Injectable()
 export class WorkspacesService {
   constructor(@InjectRepository(Workspace) private repo: Repository<Workspace>) {}
@@ -11,6 +16,22 @@ export class WorkspacesService {
     const w = await this.repo.findOne({ where: { id } });
     if (!w) throw new NotFoundException('Workspace não encontrado');
     return w;
+  }
+
+  async findOneWithTrial(id: string): Promise<WorkspaceWithTrial> {
+    let w = await this.findOne(id);
+    const now = Date.now();
+    const endMs = new Date(w.trialEndsAt).getTime();
+    if (w.subscriptionStatus === 'trial' && endMs < now) {
+      await this.repo.update(id, { subscriptionStatus: 'expired' });
+      w = await this.findOne(id);
+    }
+    const trialDaysLeft =
+      w.subscriptionStatus === 'trial'
+        ? Math.max(0, Math.ceil((endMs - now) / 86_400_000))
+        : 0;
+    const isBlocked = w.subscriptionStatus === 'expired' || w.subscriptionStatus === 'canceled';
+    return Object.assign(w, { trialDaysLeft, isBlocked });
   }
 
   async create(data: {

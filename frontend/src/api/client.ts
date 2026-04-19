@@ -23,6 +23,11 @@ api.interceptors.response.use(
         window.location.href = '/login';
       }
     }
+    if (err.response?.status === 402) {
+      if (typeof window !== 'undefined' && window.location.pathname !== '/assinar') {
+        window.location.href = '/assinar';
+      }
+    }
     return Promise.reject(err);
   },
 );

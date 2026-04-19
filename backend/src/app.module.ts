@@ -32,6 +32,8 @@ import { WorkspacesModule } from './workspaces/workspaces.module';
 import { IntegrationsModule } from './integrations/integrations.module';
 import { AppSettingsModule } from './app-settings/app-settings.module';
 import { SignupModule } from './signup/signup.module';
+import { SubscriptionsModule } from './subscriptions/subscriptions.module';
+import { SubscriptionModule } from './common/subscription/subscription.module';
 
 @Module({
   imports: [
@@ -83,6 +85,8 @@ import { SignupModule } from './signup/signup.module';
     IntegrationsModule,
     AppSettingsModule,
     SignupModule,
+    SubscriptionsModule,
+    SubscriptionModule,
   ],
 })
 export class AppModule {}
