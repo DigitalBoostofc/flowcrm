@@ -26,6 +26,10 @@ export default function ChannelsTab() {
       setNewOpen(false);
       setName('');
     },
+    onError: (err: any) => {
+      const msg = err?.response?.data?.message ?? err?.message ?? 'Erro ao criar canal';
+      alert(msg);
+    },
   });
 
   const deleteMutation = useMutation({

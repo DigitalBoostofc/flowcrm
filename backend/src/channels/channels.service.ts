@@ -31,12 +31,16 @@ export class ChannelsService {
     return adapter.sendMessage(opts);
   }
 
-  create(dto: CreateChannelDto): Promise<ChannelConfig> {
+  async create(dto: CreateChannelDto): Promise<ChannelConfig> {
+    const existing = await this.repo.findOne({ where: { type: dto.type as ChannelType, active: true } });
+    if (existing) {
+      throw new BadRequestException('Já existe um canal WhatsApp ativo. Delete o atual antes de criar um novo.');
+    }
     return this.repo.save(this.repo.create(dto));
   }
 
   findAll(): Promise<ChannelConfig[]> {
-    return this.repo.find();
+    return this.repo.find({ where: { active: true } });
   }
 
   async findById(id: string): Promise<ChannelConfig> {
