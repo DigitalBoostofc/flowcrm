@@ -49,11 +49,17 @@ export class PipelinesService {
     return p;
   }
 
-  findDefault(): Promise<Pipeline | null> {
+  async findDefault(): Promise<Pipeline | null> {
     const workspaceId = this.tenant.requireWorkspaceId();
-    return this.repo.findOne({
+    const preferred = await this.repo.findOne({
       where: { workspaceId, isDefault: true },
       relations: ['stages'],
+    });
+    if (preferred) return preferred;
+    return this.repo.findOne({
+      where: { workspaceId },
+      relations: ['stages'],
+      order: { createdAt: 'ASC' },
     });
   }
 
