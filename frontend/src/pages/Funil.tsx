@@ -2,19 +2,21 @@ import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
-  Search, Filter, ArrowUpDown, Upload, Download, Plus, List, GitBranch,
+  Search, Filter, ArrowUpDown, Plus, List, GitBranch,
   TrendingUp, X, Pencil, Trash2, GripVertical, Link as LinkIcon, Info,
-  ListChecks, Trophy, ChevronsRight, Settings as SettingsIcon,
+  ListChecks, Trophy, ChevronLeft, ChevronRight, Settings as SettingsIcon,
 } from 'lucide-react';
 import { listAllLeads } from '@/api/leads';
 import { listPipelines, createPipeline, updatePipeline, deletePipeline } from '@/api/pipelines';
 import { createStage, updateStage, deleteStage } from '@/api/stages';
 import { listUsers } from '@/api/users';
 import { useAuthStore } from '@/store/auth.store';
+import { useSidebarStore } from '@/store/sidebar.store';
 import type { Pipeline, Stage } from '@/types/api';
 import NegocioKanban from '@/components/negocios/NegocioKanban';
 import NegocioDetailPanel from '@/components/negocios/NegocioDetailPanel';
 import RequiredFieldsDrawer from '@/components/settings/RequiredFieldsDrawer';
+import Sidebar from '@/components/layout/Sidebar';
 import { formatBRL } from '@/lib/format';
 
 function deriveSigla(name: string): string {
@@ -500,18 +502,19 @@ function EtapasFunilModal({
 /* ── Pipeline sidebar ────────────────────────────────── */
 
 function PipelineSidebar({
-  pipelines, selectedId, onSelect, onAddClick, onExpand, onSettings,
+  pipelines, selectedId, onSelect, onAddClick, onToggleMainNav, mainNavOpen, onSettings,
 }: {
   pipelines: Pipeline[];
   selectedId: string;
   onSelect: (id: string) => void;
   onAddClick: () => void;
-  onExpand: () => void;
+  onToggleMainNav: () => void;
+  mainNavOpen: boolean;
   onSettings: () => void;
 }) {
   return (
     <aside
-      className="flex-shrink-0 flex flex-col items-center justify-between py-3"
+      className="relative flex-shrink-0 flex flex-col items-center justify-between py-3"
       style={{
         width: 56,
         background: 'var(--surface)',
@@ -522,34 +525,19 @@ function PipelineSidebar({
         {pipelines.map((p) => {
           const active = p.id === selectedId;
           return (
-            <div key={p.id} className="relative flex items-center justify-center w-full">
-              <button
-                onClick={() => onSelect(p.id)}
-                title={p.name}
-                className="w-10 h-10 rounded-lg flex items-center justify-center text-[10px] font-bold tracking-tight transition-all"
-                style={{
-                  background: active ? 'var(--brand-500, #6366f1)' : 'var(--surface-hover)',
-                  color: active ? '#fff' : 'var(--ink-2)',
-                  border: active ? '1px solid var(--brand-500, #6366f1)' : '1px solid var(--edge)',
-                }}
-              >
-                {siglaOf(p)}
-              </button>
-              {active && (
-                <button
-                  onClick={onExpand}
-                  title="Voltar ao menu"
-                  className="absolute -right-1 top-1/2 -translate-y-1/2 w-5 h-5 rounded-md flex items-center justify-center shadow-sm"
-                  style={{
-                    background: 'var(--surface-raised)',
-                    border: '1px solid var(--edge-strong, var(--edge))',
-                    color: 'var(--ink-2)',
-                  }}
-                >
-                  <ChevronsRight className="w-3 h-3" />
-                </button>
-              )}
-            </div>
+            <button
+              key={p.id}
+              onClick={() => onSelect(p.id)}
+              title={p.name}
+              className="w-10 h-10 rounded-lg flex items-center justify-center text-[10px] font-bold tracking-tight transition-all"
+              style={{
+                background: active ? 'var(--brand-500, #6366f1)' : 'var(--surface-hover)',
+                color: active ? '#fff' : 'var(--ink-2)',
+                border: active ? '1px solid var(--brand-500, #6366f1)' : '1px solid var(--edge)',
+              }}
+            >
+              {siglaOf(p)}
+            </button>
           );
         })}
 
@@ -575,6 +563,34 @@ function PipelineSidebar({
       >
         <SettingsIcon className="w-4 h-4" />
       </button>
+
+      <button
+        onClick={onToggleMainNav}
+        title={mainNavOpen ? 'Ocultar menu principal' : 'Mostrar menu principal'}
+        aria-label={mainNavOpen ? 'Ocultar menu principal' : 'Mostrar menu principal'}
+        style={{
+          position: 'absolute',
+          top: '50%',
+          right: -10,
+          transform: 'translateY(-50%)',
+          zIndex: 20,
+          width: 20,
+          height: 20,
+          borderRadius: '50%',
+          background: 'var(--surface-raised)',
+          border: '1px solid var(--edge-strong, var(--edge))',
+          color: 'var(--ink-3)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          boxShadow: 'var(--shadow-md)',
+          cursor: 'pointer',
+        }}
+      >
+        {mainNavOpen
+          ? <ChevronLeft className="w-3 h-3" strokeWidth={2} />
+          : <ChevronRight className="w-3 h-3" strokeWidth={2} />}
+      </button>
     </aside>
   );
 }
@@ -585,12 +601,15 @@ export default function Funil() {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const currentUser = useAuthStore((s) => s.user);
+  const sidebarCollapsed = useSidebarStore((s) => s.collapsed);
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [selectedPipelineId, setSelectedPipelineId] = useState<string>('');
   const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
   const [personalizarOpen, setPersonalizarOpen] = useState(false);
   const [editingStagesPipelineId, setEditingStagesPipelineId] = useState<string | null>(null);
+  const [mainNavOpen, setMainNavOpen] = useState(false);
+  const mainNavWidth = sidebarCollapsed ? 52 : 216;
 
   const createPipelineMut = useMutation({
     mutationFn: (name: string) => createPipeline({ name }),
@@ -657,12 +676,24 @@ export default function Funil() {
 
   return (
     <div className="flex h-full min-h-screen">
+      <div
+        style={{
+          width: mainNavOpen ? mainNavWidth : 0,
+          overflow: 'hidden',
+          transition: 'width 0.28s cubic-bezier(0.4,0,0.2,1)',
+          flexShrink: 0,
+        }}
+      >
+        <Sidebar />
+      </div>
+
       <PipelineSidebar
         pipelines={pipelines}
         selectedId={selectedPipelineId}
         onSelect={setSelectedPipelineId}
         onAddClick={() => setPersonalizarOpen(true)}
-        onExpand={() => navigate('/')}
+        onToggleMainNav={() => setMainNavOpen((v) => !v)}
+        mainNavOpen={mainNavOpen}
         onSettings={() => navigate('/settings')}
       />
 
