@@ -54,6 +54,10 @@ export default function NegocioKanban({ pipeline, leads, onCardClick }: Props) {
 
   const mutation = useMutation({
     mutationFn: ({ id, stageId }: { id: string; stageId: string }) => moveLead(id, stageId),
+    onSuccess: (data) => {
+      // eslint-disable-next-line no-console
+      console.log('[NegocioKanban] moveLead success', { id: data?.id, stageId: data?.stageId });
+    },
     onError: (err: any) => {
       if (snapshotRef.current) {
         qc.setQueryData<Lead[]>(['negocios'], snapshotRef.current);
@@ -113,16 +117,42 @@ export default function NegocioKanban({ pipeline, leads, onCardClick }: Props) {
 
     const leadId = String(active.id);
     const firstCollisionId = getFirstCollision(evt.collisions ?? [], 'id');
-    const targetStageId =
-      resolveStageFromOverId(over ? String(over.id) : null) ??
-      resolveStageFromOverId(firstCollisionId != null ? String(firstCollisionId) : null) ??
-      overStageIdRef.current;
+    const fromOver = resolveStageFromOverId(over ? String(over.id) : null);
+    const fromCollision = resolveStageFromOverId(firstCollisionId != null ? String(firstCollisionId) : null);
+    const fromRef = overStageIdRef.current;
+    const targetStageId = fromOver ?? fromCollision ?? fromRef;
+
+    // eslint-disable-next-line no-console
+    console.log('[NegocioKanban] dragEnd', {
+      leadId,
+      overId: over?.id,
+      firstCollisionId,
+      overStageRef: fromRef,
+      resolvedTargetStageId: targetStageId,
+      collisions: evt.collisions?.map((c) => c.id),
+    });
 
     overStageIdRef.current = null;
-    if (!targetStageId) return;
+    if (!targetStageId) {
+      // eslint-disable-next-line no-console
+      console.warn('[NegocioKanban] dragEnd: targetStageId não resolvido');
+      return;
+    }
 
     const lead = leads.find((l) => l.id === leadId);
-    if (!lead || lead.stageId === targetStageId) return;
+    if (!lead) {
+      // eslint-disable-next-line no-console
+      console.warn('[NegocioKanban] dragEnd: lead não encontrado', leadId);
+      return;
+    }
+    if (lead.stageId === targetStageId) {
+      // eslint-disable-next-line no-console
+      console.warn('[NegocioKanban] dragEnd: targetStageId igual ao atual — early return', { leadStageId: lead.stageId, targetStageId });
+      return;
+    }
+
+    // eslint-disable-next-line no-console
+    console.log('[NegocioKanban] disparando moveLead', { leadId, from: lead.stageId, to: targetStageId });
 
     snapshotRef.current = leads;
     qc.setQueryData<Lead[]>(['negocios'], (old = []) =>
