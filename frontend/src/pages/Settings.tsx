@@ -5,6 +5,7 @@ import {
   Zap, User as UserIcon, Puzzle, Server,
 } from 'lucide-react';
 import { useAuthStore } from '@/store/auth.store';
+import { useWorkspace } from '@/hooks/useWorkspace';
 import FunisEtapasTab from '@/components/settings/FunisEtapasTab';
 import MotivosPerdaTab from '@/components/settings/MotivosPerdaTab';
 import OrigensClientesTab from '@/components/settings/OrigensClientesTab';
@@ -22,7 +23,7 @@ type Tab =
   | 'categorias-clientes' | 'setores' | 'channels'
   | 'templates' | 'automations' | 'agents' | 'integrations' | 'sistema';
 
-interface NavItem { id: Tab; label: string; icon: typeof GitBranch; ownerOnly?: boolean }
+interface NavItem { id: Tab; label: string; icon: typeof GitBranch; ownerOnly?: boolean; platformAdminOnly?: boolean }
 interface NavGroup { title: string; items: NavItem[] }
 
 const GROUPS: NavGroup[] = [
@@ -69,7 +70,7 @@ const GROUPS: NavGroup[] = [
   {
     title: 'Administração',
     items: [
-      { id: 'sistema',              label: 'Sistema',               icon: Server,     ownerOnly: true },
+      { id: 'sistema',              label: 'Sistema',               icon: Server,     platformAdminOnly: true },
     ],
   },
 ];
@@ -77,6 +78,8 @@ const GROUPS: NavGroup[] = [
 export default function Settings() {
   const user = useAuthStore(s => s.user);
   const isOwner = user?.role === 'owner';
+  const { data: workspace } = useWorkspace();
+  const isPlatformAdmin = workspace?.isPlatformAdmin === true;
   const [params, setParams] = useSearchParams();
 
   const tabFromUrl = params.get('tab') as Tab | null;
@@ -94,7 +97,11 @@ export default function Settings() {
 
   const visibleGroups = GROUPS.map(g => ({
     ...g,
-    items: g.items.filter(i => !i.ownerOnly || isOwner),
+    items: g.items.filter(i => {
+      if (i.platformAdminOnly) return isPlatformAdmin;
+      if (i.ownerOnly) return isOwner;
+      return true;
+    }),
   })).filter(g => g.items.length > 0);
 
   return (

@@ -1,9 +1,7 @@
 import { Body, Controller, Get, Put, UseGuards } from '@nestjs/common';
 import { IsBoolean, IsInt, IsOptional, IsUUID, Max, Min } from 'class-validator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { RolesGuard } from '../auth/roles.guard';
-import { Roles } from '../auth/roles.decorator';
-import { UserRole } from '../users/entities/user.entity';
+import { PlatformAdminGuard } from '../common/platform-admin.guard';
 import { AppSettingsService } from './app-settings.service';
 
 class UpdateAppSettingsDto {
@@ -23,8 +21,7 @@ class UpdateAppSettingsDto {
 }
 
 @Controller('app-settings')
-@UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(UserRole.OWNER)
+@UseGuards(JwtAuthGuard, PlatformAdminGuard)
 export class AppSettingsController {
   constructor(private service: AppSettingsService) {}
 

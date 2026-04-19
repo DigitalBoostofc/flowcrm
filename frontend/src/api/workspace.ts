@@ -11,6 +11,7 @@ export interface WorkspaceMe {
   subscriptionStatus: SubscriptionStatus;
   trialDaysLeft: number;
   isBlocked: boolean;
+  isPlatformAdmin?: boolean;
   createdAt: string;
   updatedAt: string;
 }
