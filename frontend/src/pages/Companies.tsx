@@ -869,8 +869,12 @@ export default function Companies() {
             {companies.map((c: Company) => (
               <div
                 key={c.id}
-                className="grid grid-cols-6 gap-4 px-6 py-3 text-sm transition-colors hover:bg-[var(--surface-hover)]"
-                style={{ borderBottom: '1px solid var(--edge)', color: 'var(--ink-1)' }}
+                className="group grid gap-4 px-6 py-3 text-sm transition-colors hover:bg-[var(--surface-hover)]"
+                style={{
+                  gridTemplateColumns: 'repeat(6, minmax(0, 1fr)) 36px',
+                  borderBottom: '1px solid var(--edge)',
+                  color: 'var(--ink-1)',
+                }}
               >
                 <div className="font-medium truncate">{c.name}</div>
                 <div className="truncate" style={{ color: 'var(--ink-2)' }}>{c.categoria ?? '—'}</div>
@@ -885,6 +889,16 @@ export default function Companies() {
                     </>
                   ) : '—'}
                 </div>
+                <div className="flex items-center justify-end">
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setEditingCompany(c); }}
+                    className="p-1.5 rounded-md opacity-0 group-hover:opacity-100 transition-opacity hover:bg-[var(--edge)]"
+                    style={{ color: 'var(--ink-3)' }}
+                    title="Editar empresa"
+                  >
+                    <Pencil className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
             ))}
           </div>
@@ -896,6 +910,13 @@ export default function Companies() {
         onClose={() => setAddOpen(false)}
         currentUser={user}
         users={users}
+      />
+      <AddCompanyModal
+        open={!!editingCompany}
+        onClose={() => setEditingCompany(null)}
+        currentUser={user}
+        users={users}
+        company={editingCompany}
       />
       <ImportModal
         open={importOpen}
