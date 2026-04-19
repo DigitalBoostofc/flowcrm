@@ -80,40 +80,40 @@ export class WorkspacesService {
       const wid = workspaceId;
 
       // Ordem respeita FK: primeiro filhos, depois pais
-      await em.query(`DELETE FROM messages          WHERE "workspaceId" = $1`, [wid]);
-      await em.query(`DELETE FROM conversations      WHERE "workspaceId" = $1`, [wid]);
-      await em.query(`DELETE FROM automation_executions
+      await em.query(`DELETE FROM messages             WHERE "workspaceId" = $1`, [wid]);
+      await em.query(`DELETE FROM conversations         WHERE "workspaceId" = $1`, [wid]);
+      await em.query(`DELETE FROM automation_executions WHERE "workspaceId" = $1`, [wid]);
+      await em.query(`DELETE FROM scheduled_messages    WHERE "workspaceId" = $1`, [wid]);
+      await em.query(`DELETE FROM lead_activities       WHERE "workspaceId" = $1`, [wid]);
+      await em.query(`DELETE FROM tasks                 WHERE "workspaceId" = $1`, [wid]);
+      await em.query(`DELETE FROM leads                 WHERE "workspaceId" = $1`, [wid]);
+      await em.query(`DELETE FROM contacts              WHERE "workspaceId" = $1`, [wid]);
+      await em.query(`DELETE FROM companies             WHERE "workspaceId" = $1`, [wid]);
+      await em.query(`DELETE FROM automation_steps
                        WHERE "automationId" IN (SELECT id FROM automations WHERE "workspaceId" = $1)`, [wid]);
-      await em.query(`DELETE FROM scheduled_messages WHERE "workspaceId" = $1`, [wid]).catch(() => {});
-      await em.query(`DELETE FROM lead_activities    WHERE "workspaceId" = $1`, [wid]);
-      await em.query(`DELETE FROM tasks              WHERE "workspaceId" = $1`, [wid]);
-      await em.query(`DELETE FROM leads              WHERE "workspaceId" = $1`, [wid]);
-      await em.query(`DELETE FROM contacts           WHERE "workspaceId" = $1`, [wid]);
-      await em.query(`DELETE FROM companies          WHERE "workspaceId" = $1`, [wid]);
-      await em.query(`DELETE FROM automations        WHERE "workspaceId" = $1`, [wid]);
-      await em.query(`DELETE FROM message_templates  WHERE "workspaceId" = $1`, [wid]).catch(() => {});
-      await em.query(`DELETE FROM templates          WHERE "workspaceId" = $1`, [wid]).catch(() => {});
-      await em.query(`DELETE FROM channel_configs    WHERE "workspaceId" = $1`, [wid]);
+      await em.query(`DELETE FROM automations           WHERE "workspaceId" = $1`, [wid]);
+      await em.query(`DELETE FROM message_templates     WHERE "workspaceId" = $1`, [wid]);
+      await em.query(`DELETE FROM channel_configs       WHERE "workspaceId" = $1`, [wid]);
       await em.query(`DELETE FROM stage_required_fields
-                       WHERE "stageId" IN (SELECT id FROM stages WHERE "workspaceId" = $1)`, [wid]).catch(() => {});
-      await em.query(`DELETE FROM stages             WHERE "workspaceId" = $1`, [wid]);
-      await em.query(`DELETE FROM pipelines          WHERE "workspaceId" = $1`, [wid]);
-      await em.query(`DELETE FROM loss_reasons       WHERE "workspaceId" = $1`, [wid]).catch(() => {});
-      await em.query(`DELETE FROM customer_origins   WHERE "workspaceId" = $1`, [wid]).catch(() => {});
-      await em.query(`DELETE FROM customer_categories WHERE "workspaceId" = $1`, [wid]).catch(() => {});
-      await em.query(`DELETE FROM sectors            WHERE "workspaceId" = $1`, [wid]).catch(() => {});
-      await em.query(`DELETE FROM app_settings       WHERE "workspaceId" = $1`, [wid]).catch(() => {});
-      await em.query(`DELETE FROM otp_verifications  WHERE "phone" IN (
-                         SELECT phone FROM users WHERE "workspaceId" = $1
-                       )`, [wid]).catch(() => {});
-      await em.query(`DELETE FROM user_integrations  WHERE "userId" IN (
+                       WHERE "stageId" IN (SELECT id FROM stages WHERE "workspaceId" = $1)`, [wid]);
+      await em.query(`DELETE FROM stages                WHERE "workspaceId" = $1`, [wid]);
+      await em.query(`DELETE FROM pipelines             WHERE "workspaceId" = $1`, [wid]);
+      await em.query(`DELETE FROM loss_reasons          WHERE "workspaceId" = $1`, [wid]);
+      await em.query(`DELETE FROM customer_origins      WHERE "workspaceId" = $1`, [wid]);
+      await em.query(`DELETE FROM customer_categories   WHERE "workspaceId" = $1`, [wid]);
+      await em.query(`DELETE FROM sectors               WHERE "workspaceId" = $1`, [wid]);
+      await em.query(`DELETE FROM app_settings          WHERE "workspaceId" = $1`, [wid]);
+      await em.query(`DELETE FROM otp_verifications     WHERE phone IN (
+                         SELECT phone FROM users WHERE "workspaceId" = $1 AND phone IS NOT NULL
+                       )`, [wid]);
+      await em.query(`DELETE FROM user_integrations     WHERE "userId" IN (
                          SELECT id FROM users WHERE "workspaceId" = $1
-                       )`, [wid]).catch(() => {});
+                       )`, [wid]);
 
       // Nulifica owner antes de deletar users (evita FK violation)
       await em.query(`UPDATE workspaces SET "ownerUserId" = NULL WHERE id = $1`, [wid]);
-      await em.query(`DELETE FROM users              WHERE "workspaceId" = $1`, [wid]);
-      await em.query(`DELETE FROM workspaces         WHERE id = $1`, [wid]);
+      await em.query(`DELETE FROM users                 WHERE "workspaceId" = $1`, [wid]);
+      await em.query(`DELETE FROM workspaces            WHERE id = $1`, [wid]);
     });
 
     this.logger.warn(`DELEÇÃO PERMANENTE concluída para workspace ${workspaceId}`);
