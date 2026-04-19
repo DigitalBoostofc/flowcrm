@@ -102,7 +102,7 @@ export class WorkspacesService {
       await em.query(`DELETE FROM customer_origins      WHERE "workspaceId" = $1`, [wid]);
       await em.query(`DELETE FROM customer_categories   WHERE "workspaceId" = $1`, [wid]);
       await em.query(`DELETE FROM sectors               WHERE "workspaceId" = $1`, [wid]);
-      await em.query(`DELETE FROM app_settings          WHERE "workspaceId" = $1`, [wid]);
+      await em.query(`DELETE FROM feature_flags          WHERE "workspaceId" = $1`, [wid]);
       await em.query(`DELETE FROM otp_verifications     WHERE phone IN (
                          SELECT phone FROM users WHERE "workspaceId" = $1 AND phone IS NOT NULL
                        )`, [wid]);
