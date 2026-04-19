@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Trash2, QrCode, Loader2, CheckCircle2, Radio, Wifi, WifiOff } from 'lucide-react';
-import { listChannels, createChannel, deleteChannel, provisionChannel, getChannelQr } from '@/api/channels';
+import { Plus, Trash2, QrCode, Loader2, CheckCircle2, Radio, Wifi, WifiOff, RefreshCw, Copy, Check } from 'lucide-react';
+import { listChannels, createChannel, deleteChannel, provisionChannel, getChannelQr, refreshChannelWebhook } from '@/api/channels';
 import Modal from '@/components/ui/Modal';
 
 function randomHex(length: number): string {
@@ -16,6 +16,8 @@ export default function ChannelsTab() {
   const [newOpen, setNewOpen] = useState(false);
   const [qrOpen, setQrOpen] = useState<string | null>(null);
   const [initialQr, setInitialQr] = useState<string | undefined>(undefined);
+  const [webhookInfo, setWebhookInfo] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
   const [name, setName] = useState('');
 
   const createMut = useMutation({
@@ -33,6 +35,12 @@ export default function ChannelsTab() {
     mutationFn: provisionChannel,
     onSuccess: (data, id) => { setInitialQr(data.qrCode); setQrOpen(id); },
     onError: (err: any) => alert(`Erro ao conectar: ${err?.response?.data?.message ?? err?.message}`),
+  });
+
+  const refreshWebhookMut = useMutation({
+    mutationFn: refreshChannelWebhook,
+    onSuccess: (data) => { setWebhookInfo(data.webhookUrl); setCopied(false); },
+    onError: (err: any) => alert(`Erro ao atualizar webhook: ${err?.response?.data?.message ?? err?.message}`),
   });
 
   return (
@@ -82,6 +90,19 @@ export default function ChannelsTab() {
 
               {/* Actions */}
               <div className="flex items-center gap-2 flex-shrink-0">
+                <button
+                  onClick={() => refreshWebhookMut.mutate(c.id)}
+                  disabled={refreshWebhookMut.isPending && refreshWebhookMut.variables === c.id}
+                  className="btn-secondary text-xs"
+                  style={{ height: 32, padding: '0 12px', fontSize: 12 }}
+                  title="Re-registra a URL de webhook na uazapi"
+                >
+                  {refreshWebhookMut.isPending && refreshWebhookMut.variables === c.id
+                    ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    : <RefreshCw className="w-3.5 h-3.5" strokeWidth={2} />
+                  }
+                  Webhook
+                </button>
                 <button
                   onClick={() => provisionMut.mutate(c.id)}
                   disabled={provisionMut.isPending && provisionMut.variables === c.id}
@@ -151,6 +172,46 @@ export default function ChannelsTab() {
         initialQr={initialQr}
         onClose={() => { setQrOpen(null); setInitialQr(undefined); }}
       />
+
+      <Modal
+        open={!!webhookInfo}
+        onClose={() => { setWebhookInfo(null); setCopied(false); }}
+        title="Webhook atualizado"
+        description="URL re-registrada na uazapi. Confira no painel da uazapi se ela ficou igual a esta:"
+      >
+        <div className="space-y-4">
+          <div
+            className="flex items-center gap-2 p-3 rounded-lg font-mono text-xs break-all"
+            style={{ background: 'var(--surface-hover)', border: '1px solid var(--edge)', color: 'var(--ink-1)' }}
+          >
+            <span className="flex-1">{webhookInfo}</span>
+            <button
+              onClick={() => {
+                if (webhookInfo) {
+                  navigator.clipboard.writeText(webhookInfo);
+                  setCopied(true);
+                  setTimeout(() => setCopied(false), 2000);
+                }
+              }}
+              className="p-1.5 rounded-md transition-colors flex-shrink-0"
+              style={{ color: 'var(--ink-3)' }}
+              onMouseEnter={e => (e.currentTarget.style.color = 'var(--brand-500)')}
+              onMouseLeave={e => (e.currentTarget.style.color = 'var(--ink-3)')}
+              title="Copiar"
+            >
+              {copied ? <Check className="w-4 h-4" style={{ color: 'var(--success)' }} /> : <Copy className="w-4 h-4" />}
+            </button>
+          </div>
+          <div className="text-xs space-y-1" style={{ color: 'var(--ink-3)' }}>
+            <p>• No painel da uazapi, em <strong>Webhook</strong>, a URL registrada deve ser exatamente esta.</p>
+            <p>• Em <strong>Escutar eventos</strong> certifique-se de ter <code>messages</code>.</p>
+            <p>• Em <strong>Excluir dos eventos</strong> adicione <code>wasSentByApi</code> e <code>isGroupYes</code>.</p>
+          </div>
+          <div className="flex justify-end">
+            <button onClick={() => { setWebhookInfo(null); setCopied(false); }} className="btn-primary">Fechar</button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

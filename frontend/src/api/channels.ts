@@ -25,6 +25,11 @@ export async function provisionChannel(id: string): Promise<{ ok: boolean; webho
   return res.data;
 }
 
+export async function refreshChannelWebhook(id: string): Promise<{ ok: boolean; webhookUrl: string }> {
+  const res = await api.post<{ ok: boolean; webhookUrl: string }>(`/channels/${id}/refresh-webhook`, {}, { timeout: 20000 });
+  return res.data;
+}
+
 export async function getChannelQr(id: string): Promise<{ base64: string; pairingCode?: string; connected?: boolean; phone?: string }> {
   const res = await api.get(`/channels/${id}/qr`, { headers: { Accept: 'application/json' } });
   return res.data;
