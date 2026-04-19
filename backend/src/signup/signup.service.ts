@@ -175,7 +175,7 @@ export class SignupService {
     this.trackInAdminWorkspaces({
       name: result.user.name,
       email: result.user.email,
-      phone: result.user.phone,
+      phone: result.user.phone ?? '',
       workspaceName: result.workspace.name,
     }).catch((err) => this.logger.error('Falha ao rastrear signup em workspaces admin', err as Error));
 
