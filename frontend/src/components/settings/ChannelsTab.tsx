@@ -27,6 +27,7 @@ export default function ChannelsTab() {
   const { data: channels = [] } = useQuery({ queryKey: ['channels'], queryFn: listChannels });
   const [newOpen, setNewOpen] = useState(false);
   const [qrOpen, setQrOpen] = useState<string | null>(null);
+  const [initialQr, setInitialQr] = useState<string | undefined>(undefined);
 
   const [kind, setKind] = useState<ChannelKind>('uazapi');
   const [name, setName] = useState('');
@@ -63,7 +64,10 @@ export default function ChannelsTab() {
 
   const provisionMutation = useMutation({
     mutationFn: provisionChannel,
-    onSuccess: (_, id) => setQrOpen(id),
+    onSuccess: (data, id) => {
+      setInitialQr(data.qrCode);
+      setQrOpen(id);
+    },
   });
 
   const isFormValid =
@@ -218,27 +222,29 @@ export default function ChannelsTab() {
         </div>
       </Modal>
 
-      <QrModal channelId={qrOpen} onClose={() => setQrOpen(null)} />
+      <QrModal channelId={qrOpen} initialQr={initialQr} onClose={() => { setQrOpen(null); setInitialQr(undefined); }} />
     </div>
   );
 }
 
-function QrModal({ channelId, onClose }: { channelId: string | null; onClose: () => void }) {
-  const [qr, setQr] = useState<{ base64: string } | null>(null);
+function QrModal({ channelId, initialQr, onClose }: { channelId: string | null; initialQr?: string; onClose: () => void }) {
+  const [qr, setQr] = useState<{ base64: string } | null>(initialQr ? { base64: initialQr } : null);
 
   useEffect(() => {
     if (!channelId) { setQr(null); return; }
+    if (initialQr) setQr({ base64: initialQr });
     let cancelled = false;
     const fetchQr = async () => {
       try {
         const result = await getChannelQr(channelId);
-        if (!cancelled) setQr(result);
+        if (!cancelled && result.base64) setQr(result);
       } catch {}
     };
-    fetchQr();
+    // Primeira busca com delay de 5s (QR já veio no provision)
+    const first = setTimeout(fetchQr, 5000);
     const t = setInterval(fetchQr, 8000);
-    return () => { cancelled = true; clearInterval(t); };
-  }, [channelId]);
+    return () => { cancelled = true; clearTimeout(first); clearInterval(t); };
+  }, [channelId, initialQr]);
 
   if (!channelId) return null;
 

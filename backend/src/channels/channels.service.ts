@@ -66,17 +66,17 @@ export class ChannelsService {
     throw new BadRequestException('QR code não disponível para este tipo de canal');
   }
 
-  async provisionInstance(id: string, webhookUrl: string): Promise<void> {
+  async provisionInstance(id: string, webhookUrl: string): Promise<{ qrCode?: string }> {
     const channel = await this.findById(id);
     if (channel.type === 'uazapi') {
       const adapter = this.adapters.get('uazapi') as unknown as UazapiAdapter;
-      await adapter.connectSession(id, webhookUrl);
-      return;
+      const qrCode = await adapter.connectSession(id, webhookUrl);
+      return { qrCode: qrCode || undefined };
     }
     if (channel.type === 'evolution') {
       const adapter = this.adapters.get('evolution') as EvolutionAdapter;
       await adapter.createInstance(id, webhookUrl);
-      return;
+      return {};
     }
     throw new BadRequestException('Provisionamento não disponível para este tipo de canal');
   }

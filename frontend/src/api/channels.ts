@@ -19,8 +19,8 @@ export async function deleteChannel(id: string): Promise<void> {
   await api.delete(`/channels/${id}`);
 }
 
-export async function provisionChannel(id: string): Promise<{ ok: boolean; webhookUrl: string }> {
-  const res = await api.post<{ ok: boolean; webhookUrl: string }>(`/channels/${id}/provision`);
+export async function provisionChannel(id: string): Promise<{ ok: boolean; webhookUrl: string; qrCode?: string }> {
+  const res = await api.post<{ ok: boolean; webhookUrl: string; qrCode?: string }>(`/channels/${id}/provision`);
   return res.data;
 }
 

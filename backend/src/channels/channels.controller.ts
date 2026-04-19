@@ -41,8 +41,8 @@ export class ChannelsController {
   @Roles(UserRole.OWNER)
   async provision(@Param('id') id: string, @Request() req: any) {
     const webhookUrl = await this.buildWebhookUrl(req, id);
-    await this.channelsService.provisionInstance(id, webhookUrl);
-    return { ok: true, webhookUrl };
+    const { qrCode } = await this.channelsService.provisionInstance(id, webhookUrl);
+    return { ok: true, webhookUrl, qrCode };
   }
 
   @Post(':id/refresh-webhook')

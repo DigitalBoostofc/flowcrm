@@ -21,46 +21,49 @@ export class UazapiWebhookController {
   ) {
     const channel = await this.channels.findById(channelConfigId);
     if (secret !== channel.config.webhookSecret) {
-      this.logger.warn(`Unauthorized webhook for channel ${channelConfigId}`);
+      this.logger.warn(`Webhook não autorizado para canal ${channelConfigId}`);
       throw new UnauthorizedException();
     }
 
-    const type: string = payload?.type ?? '';
+    const event: string = payload?.event ?? '';
 
-    if (type === 'QrCode') {
-      const base64: string = payload?.body?.qr ?? payload?.body?.base64 ?? '';
-      if (base64) {
-        await this.uazapi.saveQrCode(channelConfigId, base64);
-        this.logger.log(`QR code updated for channel ${channelConfigId}`);
+    if (event === 'qrcode') {
+      const qr: string = payload?.data?.qrcode ?? payload?.data?.qr ?? '';
+      if (qr) {
+        await this.uazapi.saveQrCode(channelConfigId, qr);
+        this.logger.log(`QR atualizado para canal ${channelConfigId}`);
       }
       return { ok: true };
     }
 
-    if (type === 'Connected') {
-      await this.channels.updateStatus(channelConfigId, 'connected');
-      this.events.emit('channel.status.changed', { channelConfigId, status: 'connected' });
+    if (event === 'connection') {
+      const connected: boolean = payload?.data?.connected ?? false;
+      const status = connected ? 'connected' : 'disconnected';
+      await this.channels.updateStatus(channelConfigId, status);
+      this.events.emit('channel.status.changed', { channelConfigId, status });
+      this.logger.log(`Canal ${channelConfigId} → ${status}`);
       return { ok: true };
     }
 
-    if (type === 'Disconnected') {
-      await this.channels.updateStatus(channelConfigId, 'disconnected');
-      this.events.emit('channel.status.changed', { channelConfigId, status: 'disconnected' });
-      return { ok: true };
-    }
+    if (event === 'message') {
+      const data = payload?.data ?? {};
+      const fromMe: boolean = data?.key?.fromMe ?? false;
+      if (fromMe) return { ok: true };
 
-    if (type === 'Message') {
-      const info = payload?.body?.Info;
-      if (!info || info.FromMe) return { ok: true };
-      const text: string = payload?.body?.Text ?? payload?.body?.Message?.Conversation ?? '';
+      const text: string =
+        data?.message?.conversation ??
+        data?.message?.extendedTextMessage?.text ??
+        '';
       if (!text) return { ok: true };
+
       this.events.emit('message.inbound.received', {
         channelConfigId,
         channelType: 'uazapi',
-        externalMessageId: info.ID,
-        from: (info.RemoteJid ?? '').replace('@s.whatsapp.net', ''),
-        fromName: info.PushName ?? '',
+        externalMessageId: data?.key?.id ?? `uza-${Date.now()}`,
+        from: (data?.key?.remoteJid ?? '').replace('@s.whatsapp.net', ''),
+        fromName: data?.pushName ?? '',
         body: text,
-        receivedAt: new Date((info.Timestamp ?? Math.floor(Date.now() / 1000)) * 1000),
+        receivedAt: new Date((data?.messageTimestamp ?? Math.floor(Date.now() / 1000)) * 1000),
       });
     }
 
