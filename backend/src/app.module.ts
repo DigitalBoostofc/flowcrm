@@ -21,6 +21,7 @@ import { LossReasonsModule } from './loss-reasons/loss-reasons.module';
 import { AnalyticsModule } from './analytics/analytics.module';
 import { SearchModule } from './search/search.module';
 import { TasksModule } from './tasks/tasks.module';
+import { CompaniesModule } from './companies/companies.module';
 
 @Module({
   imports: [
@@ -58,6 +59,7 @@ import { TasksModule } from './tasks/tasks.module';
     AnalyticsModule,
     SearchModule,
     TasksModule,
+    CompaniesModule,
   ],
 })
 export class AppModule {}

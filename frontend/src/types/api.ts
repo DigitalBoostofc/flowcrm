@@ -112,6 +112,48 @@ export interface ChannelConfig {
   updatedAt: string;
 }
 
+export type CompanyPrivacy = 'all' | 'restricted';
+
+export interface Company {
+  id: string;
+  name: string;
+  cnpj?: string;
+  razaoSocial?: string;
+  categoria?: string;
+  origem?: string;
+  setor?: string;
+  descricao?: string;
+  responsibleId?: string;
+  responsible?: User;
+  privacy: CompanyPrivacy;
+  additionalAccessUserIds: string[];
+  email?: string;
+  whatsapp?: string;
+  telefone?: string;
+  celular?: string;
+  fax?: string;
+  ramal?: string;
+  website?: string;
+  cep?: string;
+  pais?: string;
+  estado?: string;
+  cidade?: string;
+  bairro?: string;
+  rua?: string;
+  numero?: string;
+  complemento?: string;
+  produtos: string[];
+  pessoaIds: string[];
+  facebook?: string;
+  twitter?: string;
+  linkedin?: string;
+  skype?: string;
+  instagram?: string;
+  ranking?: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export type TaskType = 'email' | 'call' | 'whatsapp' | 'proposal' | 'meeting' | 'visit';
 export type TaskStatus = 'pending' | 'completed';
 export type TaskTargetType = 'contact' | 'lead' | 'company';
