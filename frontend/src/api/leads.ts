@@ -22,7 +22,8 @@ export interface LeadItemInput {
 }
 
 export async function createLead(data: {
-  contactId: string;
+  contactId?: string;
+  companyId?: string;
   pipelineId: string;
   stageId: string;
   title?: string;

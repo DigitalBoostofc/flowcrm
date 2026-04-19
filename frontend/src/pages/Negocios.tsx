@@ -13,7 +13,7 @@ import { listContacts, createContact } from '@/api/contacts';
 import { listCompanies } from '@/api/companies';
 import { listUsers } from '@/api/users';
 import { useAuthStore } from '@/store/auth.store';
-import type { Contact, Lead, LeadStatus, Pipeline, User } from '@/types/api';
+import type { Company, Contact, Lead, LeadStatus, Pipeline, User } from '@/types/api';
 import NegocioDetailPanel from '@/components/negocios/NegocioDetailPanel';
 import ImportModal from '@/components/ui/ImportModal';
 import { toCSV, downloadCSV } from '@/lib/csv';
@@ -327,20 +327,23 @@ function FieldInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
 }
 
 function ContactAutocomplete({
-  value, onChange, label,
+  value, onChange, selectedCompany, onCompanyChange, label,
 }: {
   value: Contact | null;
   onChange: (c: Contact | null) => void;
+  selectedCompany: Company | null;
+  onCompanyChange: (c: Company | null) => void;
   label?: string;
 }) {
-  const [query, setQuery] = useState(value?.name ?? '');
+  const displayName = value?.name ?? selectedCompany?.name ?? '';
+  const [query, setQuery] = useState(displayName);
   const [debounced, setDebounced] = useState('');
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (value) setQuery(value.name);
-  }, [value]);
+    setQuery(value?.name ?? selectedCompany?.name ?? '');
+  }, [value, selectedCompany]);
 
   useEffect(() => {
     const t = setTimeout(() => setDebounced(query.trim()), 250);
@@ -369,22 +372,11 @@ function ContactAutocomplete({
     staleTime: 0,
   });
 
-  const [creatingFromCompany, setCreatingFromCompany] = useState(false);
-
-  const handlePickCompany = async (companyName: string) => {
-    setCreatingFromCompany(true);
-    try {
-      const existing = await listContacts(companyName);
-      const exact = existing.find(
-        (c) => c.name.toLowerCase() === companyName.toLowerCase() && c.company === companyName,
-      );
-      const contact = exact ?? (await createContact({ name: companyName, company: companyName }));
-      onChange(contact);
-      setQuery(contact.name);
-      setOpen(false);
-    } finally {
-      setCreatingFromCompany(false);
-    }
+  const handlePickCompany = (co: Company) => {
+    onCompanyChange(co);
+    onChange(null);
+    setQuery(co.name);
+    setOpen(false);
   };
 
   const hasResults = contactResults.length > 0 || companyResults.length > 0;
@@ -398,13 +390,14 @@ function ContactAutocomplete({
         onChange={(e) => {
           setQuery(e.target.value);
           if (value) onChange(null);
+          if (selectedCompany) onCompanyChange(null);
           setOpen(true);
         }}
       />
-      {value && (
+      {(value || selectedCompany) && (
         <button
           type="button"
-          onClick={(e) => { e.stopPropagation(); onChange(null); setQuery(''); }}
+          onClick={(e) => { e.stopPropagation(); onChange(null); onCompanyChange(null); setQuery(''); }}
           className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-[var(--surface-hover)]"
           style={{ color: 'var(--ink-3)' }}
           title="Limpar"
@@ -426,8 +419,7 @@ function ContactAutocomplete({
                 <button
                   key={`co-${co.id}`}
                   type="button"
-                  disabled={creatingFromCompany}
-                  onClick={() => handlePickCompany(co.name)}
+                  onClick={() => handlePickCompany(co)}
                   className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-[var(--surface-hover)] text-left disabled:opacity-50"
                   style={{ color: 'var(--ink-1)' }}
                 >
@@ -460,6 +452,7 @@ function ContactAutocomplete({
                   type="button"
                   onClick={() => {
                     onChange(c);
+                    onCompanyChange(null);
                     setQuery(c.name);
                     setOpen(false);
                   }}
@@ -512,6 +505,7 @@ function AddNegocioModal({
   );
 
   const [contact, setContact] = useState<Contact | null>(null);
+  const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
   const [title, setTitle] = useState('');
   const [responsibleId, setResponsibleId] = useState<string>('');
   const [value, setValue] = useState('');
@@ -527,6 +521,7 @@ function AddNegocioModal({
   useEffect(() => {
     if (!open) return;
     setContact(null);
+    setSelectedCompany(null);
     setTitle('');
     setResponsibleId(currentUser?.id ?? '');
     setValue('');
@@ -544,7 +539,7 @@ function AddNegocioModal({
 
   const mutation = useMutation({
     mutationFn: async () => {
-      if (!contact) throw new Error('contact');
+      if (!contact && !selectedCompany) throw new Error('contact');
       if (!title.trim()) throw new Error('title');
       if (!selectedPipeline) throw new Error('pipeline');
       const firstStage = (selectedPipeline.stages ?? []).slice().sort((a, b) => a.position - b.position)[0];
@@ -561,7 +556,8 @@ function AddNegocioModal({
         }));
 
       return createLead({
-        contactId: contact.id,
+        contactId: contact?.id,
+        companyId: selectedCompany?.id,
         pipelineId: selectedPipeline.id,
         stageId: firstStage.id,
         title: title.trim(),
@@ -656,7 +652,12 @@ function AddNegocioModal({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <Label required>Empresa / Pessoa</Label>
-                <ContactAutocomplete value={contact} onChange={setContact} />
+                <ContactAutocomplete
+                  value={contact}
+                  onChange={setContact}
+                  selectedCompany={selectedCompany}
+                  onCompanyChange={setSelectedCompany}
+                />
               </div>
               <div>
                 <Label required>Nome do negócio</Label>

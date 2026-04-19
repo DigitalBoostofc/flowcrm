@@ -83,8 +83,10 @@ export interface Pipeline {
 
 export interface Lead {
   id: string;
-  contactId: string;
-  contact?: Contact;
+  contactId: string | null;
+  contact?: Contact | null;
+  companyId?: string | null;
+  company?: Company | null;
   stageId: string;
   stage?: Stage;
   pipelineId: string;

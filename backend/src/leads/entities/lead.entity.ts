@@ -1,5 +1,6 @@
 import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, CreateDateColumn, UpdateDateColumn, JoinColumn } from 'typeorm';
 import { Contact } from '../../contacts/entities/contact.entity';
+import { Company } from '../../companies/entities/company.entity';
 import { Stage } from '../../stages/entities/stage.entity';
 import { Pipeline } from '../../pipelines/entities/pipeline.entity';
 import { User } from '../../users/entities/user.entity';
@@ -31,12 +32,19 @@ export class Lead {
   @Column({ type: 'uuid' })
   workspaceId: string;
 
-  @ManyToOne(() => Contact, (contact) => contact.leads)
+  @ManyToOne(() => Contact, (contact) => contact.leads, { nullable: true })
   @JoinColumn({ name: 'contactId' })
-  contact: Contact;
+  contact: Contact | null;
 
-  @Column()
-  contactId: string;
+  @Column({ nullable: true })
+  contactId: string | null;
+
+  @ManyToOne(() => Company, { nullable: true, onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'companyId' })
+  company: Company | null;
+
+  @Column({ type: 'uuid', nullable: true })
+  companyId: string | null;
 
   @ManyToOne(() => Stage, (stage) => stage.leads)
   @JoinColumn({ name: 'stageId' })

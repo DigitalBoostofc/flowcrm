@@ -3,9 +3,13 @@ import { Type } from 'class-transformer';
 import { LeadItem, LeadPrivacy } from '../entities/lead.entity';
 
 export class CreateLeadDto {
-  @IsNotEmpty()
+  @IsOptional()
   @IsUUID()
-  contactId: string;
+  contactId?: string;
+
+  @IsOptional()
+  @IsUUID()
+  companyId?: string;
 
   @IsNotEmpty()
   @IsUUID()
