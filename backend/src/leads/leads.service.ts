@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { IsNull, LessThan, Repository } from 'typeorm';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { Lead, LeadStatus } from './entities/lead.entity';
+import { Stage } from '../stages/entities/stage.entity';
 import { CreateLeadDto } from './dto/create-lead.dto';
 import { UpdateLeadDto } from './dto/update-lead.dto';
 import { UpdateLeadStatusDto } from './dto/update-lead-status.dto';
@@ -13,6 +14,8 @@ export class LeadsService {
   constructor(
     @InjectRepository(Lead)
     private repo: Repository<Lead>,
+    @InjectRepository(Stage)
+    private stageRepo: Repository<Stage>,
     private eventEmitter: EventEmitter2,
     private readonly tenant: TenantContext,
   ) {}
@@ -94,9 +97,13 @@ export class LeadsService {
     if (!existing) throw new NotFoundException('Lead não encontrado');
     const previousStageId = existing.stageId;
 
+    // Busca o pipelineId da etapa destino para atualizar junto
+    const stage = await this.stageRepo.findOne({ where: { id: stageId } });
+    const pipelineId = stage?.pipelineId ?? existing.pipelineId;
+
     await this.repo.update(
       { id, workspaceId },
-      { stageId, stageEnteredAt: new Date() },
+      { stageId, pipelineId, stageEnteredAt: new Date() },
     );
 
     const updated = await this.findOne(id);

@@ -37,7 +37,7 @@ function LoginForm({ onForgot }: { onForgot: () => void }) {
     try {
       const res = await login(data.email, data.password);
       setAuth(res.accessToken, res.user);
-      navigate('/');
+      navigate('/funil');
     } catch (err: any) {
       setServerError(err.response?.data?.message || 'Credenciais inválidas');
     }

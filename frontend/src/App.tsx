@@ -48,7 +48,8 @@ function AuthedLayout() {
       <ConnectionBanner />
       <BroadcastBanner />
       <Routes>
-        <Route index element={<Inicio />} />
+        <Route index element={<Navigate to="/funil" replace />} />
+        <Route path="inicio" element={<Inicio />} />
         <Route path="pessoas" element={<Pessoas />} />
         <Route path="negocios" element={<Negocios />} />
         <Route path="funil" element={<Funil />} />

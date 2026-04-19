@@ -10,13 +10,13 @@ import GlobalSearch from './GlobalSearch';
 import ThemeToggle from '@/components/ui/ThemeToggle';
 
 const NAV_ITEMS = [
-  { to: '/',           end: true,  icon: Home,           label: 'Início' },
+  { to: '/inicio',                  icon: Home,           label: 'Início' },
   { to: '/analytics',              icon: BarChart2,      label: 'Analytics' },
   { to: '/tasks',                  icon: CheckSquare,    label: 'Tarefas' },
   { to: '/inbox',                  icon: MessageCircle,  label: 'Inbox' },
   { to: '/pessoas',                icon: Users,          label: 'Pessoas' },
   { to: '/companies',              icon: Building2,      label: 'Empresas' },
-  { to: '/negocios',               icon: Briefcase,      label: 'Negócios' },
+  { to: '/funil',                  icon: Briefcase,      label: 'Negócios' },
   { to: '/settings',               icon: SettingsIcon,   label: 'Configurações' },
 ];
 
@@ -87,11 +87,11 @@ export default function Sidebar() {
 
       {/* Nav */}
       <nav className="flex-1 px-2 py-2 space-y-0.5 overflow-y-auto overflow-x-hidden">
-        {NAV_ITEMS.map(({ to, end, icon: Icon, label }) => (
+        {NAV_ITEMS.map(({ to, icon: Icon, label }) => (
           <NavLink
             key={to}
             to={to}
-            end={end}
+            end
             title={collapsed ? label : undefined}
             className={({ isActive }) =>
               `group flex items-center gap-2.5 px-2.5 py-2 rounded-md text-[13px] transition-all duration-100 overflow-hidden ${
