@@ -1,8 +1,9 @@
 import { IsBoolean, IsOptional, IsString, MaxLength } from 'class-validator';
 
-export class CreatePipelineDto {
+export class UpdatePipelineDto {
+  @IsOptional()
   @IsString()
-  name: string;
+  name?: string;
 
   @IsOptional()
   @IsString()

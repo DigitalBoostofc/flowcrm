@@ -11,8 +11,16 @@ export async function getPipeline(id: string): Promise<Pipeline> {
   return res.data;
 }
 
-export async function createPipeline(dto: { name: string; isDefault?: boolean }): Promise<Pipeline> {
+export async function createPipeline(dto: { name: string; sigla?: string; isDefault?: boolean }): Promise<Pipeline> {
   const res = await api.post<Pipeline>('/pipelines', dto);
+  return res.data;
+}
+
+export async function updatePipeline(
+  id: string,
+  dto: { name?: string; sigla?: string; isDefault?: boolean },
+): Promise<Pipeline> {
+  const res = await api.patch<Pipeline>(`/pipelines/${id}`, dto);
   return res.data;
 }
 

@@ -1,6 +1,7 @@
-import { Controller, Get, Post, Body, Param, Delete, UseGuards, HttpCode } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Body, Param, Delete, UseGuards, HttpCode } from '@nestjs/common';
 import { PipelinesService } from './pipelines.service';
 import { CreatePipelineDto } from './dto/create-pipeline.dto';
+import { UpdatePipelineDto } from './dto/update-pipeline.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
@@ -31,6 +32,13 @@ export class PipelinesController {
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.pipelinesService.findOne(id);
+  }
+
+  @Patch(':id')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.OWNER)
+  update(@Param('id') id: string, @Body() dto: UpdatePipelineDto) {
+    return this.pipelinesService.update(id, dto);
   }
 
   @Post(':id/stages')

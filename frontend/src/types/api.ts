@@ -71,6 +71,7 @@ export interface Stage {
 export interface Pipeline {
   id: string;
   name: string;
+  sigla?: string | null;
   isDefault: boolean;
   stages?: Stage[];
   createdAt: string;

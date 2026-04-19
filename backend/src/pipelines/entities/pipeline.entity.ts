@@ -9,6 +9,9 @@ export class Pipeline {
   @Column()
   name: string;
 
+  @Column({ type: 'varchar', length: 10, nullable: true })
+  sigla: string | null;
+
   @Column({ default: false })
   isDefault: boolean;
 

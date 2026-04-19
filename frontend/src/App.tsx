@@ -3,6 +3,7 @@ import Login from '@/pages/Login';
 import Inicio from '@/pages/Inicio';
 import Pessoas from '@/pages/Pessoas';
 import Negocios from '@/pages/Negocios';
+import Funil from '@/pages/Funil';
 import Settings from '@/pages/Settings';
 import Analytics from '@/pages/Analytics';
 import Tasks from '@/pages/Tasks';
@@ -26,6 +27,7 @@ function AuthedLayout() {
         <Route index element={<Inicio />} />
         <Route path="pessoas" element={<Pessoas />} />
         <Route path="negocios" element={<Negocios />} />
+        <Route path="funil" element={<Funil />} />
         <Route path="tasks" element={<Tasks />} />
         <Route path="companies" element={<Companies />} />
         <Route path="analytics" element={<Analytics />} />
