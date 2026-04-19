@@ -524,6 +524,8 @@ function PipelineSidebar({
       <div className="flex flex-col items-center gap-2 w-full">
         {pipelines.map((p) => {
           const active = p.id === selectedId;
+          const isManagement = (p as any).kind === 'management';
+          const activeColor = isManagement ? '#10B981' : 'var(--brand-500, #6366f1)';
           return (
             <button
               key={p.id}
@@ -531,9 +533,9 @@ function PipelineSidebar({
               title={p.name}
               className="w-10 h-10 rounded-lg flex items-center justify-center text-[10px] font-bold tracking-tight transition-all"
               style={{
-                background: active ? 'var(--brand-500, #6366f1)' : 'var(--surface-hover)',
-                color: active ? '#fff' : 'var(--ink-2)',
-                border: active ? '1px solid var(--brand-500, #6366f1)' : '1px solid var(--edge)',
+                background: active ? activeColor : 'var(--surface-hover)',
+                color: active ? '#fff' : (isManagement ? '#10B981' : 'var(--ink-2)'),
+                border: active ? `1px solid ${activeColor}` : '1px solid var(--edge)',
               }}
             >
               {siglaOf(p)}
