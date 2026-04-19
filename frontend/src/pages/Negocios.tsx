@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Search, Filter, ArrowUpDown, Columns3, Download, Upload, Plus,
-  List, GitBranch, Map as MapIcon, TrendingUp, Star, Pencil, Trash2,
+  List, GitBranch, TrendingUp, Star, Pencil, Trash2,
   ChevronDown, Briefcase, X, Settings as SettingsIcon, Lock, Users as UsersIcon,
   DollarSign,
 } from 'lucide-react';
@@ -911,7 +911,7 @@ function AddNegocioModal({
 
 /* ── Page ────────────────────────────────────────────── */
 
-type ViewMode = 'lista' | 'funil' | 'mapa';
+type ViewMode = 'lista' | 'funil';
 
 export default function Negocios() {
   const currentUser = useAuthStore((s) => s.user);
@@ -1065,7 +1065,6 @@ export default function Negocios() {
             {([
               { key: 'lista', label: 'Lista', Icon: List },
               { key: 'funil', label: 'Funil', Icon: GitBranch },
-              { key: 'mapa', label: 'Mapa', Icon: MapIcon },
             ] as const).map(({ key, label, Icon }) => {
               const active = view === key;
               return (
@@ -1183,13 +1182,6 @@ export default function Negocios() {
             onCardClick={(id) => setSelectedLeadId(id)}
           />
         )
-      ) : view === 'mapa' ? (
-        <div
-          className="rounded-xl p-10 text-center text-sm"
-          style={{ background: 'var(--surface)', border: '1px solid var(--edge)', color: 'var(--ink-3)' }}
-        >
-          Visualização em mapa em breve.
-        </div>
       ) : (
       <div
         className="rounded-xl overflow-hidden"
