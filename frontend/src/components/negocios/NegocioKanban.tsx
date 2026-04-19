@@ -1,6 +1,6 @@
 import {
   DndContext, PointerSensor, KeyboardSensor, useSensor, useSensors,
-  pointerWithin, rectIntersection, getFirstCollision,
+  pointerWithin, rectIntersection,
   DragEndEvent, DragStartEvent, DragOverEvent, useDroppable,
   CollisionDetection,
 } from '@dnd-kit/core';
@@ -31,7 +31,6 @@ export default function NegocioKanban({ pipeline, leads, onCardClick }: Props) {
   const pushToast = useToastStore((s) => s.push);
   const [activeLeadId, setActiveLeadId] = useState<string | null>(null);
   const snapshotRef = useRef<Lead[] | null>(null);
-  const overStageIdRef = useRef<string | null>(null);
 
   const stages: Stage[] = useMemo(
     () => (pipeline?.stages ?? []).slice().sort((a, b) => a.position - b.position),
@@ -78,20 +77,18 @@ export default function NegocioKanban({ pipeline, leads, onCardClick }: Props) {
   });
 
   const resolveStageFromOverId = useCallback(
-    (overId: string | null): string | null => {
+    (overId: string | null, allLeads: Lead[]): string | null => {
       if (!overId) return null;
       if (overId.startsWith('stage-')) return overId.replace('stage-', '');
-      for (const [stageId, leadList] of Object.entries(leadsByStage)) {
-        if (leadList.find((l) => l.id === overId)) return stageId;
-      }
-      return null;
+      const found = allLeads.find((l) => l.id === overId);
+      return found?.stageId ?? null;
     },
-    [leadsByStage],
+    [],
   );
 
-  // Prefer column (stage) drop zones when the pointer is inside one; otherwise fall back to
-  // rect intersection so card-over-card still resolves. This fixes drops near the top/bottom
-  // of a column being mis-resolved to the source column.
+  // Prefer the column droppable (stage-<id>) when the pointer is inside it,
+  // otherwise fall back to card collisions. Without this, closestCorners
+  // sometimes returns a card from the source column and the drop becomes a no-op.
   const collisionDetection: CollisionDetection = useCallback((args) => {
     const pointerHits = pointerWithin(args);
     const columnHit = pointerHits.find((c) => String(c.id).startsWith('stage-'));
@@ -102,63 +99,53 @@ export default function NegocioKanban({ pipeline, leads, onCardClick }: Props) {
 
   const handleDragStart = (evt: DragStartEvent) => {
     setActiveLeadId(String(evt.active.id));
-    overStageIdRef.current = null;
+    // Snapshot full cache BEFORE any optimistic moves, so we can revert on cancel/error.
+    snapshotRef.current = qc.getQueryData<Lead[]>(['negocios']) ?? leads;
   };
 
+  // Canonical multi-container pattern: during dragOver we move the active lead
+  // between columns in the local cache, so the SortableContext reflects the
+  // new container. Without this, the dragged card stays registered in the
+  // source column's context and the drop resolves to "same stage" on release.
   const handleDragOver = (evt: DragOverEvent) => {
-    const overId = evt.over ? String(evt.over.id) : null;
-    const stageId = resolveStageFromOverId(overId);
-    if (stageId) overStageIdRef.current = stageId;
+    const { active, over } = evt;
+    if (!over) return;
+    const leadId = String(active.id);
+    const overId = String(over.id);
+    const current = qc.getQueryData<Lead[]>(['negocios']) ?? [];
+    const overStageId = resolveStageFromOverId(overId, current);
+    if (!overStageId) return;
+    const activeLead = current.find((l) => l.id === leadId);
+    if (!activeLead || activeLead.stageId === overStageId) return;
+    qc.setQueryData<Lead[]>(['negocios'], (old = []) =>
+      old.map((l) => (l.id === leadId ? { ...l, stageId: overStageId } : l)),
+    );
   };
 
   const handleDragEnd = (evt: DragEndEvent) => {
     setActiveLeadId(null);
-    const { active, over } = evt;
-
+    const { active } = evt;
     const leadId = String(active.id);
-    const firstCollisionId = getFirstCollision(evt.collisions ?? [], 'id');
-    const fromOver = resolveStageFromOverId(over ? String(over.id) : null);
-    const fromCollision = resolveStageFromOverId(firstCollisionId != null ? String(firstCollisionId) : null);
-    const fromRef = overStageIdRef.current;
-    const targetStageId = fromOver ?? fromCollision ?? fromRef;
 
-    // eslint-disable-next-line no-console
-    console.log('[NegocioKanban] dragEnd', {
-      leadId,
-      overId: over?.id,
-      firstCollisionId,
-      overStageRef: fromRef,
-      resolvedTargetStageId: targetStageId,
-      collisions: evt.collisions?.map((c) => c.id),
-    });
+    const snapshot = snapshotRef.current;
+    const current = qc.getQueryData<Lead[]>(['negocios']) ?? [];
+    const originalLead = snapshot?.find((l) => l.id === leadId);
+    const currentLead = current.find((l) => l.id === leadId);
 
-    overStageIdRef.current = null;
-    if (!targetStageId) {
-      // eslint-disable-next-line no-console
-      console.warn('[NegocioKanban] dragEnd: targetStageId não resolvido');
+    if (!originalLead || !currentLead || originalLead.stageId === currentLead.stageId) {
+      // No effective change — snapshot stays so onSettled can invalidate cleanly.
       return;
     }
 
-    const lead = leads.find((l) => l.id === leadId);
-    if (!lead) {
-      // eslint-disable-next-line no-console
-      console.warn('[NegocioKanban] dragEnd: lead não encontrado', leadId);
-      return;
-    }
-    if (lead.stageId === targetStageId) {
-      // eslint-disable-next-line no-console
-      console.warn('[NegocioKanban] dragEnd: targetStageId igual ao atual — early return', { leadStageId: lead.stageId, targetStageId });
-      return;
-    }
+    mutation.mutate({ id: leadId, stageId: currentLead.stageId });
+  };
 
-    // eslint-disable-next-line no-console
-    console.log('[NegocioKanban] disparando moveLead', { leadId, from: lead.stageId, to: targetStageId });
-
-    snapshotRef.current = leads;
-    qc.setQueryData<Lead[]>(['negocios'], (old = []) =>
-      old.map((l) => (l.id === leadId ? { ...l, stageId: targetStageId } : l)),
-    );
-    mutation.mutate({ id: leadId, stageId: targetStageId });
+  const handleDragCancel = () => {
+    setActiveLeadId(null);
+    if (snapshotRef.current) {
+      qc.setQueryData<Lead[]>(['negocios'], snapshotRef.current);
+      snapshotRef.current = null;
+    }
   };
 
   if (!pipeline || stages.length === 0) {
@@ -179,6 +166,7 @@ export default function NegocioKanban({ pipeline, leads, onCardClick }: Props) {
       onDragStart={handleDragStart}
       onDragOver={handleDragOver}
       onDragEnd={handleDragEnd}
+      onDragCancel={handleDragCancel}
     >
       {/* gap-2.5 e colunas de 200px para caber mais na tela */}
       <div className="flex gap-2.5 overflow-x-auto pb-3" style={{ minHeight: 'calc(100vh - 200px)' }}>

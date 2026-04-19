@@ -89,11 +89,17 @@ export class LeadsService {
   }
 
   async move(id: string, stageId: string): Promise<Lead> {
-    const lead = await this.findOne(id);
-    const previousStageId = lead.stageId;
-    lead.stageId = stageId;
-    lead.stageEnteredAt = new Date();
-    const updated = await this.repo.save(lead);
+    const workspaceId = this.tenant.requireWorkspaceId();
+    const existing = await this.repo.findOne({ where: { id, workspaceId } });
+    if (!existing) throw new NotFoundException('Lead não encontrado');
+    const previousStageId = existing.stageId;
+
+    await this.repo.update(
+      { id, workspaceId },
+      { stageId, stageEnteredAt: new Date() },
+    );
+
+    const updated = await this.findOne(id);
     this.eventEmitter.emit('lead.moved', { lead: updated, previousStageId, newStageId: stageId });
     return updated;
   }
