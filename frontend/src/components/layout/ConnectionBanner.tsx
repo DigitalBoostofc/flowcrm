@@ -1,10 +1,22 @@
+import { useEffect, useState } from 'react';
 import { WifiOff } from 'lucide-react';
 import { useWs } from '@/hooks/useWebSocket';
 
 export default function ConnectionBanner() {
   const { connected } = useWs();
+  const [show, setShow] = useState(false);
 
-  if (connected) return null;
+  useEffect(() => {
+    if (connected) {
+      setShow(false);
+      return;
+    }
+    // Só exibe após 3s desconectado para evitar flash no carregamento
+    const t = setTimeout(() => setShow(true), 3000);
+    return () => clearTimeout(t);
+  }, [connected]);
+
+  if (!show) return null;
 
   return (
     <div
