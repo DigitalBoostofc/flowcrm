@@ -358,13 +358,15 @@ function ContactAutocomplete({
   const { data: contactResults = [] } = useQuery({
     queryKey: ['contacts-autocomplete', debounced],
     queryFn: () => listContacts(debounced || undefined),
-    enabled: open,
+    enabled: true,
+    staleTime: 0,
   });
 
   const { data: companyResults = [] } = useQuery({
     queryKey: ['companies-autocomplete', debounced],
     queryFn: () => listCompanies(debounced || undefined),
-    enabled: open,
+    enabled: true,
+    staleTime: 0,
   });
 
   const [creatingFromCompany, setCreatingFromCompany] = useState(false);
