@@ -2,7 +2,7 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import {
   LayoutDashboard, Users, Settings as SettingsIcon, LogOut,
-  ListChecks, BarChart2, Zap, ChevronLeft, ChevronRight,
+  ListChecks, BarChart2, Zap,
 } from 'lucide-react';
 import { useAuthStore } from '@/store/auth.store';
 import { useSidebarStore } from '@/store/sidebar.store';
@@ -38,27 +38,6 @@ export default function Sidebar() {
         transition: 'width 0.22s cubic-bezier(0.4, 0, 0.2, 1)',
       }}
     >
-      {/* Toggle button — vertically centered, half outside the sidebar */}
-      <button
-        onClick={toggle}
-        title={collapsed ? 'Expandir sidebar' : 'Recolher sidebar'}
-        className="absolute z-20 flex items-center justify-center shadow-md transition-all duration-150 hover:scale-110 active:scale-95"
-        style={{
-          top: '50%',
-          right: '-12px',
-          transform: 'translateY(-50%)',
-          width: '24px',
-          height: '24px',
-          borderRadius: '50%',
-          background: 'var(--surface-raised)',
-          border: '1px solid var(--edge-strong)',
-          color: 'var(--ink-2)',
-        }}
-      >
-        {collapsed
-          ? <ChevronRight className="w-3 h-3" />
-          : <ChevronLeft className="w-3 h-3" />}
-      </button>
 
       {/* Logo */}
       <div
