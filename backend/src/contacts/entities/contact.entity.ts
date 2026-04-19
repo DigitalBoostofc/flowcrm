@@ -33,6 +33,12 @@ export class Contact {
   @Column({ nullable: true })
   zipCode: string;
 
+  @Column({ nullable: true })
+  categoria: string;
+
+  @Column({ type: 'uuid', nullable: true })
+  responsibleId: string;
+
   @OneToMany(() => Lead, (lead) => lead.contact)
   leads: Lead[];
 

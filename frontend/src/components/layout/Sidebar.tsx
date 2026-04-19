@@ -12,7 +12,7 @@ import ThemeToggle from '@/components/ui/ThemeToggle';
 const NAV_ITEMS = [
   { to: '/', end: true,  icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/analytics',    icon: BarChart2,        label: 'Analytics' },
-  { to: '/contacts',     icon: Users,            label: 'Contatos' },
+  { to: '/pessoas',      icon: Users,            label: 'Pessoas' },
   { to: '/companies',    icon: Building2,        label: 'Empresas' },
   { to: '/tasks',        icon: CheckSquare,      label: 'Tarefas' },
   { to: '/settings',     icon: SettingsIcon,     label: 'Configurações' },

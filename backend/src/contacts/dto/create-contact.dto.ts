@@ -39,4 +39,13 @@ export class CreateContactDto {
   @IsString()
   @MaxLength(20)
   zipCode?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  categoria?: string;
+
+  @IsOptional()
+  @IsString()
+  responsibleId?: string;
 }

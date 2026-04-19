@@ -1,7 +1,7 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import Login from '@/pages/Login';
 import Dashboard from '@/pages/Dashboard';
-import Contacts from '@/pages/Contacts';
+import Pessoas from '@/pages/Pessoas';
 import Settings from '@/pages/Settings';
 import Analytics from '@/pages/Analytics';
 import Tasks from '@/pages/Tasks';
@@ -23,7 +23,7 @@ function AuthedLayout() {
       <ConnectionBanner />
       <Routes>
         <Route index element={<Dashboard />} />
-        <Route path="contacts" element={<Contacts />} />
+        <Route path="pessoas" element={<Pessoas />} />
         <Route path="tasks" element={<Tasks />} />
         <Route path="companies" element={<Companies />} />
         <Route path="analytics" element={<Analytics />} />

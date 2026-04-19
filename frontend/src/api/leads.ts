@@ -8,6 +8,14 @@ export async function listLeads(pipelineId: string, staleDays?: number): Promise
   return res.data;
 }
 
+export interface LeadItemInput {
+  productName: string;
+  unitPrice: number;
+  quantity: number;
+  discount: number;
+  discountType: 'value' | 'percent';
+}
+
 export async function createLead(data: {
   contactId: string;
   pipelineId: string;
@@ -15,6 +23,12 @@ export async function createLead(data: {
   title?: string;
   value?: number;
   notes?: string;
+  assignedToId?: string;
+  startDate?: string;
+  conclusionDate?: string;
+  privacy?: 'all' | 'restricted';
+  additionalAccessUserIds?: string[];
+  items?: LeadItemInput[];
 }): Promise<Lead> {
   const res = await api.post<Lead>('/leads', data);
   return res.data;

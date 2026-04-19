@@ -22,6 +22,12 @@ export interface Contact {
   email?: string;
   channelOrigin?: string;
   origin?: string;
+  company?: string;
+  role?: string;
+  website?: string;
+  zipCode?: string;
+  categoria?: string;
+  responsibleId?: string;
   leads?: Lead[];
   createdAt: string;
   updatedAt: string;

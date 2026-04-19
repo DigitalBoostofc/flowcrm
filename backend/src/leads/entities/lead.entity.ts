@@ -10,6 +10,19 @@ export enum LeadStatus {
   LOST = 'lost',
 }
 
+export enum LeadPrivacy {
+  ALL = 'all',
+  RESTRICTED = 'restricted',
+}
+
+export interface LeadItem {
+  productName: string;
+  unitPrice: number;
+  quantity: number;
+  discount: number;
+  discountType: 'value' | 'percent';
+}
+
 @Entity('leads')
 export class Lead {
   @PrimaryGeneratedColumn('uuid')
@@ -69,6 +82,15 @@ export class Lead {
 
   @Column({ type: 'timestamp', nullable: true })
   archivedAt: Date | null;
+
+  @Column({ type: 'enum', enum: LeadPrivacy, default: LeadPrivacy.ALL })
+  privacy: LeadPrivacy;
+
+  @Column({ type: 'jsonb', default: () => `'[]'` })
+  additionalAccessUserIds: string[];
+
+  @Column({ type: 'jsonb', default: () => `'[]'` })
+  items: LeadItem[];
 
   @CreateDateColumn()
   createdAt: Date;
