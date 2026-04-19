@@ -1,14 +1,17 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Search, Filter, ArrowUpDown, Columns3, Download, Upload, Plus,
   List, GitBranch, Map as MapIcon, TrendingUp, Star, Pencil, Trash2,
-  ChevronDown, Briefcase,
+  ChevronDown, Briefcase, X, Settings as SettingsIcon, Lock, Users as UsersIcon,
 } from 'lucide-react';
-import { listAllLeads, updateLead, updateLeadStatus, moveLead, deleteLead } from '@/api/leads';
+import { listAllLeads, createLead, updateLead, updateLeadStatus, moveLead, deleteLead } from '@/api/leads';
+import type { LeadItemInput } from '@/api/leads';
 import { listPipelines } from '@/api/pipelines';
+import { listContacts } from '@/api/contacts';
 import { listUsers } from '@/api/users';
-import type { Lead, LeadStatus, User } from '@/types/api';
+import { useAuthStore } from '@/store/auth.store';
+import type { Contact, Lead, LeadStatus, Pipeline, User } from '@/types/api';
 
 /* ── Avatar helpers ──────────────────────────────────── */
 
@@ -277,14 +280,642 @@ function EmptyState({ onAdd }: { onAdd: () => void }) {
   );
 }
 
+/* ── AddNegocioModal ─────────────────────────────────── */
+
+type Privacy = 'all' | 'restricted';
+
+function SectionTitle({ title }: { title: string }) {
+  return <h3 className="text-sm font-semibold mb-3" style={{ color: 'var(--ink-1)' }}>{title}</h3>;
+}
+
+function Label({ children, required }: { children: React.ReactNode; required?: boolean }) {
+  return (
+    <label className="flex items-center justify-between text-xs font-semibold mb-1" style={{ color: 'var(--ink-2)' }}>
+      <span>{children}</span>
+      {required && <span className="text-[10px] italic font-normal" style={{ color: 'var(--ink-3)' }}>Obrigatório</span>}
+    </label>
+  );
+}
+
+function FieldInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
+  return (
+    <input
+      {...props}
+      className="w-full px-3 py-2 rounded-lg outline-none text-sm focus:border-[var(--brand-500)] disabled:opacity-60"
+      style={{
+        background: 'var(--surface)',
+        border: '1px solid var(--edge)',
+        color: 'var(--ink-1)',
+      }}
+    />
+  );
+}
+
+function ContactAutocomplete({
+  value, onChange, label,
+}: {
+  value: Contact | null;
+  onChange: (c: Contact | null) => void;
+  label?: string;
+}) {
+  const [query, setQuery] = useState(value?.name ?? '');
+  const [debounced, setDebounced] = useState('');
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (value) setQuery(value.name);
+  }, [value]);
+
+  useEffect(() => {
+    const t = setTimeout(() => setDebounced(query.trim()), 250);
+    return () => clearTimeout(t);
+  }, [query]);
+
+  useEffect(() => {
+    const onDocClick = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', onDocClick);
+    return () => document.removeEventListener('mousedown', onDocClick);
+  }, []);
+
+  const { data: results = [] } = useQuery({
+    queryKey: ['contacts-autocomplete', debounced],
+    queryFn: () => listContacts(debounced || undefined),
+    enabled: open,
+  });
+
+  return (
+    <div className="relative" ref={ref}>
+      <FieldInput
+        placeholder={label ?? 'Digite o nome do cliente'}
+        value={query}
+        onFocus={() => setOpen(true)}
+        onChange={(e) => {
+          setQuery(e.target.value);
+          if (value) onChange(null);
+          setOpen(true);
+        }}
+      />
+      {value && (
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); onChange(null); setQuery(''); }}
+          className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-[var(--surface-hover)]"
+          style={{ color: 'var(--ink-3)' }}
+          title="Limpar"
+        >
+          <X className="w-3.5 h-3.5" />
+        </button>
+      )}
+      {open && results.length > 0 && (
+        <div
+          className="absolute top-full left-0 right-0 mt-1 rounded-lg shadow-lg z-30 max-h-64 overflow-y-auto py-1"
+          style={{ background: 'var(--surface-raised)', border: '1px solid var(--edge)' }}
+        >
+          {results.slice(0, 20).map((c) => (
+            <button
+              key={c.id}
+              type="button"
+              onClick={() => {
+                onChange(c);
+                setQuery(c.name);
+                setOpen(false);
+              }}
+              className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-[var(--surface-hover)] text-left"
+              style={{ color: 'var(--ink-1)' }}
+            >
+              <Avatar name={c.name} id={c.id} size={24} />
+              <div className="min-w-0">
+                <div className="truncate">{c.name}</div>
+                {c.company && (
+                  <div className="text-xs truncate" style={{ color: 'var(--ink-3)' }}>{c.company}</div>
+                )}
+              </div>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+type ProductDraft = {
+  productName: string;
+  unitPrice: string;
+  quantity: string;
+  discount: string;
+  discountType: 'value' | 'percent';
+};
+
+function emptyProductDraft(): ProductDraft {
+  return { productName: '', unitPrice: '', quantity: '1', discount: '0', discountType: 'value' };
+}
+
+function AddNegocioModal({
+  open, onClose, pipelines, users, currentUser,
+}: {
+  open: boolean;
+  onClose: () => void;
+  pipelines: Pipeline[];
+  users: User[];
+  currentUser: User | null;
+}) {
+  const qc = useQueryClient();
+
+  const defaultPipeline = useMemo(
+    () => pipelines.find((p) => p.isDefault) ?? pipelines[0] ?? null,
+    [pipelines],
+  );
+
+  const [contact, setContact] = useState<Contact | null>(null);
+  const [title, setTitle] = useState('');
+  const [responsibleId, setResponsibleId] = useState<string>('');
+  const [value, setValue] = useState('');
+  const [pipelineId, setPipelineId] = useState<string>('');
+  const [startDate, setStartDate] = useState('');
+  const [conclusionDate, setConclusionDate] = useState('');
+  const [notes, setNotes] = useState('');
+  const [privacy, setPrivacy] = useState<Privacy>('all');
+  const [additionalAccess, setAdditionalAccess] = useState<string[]>([]);
+  const [products, setProducts] = useState<ProductDraft[]>([]);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (!open) return;
+    setContact(null);
+    setTitle('');
+    setResponsibleId(currentUser?.id ?? '');
+    setValue('');
+    setPipelineId(defaultPipeline?.id ?? '');
+    setStartDate('');
+    setConclusionDate('');
+    setNotes('');
+    setPrivacy('all');
+    setAdditionalAccess([]);
+    setProducts([]);
+    setError('');
+  }, [open, currentUser, defaultPipeline]);
+
+  const selectedPipeline = pipelines.find((p) => p.id === pipelineId) ?? null;
+
+  const mutation = useMutation({
+    mutationFn: async () => {
+      if (!contact) throw new Error('contact');
+      if (!title.trim()) throw new Error('title');
+      if (!selectedPipeline) throw new Error('pipeline');
+      const firstStage = (selectedPipeline.stages ?? []).slice().sort((a, b) => a.position - b.position)[0];
+      if (!firstStage) throw new Error('stage');
+
+      const items: LeadItemInput[] = products
+        .filter((p) => p.productName.trim())
+        .map((p) => ({
+          productName: p.productName.trim(),
+          unitPrice: Number(p.unitPrice) || 0,
+          quantity: Number(p.quantity) || 1,
+          discount: Number(p.discount) || 0,
+          discountType: p.discountType,
+        }));
+
+      return createLead({
+        contactId: contact.id,
+        pipelineId: selectedPipeline.id,
+        stageId: firstStage.id,
+        title: title.trim(),
+        value: value ? Number(value) : undefined,
+        assignedToId: responsibleId || undefined,
+        startDate: startDate || undefined,
+        conclusionDate: conclusionDate || undefined,
+        notes: notes.trim() || undefined,
+        privacy,
+        additionalAccessUserIds: privacy === 'restricted' ? additionalAccess : [],
+        items: items.length ? items : undefined,
+      });
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['negocios'] });
+      qc.invalidateQueries({ queryKey: ['leads'] });
+      onClose();
+    },
+    onError: (err: any) => {
+      const code = err?.message;
+      if (code === 'contact') setError('Selecione uma empresa ou pessoa.');
+      else if (code === 'title') setError('Informe o nome do negócio.');
+      else if (code === 'pipeline') setError('Selecione um funil.');
+      else if (code === 'stage') setError('O funil selecionado não possui etapas.');
+      else setError('Erro ao criar negócio.');
+    },
+  });
+
+  const submit = () => {
+    setError('');
+    mutation.mutate();
+  };
+
+  if (!open) return null;
+
+  const updateProduct = (idx: number, patch: Partial<ProductDraft>) => {
+    setProducts((prev) => prev.map((p, i) => (i === idx ? { ...p, ...patch } : p)));
+  };
+
+  const removeProduct = (idx: number) => setProducts((prev) => prev.filter((_, i) => i !== idx));
+
+  const productTotal = (p: ProductDraft) => {
+    const subtotal = (Number(p.unitPrice) || 0) * (Number(p.quantity) || 0);
+    const disc = Number(p.discount) || 0;
+    return p.discountType === 'percent' ? subtotal * (1 - disc / 100) : subtotal - disc;
+  };
+
+  const productsTotal = products.reduce((s, p) => s + productTotal(p), 0);
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-start justify-center p-4 overflow-y-auto"
+      style={{ background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)' }}
+      onClick={onClose}
+    >
+      <div
+        className="glass-raised rounded-xl shadow-2xl max-w-3xl w-full my-8 animate-fade-up"
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+      >
+        {/* Header */}
+        <div
+          className="flex items-center justify-between px-6 py-4 sticky top-0 z-10"
+          style={{ borderBottom: '1px solid var(--edge)', background: 'var(--surface-raised)', borderRadius: '12px 12px 0 0' }}
+        >
+          <h2 className="text-lg font-semibold" style={{ color: 'var(--ink-1)' }}>Adicionar novo negócio</h2>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium"
+              style={{ color: 'var(--brand-500, #6366f1)', background: 'var(--surface-hover)' }}
+            >
+              <SettingsIcon className="w-3.5 h-3.5" />
+              Personalize este formulário
+            </button>
+            <button
+              onClick={onClose}
+              className="p-1 rounded hover:bg-[var(--surface-hover)]"
+              style={{ color: 'var(--ink-3)' }}
+              title="Fechar"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+
+        <form onSubmit={(e) => { e.preventDefault(); submit(); }} className="px-6 py-5 space-y-8">
+          {/* Dados básicos */}
+          <section>
+            <SectionTitle title="Dados básicos" />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label required>Empresa / Pessoa</Label>
+                <ContactAutocomplete value={contact} onChange={setContact} />
+              </div>
+              <div>
+                <Label required>Nome do negócio</Label>
+                <FieldInput
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  placeholder="Ex.: Proposta comercial"
+                />
+              </div>
+              <div>
+                <Label>Responsável</Label>
+                <select
+                  value={responsibleId}
+                  onChange={(e) => setResponsibleId(e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg outline-none text-sm"
+                  style={{
+                    background: 'var(--surface)',
+                    border: '1px solid var(--edge)',
+                    color: responsibleId ? 'var(--ink-1)' : 'var(--ink-3)',
+                  }}
+                >
+                  <option value="">Selecione um responsável</option>
+                  {users.map((u) => (
+                    <option key={u.id} value={u.id}>
+                      {u.id === currentUser?.id ? `Eu (${u.name})` : u.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <Label>Valor total</Label>
+                <FieldInput
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={value}
+                  onChange={(e) => setValue(e.target.value)}
+                  placeholder="R$ 0,00"
+                />
+              </div>
+              <div>
+                <Label>Funil</Label>
+                <select
+                  value={pipelineId}
+                  onChange={(e) => setPipelineId(e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg outline-none text-sm"
+                  style={{
+                    background: 'var(--surface)',
+                    border: '1px solid var(--edge)',
+                    color: pipelineId ? 'var(--ink-1)' : 'var(--ink-3)',
+                  }}
+                >
+                  <option value="">Selecione um funil</option>
+                  {pipelines.map((p) => (
+                    <option key={p.id} value={p.id}>{p.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label>Data de início</Label>
+                  <FieldInput
+                    type="date"
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                    placeholder="00/00/0000"
+                  />
+                </div>
+                <div>
+                  <Label>Data de conclusão</Label>
+                  <FieldInput
+                    type="date"
+                    value={conclusionDate}
+                    onChange={(e) => setConclusionDate(e.target.value)}
+                    placeholder="00/00/0000"
+                  />
+                </div>
+              </div>
+              <div className="md:col-span-2">
+                <Label>Descrição</Label>
+                <textarea
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  rows={3}
+                  placeholder="Escreva detalhes importantes sobre esse cliente"
+                  className="w-full px-3 py-2 rounded-lg outline-none text-sm resize-none"
+                  style={{
+                    background: 'var(--surface)',
+                    border: '1px solid var(--edge)',
+                    color: 'var(--ink-1)',
+                  }}
+                />
+              </div>
+            </div>
+          </section>
+
+          <div style={{ borderTop: '1px solid var(--edge)' }} />
+
+          {/* Privacidade */}
+          <section>
+            <SectionTitle title="Privacidade" />
+            <p className="text-xs mb-3" style={{ color: 'var(--ink-3)' }}>Quem pode ver o histórico e editar esse negócio?</p>
+
+            <div className="space-y-2">
+              <button
+                type="button"
+                onClick={() => setPrivacy('all')}
+                className="w-full flex items-start gap-3 p-3 rounded-lg text-left transition-colors"
+                style={{
+                  border: `1px solid ${privacy === 'all' ? 'var(--brand-500, #6366f1)' : 'var(--edge)'}`,
+                  background: privacy === 'all' ? 'rgba(99,102,241,0.06)' : 'var(--surface)',
+                }}
+              >
+                <span
+                  className="mt-0.5 w-4 h-4 rounded-full flex items-center justify-center flex-shrink-0"
+                  style={{
+                    border: `2px solid ${privacy === 'all' ? 'var(--brand-500, #6366f1)' : 'var(--edge-strong, var(--edge))'}`,
+                    background: privacy === 'all' ? 'var(--brand-500, #6366f1)' : 'transparent',
+                  }}
+                >
+                  {privacy === 'all' && <span className="w-1.5 h-1.5 rounded-full bg-white" />}
+                </span>
+                <div>
+                  <div className="flex items-center gap-1.5 text-sm font-medium" style={{ color: 'var(--ink-1)' }}>
+                    <UsersIcon className="w-3.5 h-3.5" /> Todos
+                  </div>
+                  <div className="text-xs mt-0.5" style={{ color: 'var(--ink-3)' }}>
+                    Todos os usuários da conta terão acesso.
+                  </div>
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setPrivacy('restricted')}
+                className="w-full flex items-start gap-3 p-3 rounded-lg text-left transition-colors"
+                style={{
+                  border: `1px solid ${privacy === 'restricted' ? 'var(--brand-500, #6366f1)' : 'var(--edge)'}`,
+                  background: privacy === 'restricted' ? 'rgba(99,102,241,0.06)' : 'var(--surface)',
+                }}
+              >
+                <span
+                  className="mt-0.5 w-4 h-4 rounded-full flex items-center justify-center flex-shrink-0"
+                  style={{
+                    border: `2px solid ${privacy === 'restricted' ? 'var(--brand-500, #6366f1)' : 'var(--edge-strong, var(--edge))'}`,
+                    background: privacy === 'restricted' ? 'var(--brand-500, #6366f1)' : 'transparent',
+                  }}
+                >
+                  {privacy === 'restricted' && <span className="w-1.5 h-1.5 rounded-full bg-white" />}
+                </span>
+                <div>
+                  <div className="flex items-center gap-1.5 text-sm font-medium" style={{ color: 'var(--ink-1)' }}>
+                    <Lock className="w-3.5 h-3.5" /> Acesso restrito
+                  </div>
+                  <div className="text-xs mt-0.5" style={{ color: 'var(--ink-3)' }}>
+                    O responsável, seus líderes e os administradores da conta sempre terão acesso. Você também pode conceder acesso a outros usuários.
+                  </div>
+                </div>
+              </button>
+            </div>
+
+            {privacy === 'restricted' && (
+              <div className="mt-4">
+                <Label>Acessos adicionais</Label>
+                <div
+                  className="rounded-lg p-2 min-h-[42px] flex flex-wrap gap-1.5"
+                  style={{ background: 'var(--surface)', border: '1px solid var(--edge)' }}
+                >
+                  {additionalAccess.length === 0 && (
+                    <span className="text-sm" style={{ color: 'var(--ink-3)' }}>Selecionar...</span>
+                  )}
+                  {additionalAccess.map((id) => {
+                    const u = users.find((x) => x.id === id);
+                    if (!u) return null;
+                    return (
+                      <span
+                        key={id}
+                        className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs"
+                        style={{ background: 'var(--surface-hover)', color: 'var(--ink-1)' }}
+                      >
+                        {u.name}
+                        <button
+                          type="button"
+                          onClick={() => setAdditionalAccess((prev) => prev.filter((x) => x !== id))}
+                          className="hover:opacity-70"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </span>
+                    );
+                  })}
+                </div>
+                <div className="flex flex-wrap gap-1.5 mt-2">
+                  {users
+                    .filter((u) => !additionalAccess.includes(u.id) && u.id !== currentUser?.id)
+                    .map((u) => (
+                      <button
+                        key={u.id}
+                        type="button"
+                        onClick={() => setAdditionalAccess((prev) => [...prev, u.id])}
+                        className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs hover:bg-[var(--surface-hover)]"
+                        style={{ border: '1px solid var(--edge)', color: 'var(--ink-2)' }}
+                      >
+                        <Plus className="w-3 h-3" /> {u.name}
+                      </button>
+                    ))}
+                </div>
+              </div>
+            )}
+          </section>
+
+          <div style={{ borderTop: '1px solid var(--edge)' }} />
+
+          {/* Produtos e serviços */}
+          <section>
+            <SectionTitle title="Produtos e serviços" />
+            <p className="text-xs mb-3" style={{ color: 'var(--ink-3)' }}>
+              Adicione produtos ou serviços com valor e quantidade na sua oportunidade de venda.
+            </p>
+
+            {products.length > 0 && (
+              <div className="space-y-2 mb-3">
+                {products.map((p, idx) => (
+                  <div
+                    key={idx}
+                    className="rounded-lg p-3 grid gap-2"
+                    style={{
+                      background: 'var(--surface)',
+                      border: '1px solid var(--edge)',
+                      gridTemplateColumns: '2fr 1fr 80px 1fr 32px',
+                    }}
+                  >
+                    <input
+                      placeholder="Nome do produto"
+                      value={p.productName}
+                      onChange={(e) => updateProduct(idx, { productName: e.target.value })}
+                      className="px-2 py-1.5 rounded-md outline-none text-sm"
+                      style={{ background: 'var(--surface-raised)', border: '1px solid var(--edge)', color: 'var(--ink-1)' }}
+                    />
+                    <input
+                      type="number"
+                      placeholder="Valor unit."
+                      value={p.unitPrice}
+                      onChange={(e) => updateProduct(idx, { unitPrice: e.target.value })}
+                      className="px-2 py-1.5 rounded-md outline-none text-sm"
+                      style={{ background: 'var(--surface-raised)', border: '1px solid var(--edge)', color: 'var(--ink-1)' }}
+                    />
+                    <input
+                      type="number"
+                      placeholder="Qtd."
+                      value={p.quantity}
+                      onChange={(e) => updateProduct(idx, { quantity: e.target.value })}
+                      className="px-2 py-1.5 rounded-md outline-none text-sm"
+                      style={{ background: 'var(--surface-raised)', border: '1px solid var(--edge)', color: 'var(--ink-1)' }}
+                    />
+                    <div className="flex gap-1">
+                      <input
+                        type="number"
+                        placeholder="Desc."
+                        value={p.discount}
+                        onChange={(e) => updateProduct(idx, { discount: e.target.value })}
+                        className="w-full px-2 py-1.5 rounded-md outline-none text-sm"
+                        style={{ background: 'var(--surface-raised)', border: '1px solid var(--edge)', color: 'var(--ink-1)' }}
+                      />
+                      <select
+                        value={p.discountType}
+                        onChange={(e) => updateProduct(idx, { discountType: e.target.value as 'value' | 'percent' })}
+                        className="px-1 py-1.5 rounded-md outline-none text-xs"
+                        style={{ background: 'var(--surface-raised)', border: '1px solid var(--edge)', color: 'var(--ink-1)' }}
+                      >
+                        <option value="value">R$</option>
+                        <option value="percent">%</option>
+                      </select>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => removeProduct(idx)}
+                      className="p-1.5 rounded-md hover:bg-red-500/10 hover:text-red-500"
+                      style={{ color: 'var(--ink-3)' }}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                ))}
+                <div className="flex justify-end text-xs" style={{ color: 'var(--ink-3)' }}>
+                  Total produtos: <span className="ml-2 font-semibold" style={{ color: 'var(--ink-1)' }}>{formatBRL(productsTotal)}</span>
+                </div>
+              </div>
+            )}
+
+            <button
+              type="button"
+              onClick={() => setProducts((prev) => [...prev, emptyProductDraft()])}
+              className="flex items-center gap-1.5 text-sm font-medium"
+              style={{ color: 'var(--brand-500, #6366f1)' }}
+            >
+              <Plus className="w-4 h-4" /> Adicionar
+            </button>
+          </section>
+
+          {error && <p className="text-xs text-red-500">{error}</p>}
+        </form>
+
+        {/* Footer */}
+        <div
+          className="flex items-center justify-end gap-3 px-6 py-4 sticky bottom-0"
+          style={{ borderTop: '1px solid var(--edge)', background: 'var(--surface-raised)', borderRadius: '0 0 12px 12px' }}
+        >
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-4 py-2 rounded-lg text-sm font-medium transition-colors hover:bg-[var(--surface-hover)]"
+            style={{ color: 'var(--ink-2)', border: '1px solid var(--edge)' }}
+          >
+            Cancelar
+          </button>
+          <button
+            type="button"
+            onClick={submit}
+            disabled={mutation.isPending}
+            className="px-5 py-2 rounded-lg text-sm font-semibold text-white disabled:opacity-50"
+            style={{ background: 'var(--brand-500, #6366f1)' }}
+          >
+            {mutation.isPending ? 'Salvando...' : 'Salvar'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ── Page ────────────────────────────────────────────── */
 
 type ViewMode = 'lista' | 'funil' | 'mapa';
 
 export default function Negocios() {
+  const currentUser = useAuthStore((s) => s.user);
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [view, setView] = useState<ViewMode>('lista');
+  const [addOpen, setAddOpen] = useState(false);
 
   useEffect(() => {
     const t = setTimeout(() => setDebouncedSearch(search.trim().toLowerCase()), 300);
@@ -463,6 +1094,7 @@ export default function Negocios() {
             Exportar
           </button>
           <button
+            onClick={() => setAddOpen(true)}
             className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-white shadow-sm transition-all hover:opacity-90"
             style={{ background: 'var(--brand-500, #6366f1)' }}
           >
@@ -502,7 +1134,7 @@ export default function Negocios() {
             Carregando...
           </div>
         ) : filteredLeads.length === 0 ? (
-          <EmptyState onAdd={() => { /* TODO: open Adicionar negócio */ }} />
+          <EmptyState onAdd={() => setAddOpen(true)} />
         ) : (
           <div>
             {filteredLeads.map((lead, idx) => {
@@ -592,6 +1224,14 @@ export default function Negocios() {
       <div className="flex justify-end text-xs" style={{ color: 'var(--ink-3)' }}>
         Exibindo {total} de {total} negócio{total !== 1 ? 's' : ''}
       </div>
+
+      <AddNegocioModal
+        open={addOpen}
+        onClose={() => setAddOpen(false)}
+        pipelines={pipelines}
+        users={users}
+        currentUser={currentUser}
+      />
     </div>
   );
 }
