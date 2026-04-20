@@ -48,13 +48,23 @@ export class ProductsService {
     const workspaceId = this.tenant.requireWorkspaceId();
     const name = dto.name.trim();
     if (!name) throw new BadRequestException('Nome inválido');
-    const existing = await this.repo.findOne({ where: { workspaceId, name } });
-    if (existing) throw new ConflictException('Produto/serviço já existe');
+    const clientId = dto.clientId ?? null;
+    const clientType = dto.clientType ?? null;
+    const appliesTo: ProductAppliesTo =
+      dto.appliesTo ??
+      (clientType === 'company' ? 'empresa' : clientType === 'contact' ? 'pessoa' : 'ambos');
+    if (clientId) {
+      const dup = await this.repo.findOne({ where: { workspaceId, clientId, name } });
+      if (dup) throw new ConflictException('Produto/serviço já cadastrado para este cliente');
+    }
     const entity = this.repo.create({
       workspaceId,
       name,
+      clientId,
+      clientType,
+      clientName: dto.clientName?.trim() || null,
       type: dto.type ?? 'produto',
-      appliesTo: dto.appliesTo ?? 'ambos',
+      appliesTo,
       price: dto.price != null ? String(dto.price) : null,
       active: dto.active ?? true,
     });
@@ -69,14 +79,20 @@ export class ProductsService {
     if (dto.name !== undefined) {
       const name = dto.name.trim();
       if (!name) throw new BadRequestException('Nome inválido');
-      if (name !== entity.name) {
-        const dup = await this.repo.findOne({ where: { workspaceId, name } });
-        if (dup) throw new ConflictException('Produto/serviço já existe');
-      }
       entity.name = name;
     }
+    if (dto.clientId !== undefined) entity.clientId = dto.clientId;
+    if (dto.clientType !== undefined) entity.clientType = dto.clientType;
+    if (dto.clientName !== undefined) {
+      entity.clientName = dto.clientName ? dto.clientName.trim() : null;
+    }
     if (dto.type !== undefined) entity.type = dto.type;
-    if (dto.appliesTo !== undefined) entity.appliesTo = dto.appliesTo;
+    if (dto.appliesTo !== undefined) {
+      entity.appliesTo = dto.appliesTo;
+    } else if (dto.clientType !== undefined) {
+      entity.appliesTo =
+        dto.clientType === 'company' ? 'empresa' : dto.clientType === 'contact' ? 'pessoa' : 'ambos';
+    }
     if (dto.price !== undefined) entity.price = dto.price != null ? String(dto.price) : null;
     if (dto.active !== undefined) entity.active = dto.active;
 
