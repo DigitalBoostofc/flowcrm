@@ -9,12 +9,15 @@ import { useSidebarStore } from '@/store/sidebar.store';
 import GlobalSearch from './GlobalSearch';
 import ThemeToggle from '@/components/ui/ThemeToggle';
 import Avatar from '@/components/ui/Avatar';
+import FeatureGate from '@/components/ui/FeatureGate';
 
-const NAV_ITEMS = [
+type NavItem = { to: string; icon: typeof Home; label: string; feature?: string };
+
+const NAV_ITEMS: NavItem[] = [
   { to: '/inicio',                  icon: Home,           label: 'Início' },
   { to: '/analytics',              icon: BarChart2,      label: 'Analytics' },
   { to: '/tasks',                  icon: CheckSquare,    label: 'Tarefas' },
-  { to: '/inbox',                  icon: MessageCircle,  label: 'Inbox' },
+  { to: '/inbox',                  icon: MessageCircle,  label: 'Inbox', feature: 'inbox' },
   { to: '/pessoas',                icon: Users,          label: 'Pessoas' },
   { to: '/companies',              icon: Building2,      label: 'Empresas' },
   { to: '/funil',                  icon: Briefcase,      label: 'Negócios' },
@@ -88,43 +91,50 @@ export default function Sidebar() {
 
       {/* Nav */}
       <nav className="flex-1 px-2 py-2 space-y-0.5 overflow-y-auto overflow-x-hidden">
-        {NAV_ITEMS.map(({ to, icon: Icon, label }) => (
-          <NavLink
-            key={to}
-            to={to}
-            end
-            title={collapsed ? label : undefined}
-            className={({ isActive }) =>
-              `group flex items-center gap-2.5 px-2.5 py-2 rounded-md text-[13px] transition-all duration-100 overflow-hidden ${
-                isActive ? 'font-medium' : ''
-              }`
-            }
-            style={({ isActive }) => ({
-              color: isActive ? 'var(--brand-500)' : 'var(--ink-2)',
-              background: isActive ? 'var(--brand-50)' : 'transparent',
-            })}
-          >
-            {({ isActive }) => (
-              <>
-                <Icon
-                  className="w-4 h-4 flex-shrink-0"
-                  strokeWidth={isActive ? 2 : 1.75}
-                />
-                <span
-                  className="whitespace-nowrap"
-                  style={{
-                    opacity: collapsed ? 0 : 1,
-                    maxWidth: collapsed ? 0 : 160,
-                    transition: 'opacity 0.15s, max-width 0.22s cubic-bezier(0.4,0,0.2,1)',
-                    overflow: 'hidden',
-                  }}
-                >
-                  {label}
-                </span>
-              </>
-            )}
-          </NavLink>
-        ))}
+        {NAV_ITEMS.map((item) => {
+          const link = (
+            <NavLink
+              key={item.to}
+              to={item.to}
+              end
+              title={collapsed ? item.label : undefined}
+              className={({ isActive }) =>
+                `group flex items-center gap-2.5 px-2.5 py-2 rounded-md text-[13px] transition-all duration-100 overflow-hidden ${
+                  isActive ? 'font-medium' : ''
+                }`
+              }
+              style={({ isActive }) => ({
+                color: isActive ? 'var(--brand-500)' : 'var(--ink-2)',
+                background: isActive ? 'var(--brand-50)' : 'transparent',
+              })}
+            >
+              {({ isActive }) => (
+                <>
+                  <item.icon className="w-4 h-4 flex-shrink-0" strokeWidth={isActive ? 2 : 1.75} />
+                  <span
+                    className="whitespace-nowrap flex-1"
+                    style={{
+                      opacity: collapsed ? 0 : 1,
+                      maxWidth: collapsed ? 0 : 160,
+                      transition: 'opacity 0.15s, max-width 0.22s cubic-bezier(0.4,0,0.2,1)',
+                      overflow: 'hidden',
+                    }}
+                  >
+                    {item.label}
+                  </span>
+                </>
+              )}
+            </NavLink>
+          );
+          if (item.feature) {
+            return (
+              <FeatureGate key={item.to} feature={item.feature} mode="overlay">
+                {link}
+              </FeatureGate>
+            );
+          }
+          return link;
+        })}
 
         {isPlatformAdmin && (
           <>

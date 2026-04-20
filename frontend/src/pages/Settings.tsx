@@ -19,13 +19,15 @@ import IntegrationsTab from '@/components/settings/IntegrationsTab';
 import SistemaTab from '@/components/settings/SistemaTab';
 import DangerZoneTab from '@/components/settings/DangerZoneTab';
 import ProdutosServicosTab from '@/components/settings/ProdutosServicosTab';
+import { FeatureLockedScreen } from '@/components/ui/FeatureGate';
+import { useFeatures } from '@/hooks/useFeatures';
 
 type Tab =
   | 'funis-etapas' | 'motivos-perda' | 'origens-clientes'
   | 'categorias-clientes' | 'setores' | 'produtos-servicos' | 'channels'
   | 'templates' | 'automations' | 'agents' | 'integrations' | 'sistema' | 'danger';
 
-interface NavItem { id: Tab; label: string; icon: typeof GitBranch; ownerOnly?: boolean; platformAdminOnly?: boolean; danger?: boolean }
+interface NavItem { id: Tab; label: string; icon: typeof GitBranch; ownerOnly?: boolean; platformAdminOnly?: boolean; danger?: boolean; feature?: string }
 interface NavGroup { title: string; items: NavItem[] }
 
 const GROUPS: NavGroup[] = [
@@ -54,8 +56,8 @@ const GROUPS: NavGroup[] = [
     title: 'Comunicação & automação',
     items: [
       { id: 'channels',             label: 'Canais WhatsApp',       icon: Radio,      ownerOnly: true },
-      { id: 'templates',            label: 'Templates',             icon: FileText,   ownerOnly: true },
-      { id: 'automations',          label: 'Automações',            icon: Zap,        ownerOnly: true },
+      { id: 'templates',            label: 'Templates',             icon: FileText,   ownerOnly: true, feature: 'automation_templates' },
+      { id: 'automations',          label: 'Automações',            icon: Zap,        ownerOnly: true, feature: 'automations' },
     ],
   },
   {
@@ -84,6 +86,7 @@ export default function Settings() {
   const isOwner = user?.role === 'owner';
   const { data: workspace } = useWorkspace();
   const isPlatformAdmin = workspace?.isPlatformAdmin === true;
+  const { has } = useFeatures();
   const [params, setParams] = useSearchParams();
 
   const tabFromUrl = params.get('tab') as Tab | null;
@@ -131,8 +134,9 @@ export default function Settings() {
                 {group.title}
               </div>
               <div className="space-y-0.5">
-                {group.items.map(({ id, label, icon: Icon, danger }) => {
+                {group.items.map(({ id, label, icon: Icon, danger, feature }) => {
                   const active = tab === id;
+                  const locked = feature ? !has(feature) : false;
                   return (
                     <button
                       key={id}
@@ -145,7 +149,16 @@ export default function Settings() {
                       }}
                     >
                       <Icon className="w-4 h-4 flex-shrink-0" strokeWidth={active ? 2 : 1.75} />
-                      <span className="truncate">{label}</span>
+                      <span className="truncate flex-1 text-left">{label}</span>
+                      {locked && (
+                        <span
+                          className="inline-flex items-center justify-center rounded-full flex-shrink-0"
+                          style={{ width: 16, height: 16, background: 'var(--surface-hover)', color: 'var(--ink-3)' }}
+                          title="Disponível no plano Performance"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: 9, height: 9 }}><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                        </span>
+                      )}
                     </button>
                   );
                 })}
@@ -165,8 +178,8 @@ export default function Settings() {
           {tab === 'setores'             && <SetoresTab />}
           {tab === 'produtos-servicos'   && <ProdutosServicosTab />}
           {tab === 'channels'            && <ChannelsTab />}
-          {tab === 'templates'           && <TemplatesTab />}
-          {tab === 'automations'         && <AutomationsTab />}
+          {tab === 'templates'           && (has('automation_templates') ? <TemplatesTab /> : <FeatureLockedScreen feature="automation_templates" />)}
+          {tab === 'automations'         && (has('automations') ? <AutomationsTab /> : <FeatureLockedScreen feature="automations" />)}
           {tab === 'agents'              && <AgentsTab />}
           {tab === 'integrations'        && <IntegrationsTab />}
           {tab === 'sistema'             && <SistemaTab />}

@@ -8,10 +8,13 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { UserRole } from '../users/entities/user.entity';
+import { FeatureGuard } from '../common/feature-access/feature.guard';
+import { RequireFeature } from '../common/feature-access/require-feature.decorator';
 
 @Controller('automations')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, FeatureGuard)
 @Roles(UserRole.OWNER)
+@RequireFeature('automations')
 export class AutomationsController {
   constructor(private service: AutomationsService) {}
 

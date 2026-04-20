@@ -12,6 +12,8 @@ import Tasks from '@/pages/Tasks';
 import Companies from '@/pages/Companies';
 import Inbox from '@/pages/Inbox';
 import Admin from '@/pages/Admin';
+import { FeatureLockedScreen } from '@/components/ui/FeatureGate';
+import { useFeatures } from '@/hooks/useFeatures';
 import Perfil from '@/pages/Perfil';
 import NotFound from '@/pages/NotFound';
 import ProtectedRoute from '@/components/layout/ProtectedRoute';
@@ -55,7 +57,7 @@ function AuthedLayout() {
         <Route path="negocios" element={<Negocios />} />
         <Route path="funil" element={<Funil />} />
         <Route path="tasks" element={<Tasks />} />
-        <Route path="inbox" element={<Inbox />} />
+        <Route path="inbox" element={<GatedInbox />} />
         <Route path="companies" element={<Companies />} />
         <Route path="analytics" element={<Analytics />} />
         <Route path="settings" element={<Settings />} />
@@ -66,6 +68,13 @@ function AuthedLayout() {
       </Routes>
     </AppShell>
   );
+}
+
+function GatedInbox() {
+  const { has, isLoading } = useFeatures();
+  if (isLoading) return null;
+  if (!has('inbox')) return <FeatureLockedScreen feature="inbox" />;
+  return <Inbox />;
 }
 
 export default function App() {

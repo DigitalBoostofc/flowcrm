@@ -1,6 +1,8 @@
 import { Controller, Get, Param, Query, UseGuards } from '@nestjs/common';
 import { ConversationsService } from './conversations.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { FeatureGuard } from '../common/feature-access/feature.guard';
+import { RequireFeature } from '../common/feature-access/require-feature.decorator';
 
 @Controller('conversations')
 @UseGuards(JwtAuthGuard)
@@ -8,6 +10,8 @@ export class ConversationsController {
   constructor(private service: ConversationsService) {}
 
   @Get('inbox')
+  @UseGuards(FeatureGuard)
+  @RequireFeature('inbox')
   findInbox() {
     return this.service.findInbox();
   }

@@ -1,8 +1,8 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useNavigate } from 'react-router-dom';
-import { Check, Loader2, Zap, ArrowLeft } from 'lucide-react';
-import { listPlans, subscribePlan, type Plan } from '@/api/workspace';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Check, X, Loader2, Zap, ArrowLeft } from 'lucide-react';
+import { listPlans, subscribePlan, getFeatureCatalog, type Plan, type FeatureDef } from '@/api/workspace';
 import { useWorkspace } from '@/hooks/useWorkspace';
 import { useAuthStore } from '@/store/auth.store';
 
@@ -14,12 +14,27 @@ export default function Assinar() {
 
   const { data: workspace } = useWorkspace();
   const { data: plans, isLoading } = useQuery({ queryKey: ['plans'], queryFn: listPlans });
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const { data: catalog = [] } = useQuery({ queryKey: ['features-catalog'], queryFn: getFeatureCatalog });
+
+  const [params] = useSearchParams();
+  const [selectedSlug, setSelectedSlug] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!plans || selectedSlug) return;
+    const wanted = params.get('plan');
+    if (wanted && plans.some((p) => p.slug === wanted)) {
+      setSelectedSlug(wanted);
+    } else {
+      const highlighted = plans.find((p) => p.highlight);
+      if (highlighted) setSelectedSlug(highlighted.slug);
+    }
+  }, [plans, params, selectedSlug]);
 
   const subscribeMut = useMutation({
-    mutationFn: (planId: string) => subscribePlan(planId),
+    mutationFn: (slug: string) => subscribePlan(slug),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['workspace-me'] });
+      qc.invalidateQueries({ queryKey: ['me-features'] });
       setTimeout(() => navigate('/'), 800);
     },
   });
@@ -76,15 +91,23 @@ export default function Assinar() {
             <Loader2 className="w-6 h-6 animate-spin" style={{ color: 'var(--ink-3)' }} />
           </div>
         ) : (
-          <div className="grid md:grid-cols-3 gap-5">
+          <div
+            className="grid gap-5"
+            style={{
+              gridTemplateColumns: `repeat(${Math.min(plans?.length ?? 1, 3)}, minmax(0, 1fr))`,
+              maxWidth: (plans?.length ?? 0) <= 2 ? 720 : undefined,
+              margin: (plans?.length ?? 0) <= 2 ? '0 auto' : undefined,
+            }}
+          >
             {plans?.map((p) => (
               <PlanCard
                 key={p.id}
                 plan={p}
-                selected={selectedId === p.id}
-                onSelect={() => setSelectedId(p.id)}
-                onSubscribe={() => subscribeMut.mutate(p.id)}
-                pending={subscribeMut.isPending && subscribeMut.variables === p.id}
+                catalog={catalog}
+                selected={selectedSlug === p.slug}
+                onSelect={() => setSelectedSlug(p.slug)}
+                onSubscribe={() => subscribeMut.mutate(p.slug)}
+                pending={subscribeMut.isPending && subscribeMut.variables === p.slug}
                 disabled={!isOwner}
               />
             ))}
@@ -118,9 +141,10 @@ export default function Assinar() {
 }
 
 function PlanCard({
-  plan, selected, onSelect, onSubscribe, pending, disabled,
+  plan, catalog, selected, onSelect, onSubscribe, pending, disabled,
 }: {
   plan: Plan;
+  catalog: FeatureDef[];
   selected: boolean;
   onSelect: () => void;
   onSubscribe: () => void;
@@ -134,7 +158,7 @@ function PlanCard({
       className="relative cursor-pointer transition-all"
       style={{
         background: 'var(--surface)',
-        border: selected || plan.highlight ? '2px solid var(--accent)' : '1px solid var(--edge)',
+        border: selected || plan.highlight ? '2px solid var(--brand-500)' : '1px solid var(--edge)',
         borderRadius: 16,
         padding: 24,
         boxShadow: plan.highlight ? '0 8px 24px rgba(99,91,255,0.15)' : 'var(--shadow-sm)',
@@ -150,18 +174,34 @@ function PlanCard({
       )}
 
       <h3 className="text-base font-semibold" style={{ color: 'var(--ink-1)' }}>{plan.name}</h3>
-      <div className="flex items-baseline gap-1 mt-2 mb-5">
+      {plan.description && (
+        <p className="text-xs mt-1" style={{ color: 'var(--ink-3)' }}>{plan.description}</p>
+      )}
+      <div className="flex items-baseline gap-1 mt-3 mb-5">
         <span className="text-3xl font-semibold" style={{ color: 'var(--ink-1)' }}>R$ {price}</span>
         <span className="text-sm" style={{ color: 'var(--ink-3)' }}>/mês</span>
       </div>
 
       <ul className="space-y-2.5 mb-6">
-        {plan.features.map((f) => (
-          <li key={f} className="flex items-start gap-2 text-sm" style={{ color: 'var(--ink-2)' }}>
-            <Check className="w-4 h-4 flex-shrink-0 mt-0.5" style={{ color: 'var(--accent)' }} strokeWidth={2.5} />
-            {f}
-          </li>
-        ))}
+        {catalog.map((f) => {
+          const included = plan.features.includes(f.key);
+          return (
+            <li
+              key={f.key}
+              className="flex items-start gap-2 text-sm"
+              style={{ color: included ? 'var(--ink-2)' : 'var(--ink-3)' }}
+            >
+              {included ? (
+                <Check className="w-4 h-4 flex-shrink-0 mt-0.5" style={{ color: 'var(--brand-500)' }} strokeWidth={2.5} />
+              ) : (
+                <X className="w-4 h-4 flex-shrink-0 mt-0.5" style={{ color: 'var(--ink-3)', opacity: 0.5 }} />
+              )}
+              <span style={{ textDecoration: included ? 'none' : 'line-through', opacity: included ? 1 : 0.6 }}>
+                {f.label}
+              </span>
+            </li>
+          );
+        })}
       </ul>
 
       <button

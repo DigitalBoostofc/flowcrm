@@ -35,6 +35,7 @@ import { AppSettingsModule } from './app-settings/app-settings.module';
 import { SignupModule } from './signup/signup.module';
 import { SubscriptionsModule } from './subscriptions/subscriptions.module';
 import { SubscriptionModule } from './common/subscription/subscription.module';
+import { FeatureAccessModule } from './common/feature-access/feature-access.module';
 import { PlatformAdminModule } from './platform-admin/platform-admin.module';
 import { StorageModule } from './storage/storage.module';
 import { OtpModule } from './otp/otp.module';
@@ -93,6 +94,7 @@ import { ProductsModule } from './products/products.module';
     SignupModule,
     SubscriptionsModule,
     SubscriptionModule,
+    FeatureAccessModule,
     PlatformAdminModule,
     StorageModule,
     OtpModule,

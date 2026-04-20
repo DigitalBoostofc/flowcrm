@@ -2,9 +2,12 @@ import { Controller, Get, Post, Delete, Body, Param, UseGuards, Request } from '
 import { TemplatesService } from './templates.service';
 import { CreateTemplateDto } from './dto/create-template.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { FeatureGuard } from '../common/feature-access/feature.guard';
+import { RequireFeature } from '../common/feature-access/require-feature.decorator';
 
 @Controller('templates')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, FeatureGuard)
+@RequireFeature('automation_templates')
 export class TemplatesController {
   constructor(private templatesService: TemplatesService) {}
 

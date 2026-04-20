@@ -30,6 +30,9 @@ export class Workspace {
   @Column({ type: 'varchar', length: 20, default: 'trial' })
   subscriptionStatus: SubscriptionStatus;
 
+  @Column({ type: 'varchar', length: 40, nullable: true })
+  planSlug: string | null;
+
   @CreateDateColumn()
   createdAt: Date;
 
