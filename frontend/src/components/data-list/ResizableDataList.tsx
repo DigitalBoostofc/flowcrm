@@ -1,6 +1,51 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ColumnDef } from './types';
 
+function Checkbox({
+  checked,
+  indeterminate,
+  onChange,
+}: {
+  checked: boolean;
+  indeterminate?: boolean;
+  onChange: () => void;
+}) {
+  const active = checked || indeterminate;
+  return (
+    <button
+      type="button"
+      role="checkbox"
+      aria-checked={indeterminate ? 'mixed' : checked}
+      onClick={(e) => { e.stopPropagation(); onChange(); }}
+      style={{
+        width: 16,
+        height: 16,
+        borderRadius: 4,
+        flexShrink: 0,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        border: `1.5px solid ${active ? 'var(--brand-500,#635BFF)' : 'var(--edge-strong,#d1d5db)'}`,
+        background: active ? 'var(--brand-500,#635BFF)' : 'transparent',
+        transition: 'background 120ms, border-color 120ms',
+        cursor: 'pointer',
+        outline: 'none',
+      }}
+    >
+      {checked && !indeterminate && (
+        <svg width="9" height="7" viewBox="0 0 9 7" fill="none">
+          <path d="M1 3.5L3.5 6L8 1" stroke="white" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      )}
+      {indeterminate && (
+        <svg width="8" height="2" viewBox="0 0 8 2" fill="none">
+          <path d="M1 1H7" stroke="white" strokeWidth="1.8" strokeLinecap="round" />
+        </svg>
+      )}
+    </button>
+  );
+}
+
 interface Props<T> {
   rows: T[];
   rowKey: (row: T, index: number) => string;
@@ -78,14 +123,8 @@ export default function ResizableDataList<T>({
             }}
           >
             {selectable && (
-              <div className="flex items-center" onClick={(e) => e.stopPropagation()}>
-                <input
-                  type="checkbox"
-                  checked={allSelected}
-                  ref={(el) => { if (el) el.indeterminate = someSelected; }}
-                  onChange={toggleAll}
-                  className="cursor-pointer accent-[var(--brand-500,#6366f1)]"
-                />
+              <div className="flex items-center">
+                <Checkbox checked={allSelected} indeterminate={someSelected} onChange={toggleAll} />
               </div>
             )}
             {columns.map((col, idx) => (
@@ -131,17 +170,8 @@ export default function ResizableDataList<T>({
                     }}
                   >
                     {selectable && (
-                      <div
-                        className="flex items-center"
-                        onClick={(e) => { e.stopPropagation(); toggleRow(key); }}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={isSelected}
-                          onChange={() => toggleRow(key)}
-                          onClick={(e) => e.stopPropagation()}
-                          className="cursor-pointer accent-[var(--brand-500,#6366f1)]"
-                        />
+                      <div className="flex items-center">
+                        <Checkbox checked={isSelected} onChange={() => toggleRow(key)} />
                       </div>
                     )}
                     {columns.map((col) => (
