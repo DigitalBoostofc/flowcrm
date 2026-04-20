@@ -12,7 +12,6 @@ import { useAuthStore } from '@/store/auth.store';
 import type { Contact, ContactPrivacy, User } from '@/types/api';
 import PessoaDetailPanel from '@/components/pessoas/PessoaDetailPanel';
 import Avatar from '@/components/ui/Avatar';
-import ProductSelector from '@/components/products/ProductSelector';
 import {
   ResizableDataList,
   ViewEditorModal,
@@ -583,17 +582,6 @@ function AddPessoaModal({
                 <Input value={form.complemento} onChange={(e) => set('complemento', e.target.value)} placeholder="Sala 153, Bloco B" />
               </div>
             </div>
-          </section>
-
-          {/* ── Produtos ── */}
-          <section>
-            <SectionTitle title="Produtos e serviços" subtitle="Quais esta pessoa tem potencial de compra?" />
-            <Label>Produtos</Label>
-            <ProductSelector
-              value={form.produtos}
-              onChange={(names) => set('produtos', names)}
-              appliesTo="pessoa"
-            />
           </section>
 
           {/* ── Redes sociais ── */}

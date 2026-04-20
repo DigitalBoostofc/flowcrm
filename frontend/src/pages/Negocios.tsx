@@ -12,6 +12,8 @@ import { listPipelines } from '@/api/pipelines';
 import { listContacts, createContact } from '@/api/contacts';
 import { listCompanies } from '@/api/companies';
 import { listUsers } from '@/api/users';
+import { listProducts, createProduct, type Product, type ProductInput } from '@/api/products';
+import ProductFormModal from '@/components/products/ProductFormModal';
 import { useAuthStore } from '@/store/auth.store';
 import type { Company, Contact, Lead, LeadStatus, Pipeline, User } from '@/types/api';
 import NegocioDetailPanel from '@/components/negocios/NegocioDetailPanel';
@@ -437,6 +439,140 @@ function emptyProductDraft(): ProductDraft {
   return { productName: '', unitPrice: '', quantity: '1', discount: '0', discountType: 'value' };
 }
 
+function ProductNameField({
+  productName,
+  onUpdate,
+}: {
+  productName: string;
+  onUpdate: (patch: Partial<ProductDraft>) => void;
+}) {
+  const qc = useQueryClient();
+  const [open, setOpen] = useState(false);
+  const [addOpen, setAddOpen] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
+  const rootRef = useRef<HTMLDivElement>(null);
+
+  const { data = [] } = useQuery({
+    queryKey: ['products', { onlyActive: true }],
+    queryFn: () => listProducts({ onlyActive: true }),
+  });
+
+  const createMut = useMutation({
+    mutationFn: (input: ProductInput) => createProduct(input),
+    onSuccess: (p) => {
+      qc.invalidateQueries({ queryKey: ['products'] });
+      onUpdate({
+        productName: p.name,
+        ...(p.price != null ? { unitPrice: String(Number(p.price)) } : {}),
+      });
+      setAddOpen(false);
+      setFormError(null);
+      setOpen(false);
+    },
+    onError: (e: any) => setFormError(e?.response?.data?.message ?? 'Erro ao salvar'),
+  });
+
+  const q = productName.trim().toLowerCase();
+  const filtered = useMemo(
+    () => (q ? data.filter((p) => p.name.toLowerCase().includes(q)) : data).slice(0, 20),
+    [data, q],
+  );
+  const exact = useMemo(
+    () => (q ? data.find((p) => p.name.toLowerCase() === q) ?? null : null),
+    [data, q],
+  );
+
+  useEffect(() => {
+    const onClick = (e: MouseEvent) => {
+      if (!rootRef.current?.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', onClick);
+    return () => document.removeEventListener('mousedown', onClick);
+  }, []);
+
+  const pick = (p: Product) => {
+    onUpdate({
+      productName: p.name,
+      ...(p.price != null ? { unitPrice: String(Number(p.price)) } : {}),
+    });
+    setOpen(false);
+  };
+
+  return (
+    <div ref={rootRef} className="relative">
+      <input
+        placeholder="Nome do produto"
+        value={productName}
+        onFocus={() => setOpen(true)}
+        onChange={(e) => {
+          onUpdate({ productName: e.target.value });
+          setOpen(true);
+        }}
+        className="w-full px-2 py-1.5 rounded-md outline-none text-sm"
+        style={{ background: 'var(--surface-raised)', border: '1px solid var(--edge)', color: 'var(--ink-1)' }}
+      />
+      {open && (
+        <div
+          className="absolute left-0 right-0 top-[calc(100%+4px)] z-30 rounded-lg shadow-lg max-h-72 overflow-y-auto"
+          style={{ background: 'var(--surface-raised)', border: '1px solid var(--edge)' }}
+        >
+          {filtered.length === 0 && !q && (
+            <div className="px-3 py-3 text-xs" style={{ color: 'var(--ink-3)' }}>
+              Nenhum produto cadastrado.
+            </div>
+          )}
+          {filtered.map((p) => (
+            <button
+              key={p.id}
+              type="button"
+              onClick={() => pick(p)}
+              className="w-full flex items-center justify-between gap-2 px-3 py-2 text-sm text-left hover:bg-[var(--surface-hover)]"
+              style={{ color: 'var(--ink-1)' }}
+            >
+              <span className="truncate">{p.name}</span>
+              <span className="text-xs tabular-nums" style={{ color: 'var(--ink-3)' }}>
+                {p.price != null
+                  ? Number(p.price).toLocaleString('pt-BR', {
+                      style: 'currency',
+                      currency: 'BRL',
+                    })
+                  : p.type === 'servico'
+                  ? 'Serviço'
+                  : 'Produto'}
+              </span>
+            </button>
+          ))}
+          <button
+            type="button"
+            onClick={() => {
+              setFormError(null);
+              setAddOpen(true);
+              setOpen(false);
+            }}
+            className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left hover:bg-[var(--surface-hover)]"
+            style={{
+              color: 'var(--brand-500, #6366f1)',
+              borderTop: filtered.length ? '1px solid var(--edge)' : undefined,
+            }}
+          >
+            <Plus className="w-4 h-4" />
+            {q && !exact ? `Criar "${productName.trim()}"` : 'Novo produto/serviço'}
+          </button>
+        </div>
+      )}
+      {addOpen && (
+        <ProductFormModal
+          initialName={productName.trim() || undefined}
+          onClose={() => setAddOpen(false)}
+          onSubmit={(input) => createMut.mutateAsync(input)}
+          pending={createMut.isPending}
+          error={formError}
+        />
+      )}
+    </div>
+  );
+}
+
 function AddNegocioModal({
   open, onClose, pipelines, users, currentUser,
 }: {
@@ -839,12 +975,9 @@ function AddNegocioModal({
                       gridTemplateColumns: '2fr 1fr 80px 1fr 32px',
                     }}
                   >
-                    <input
-                      placeholder="Nome do produto"
-                      value={p.productName}
-                      onChange={(e) => updateProduct(idx, { productName: e.target.value })}
-                      className="px-2 py-1.5 rounded-md outline-none text-sm"
-                      style={{ background: 'var(--surface-raised)', border: '1px solid var(--edge)', color: 'var(--ink-1)' }}
+                    <ProductNameField
+                      productName={p.productName}
+                      onUpdate={(patch) => updateProduct(idx, patch)}
                     />
                     <input
                       type="number"

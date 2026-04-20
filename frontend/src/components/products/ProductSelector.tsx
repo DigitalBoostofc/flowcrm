@@ -4,8 +4,6 @@ import { Plus, Search, X } from 'lucide-react';
 import {
   createProduct,
   listProducts,
-  type Product,
-  type ProductAppliesTo,
   type ProductInput,
 } from '@/api/products';
 import ProductFormModal from './ProductFormModal';
@@ -13,14 +11,12 @@ import ProductFormModal from './ProductFormModal';
 interface Props {
   value: string[];
   onChange: (names: string[]) => void;
-  appliesTo: Extract<ProductAppliesTo, 'pessoa' | 'empresa'>;
   placeholder?: string;
 }
 
 export default function ProductSelector({
   value,
   onChange,
-  appliesTo,
   placeholder = 'Buscar ou selecionar...',
 }: Props) {
   const qc = useQueryClient();
@@ -31,8 +27,8 @@ export default function ProductSelector({
   const rootRef = useRef<HTMLDivElement>(null);
 
   const { data = [] } = useQuery({
-    queryKey: ['products', { appliesTo, onlyActive: true }],
-    queryFn: () => listProducts({ appliesTo, onlyActive: true }),
+    queryKey: ['products', { onlyActive: true }],
+    queryFn: () => listProducts({ onlyActive: true }),
   });
 
   const createMut = useMutation({
@@ -209,7 +205,6 @@ export default function ProductSelector({
 
       {addOpen && (
         <ProductFormModal
-          lockAppliesTo={appliesTo}
           initialName={query.trim() || undefined}
           onClose={() => setAddOpen(false)}
           onSubmit={(input) => createMut.mutateAsync(input)}

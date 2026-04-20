@@ -34,6 +34,7 @@ const GROUPS: NavGroup[] = [
     items: [
       { id: 'funis-etapas',         label: 'Funis e etapas',        icon: GitBranch,  ownerOnly: true },
       { id: 'motivos-perda',        label: 'Motivos de perda',      icon: XCircle,    ownerOnly: true },
+      { id: 'produtos-servicos',    label: 'Produtos e serviços',   icon: Package,    ownerOnly: true },
     ],
   },
   {
@@ -41,7 +42,6 @@ const GROUPS: NavGroup[] = [
     items: [
       { id: 'origens-clientes',     label: 'Origens de clientes',   icon: Users2,     ownerOnly: true },
       { id: 'categorias-clientes',  label: 'Categorias',            icon: Tags,       ownerOnly: true },
-      { id: 'produtos-servicos',    label: 'Produtos e serviços',   icon: Package,    ownerOnly: true },
     ],
   },
   {

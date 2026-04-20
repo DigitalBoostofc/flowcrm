@@ -12,7 +12,6 @@ import { listContacts } from '@/api/contacts';
 import { useAuthStore } from '@/store/auth.store';
 import type { Company, CompanyPrivacy, User } from '@/types/api';
 import Avatar from '@/components/ui/Avatar';
-import ProductSelector from '@/components/products/ProductSelector';
 import {
   ResizableDataList,
   ViewEditorModal,
@@ -545,17 +544,6 @@ function AddCompanyModal({ open, onClose, currentUser, users, company }: AddComp
                 <Input value={form.complemento} onChange={(e) => set('complemento', e.target.value)} placeholder="Sala 153, Bloco B" />
               </div>
             </div>
-          </section>
-
-          {/* ── Produtos ── */}
-          <section>
-            <SectionTitle title="Produtos e serviços" subtitle="Quais esta empresa tem potencial de compra?" />
-            <Label>Produtos</Label>
-            <ProductSelector
-              value={form.produtos}
-              onChange={(names) => set('produtos', names)}
-              appliesTo="empresa"
-            />
           </section>
 
           {/* ── Pessoas ── */}

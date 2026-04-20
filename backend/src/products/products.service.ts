@@ -6,7 +6,7 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
-import { Product, ProductAppliesTo } from './entities/product.entity';
+import { Product } from './entities/product.entity';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { TenantContext } from '../common/tenant/tenant-context.service';
@@ -19,17 +19,11 @@ export class ProductsService {
     private readonly tenant: TenantContext,
   ) {}
 
-  async findAll(appliesTo?: ProductAppliesTo, onlyActive = false): Promise<Product[]> {
+  async findAll(onlyActive = false): Promise<Product[]> {
     const workspaceId = this.tenant.requireWorkspaceId();
     const qb = this.repo
       .createQueryBuilder('p')
       .where('p."workspaceId" = :workspaceId', { workspaceId });
-
-    if (appliesTo === 'pessoa') {
-      qb.andWhere(`p."appliesTo" IN ('pessoa', 'ambos')`);
-    } else if (appliesTo === 'empresa') {
-      qb.andWhere(`p."appliesTo" IN ('empresa', 'ambos')`);
-    }
 
     if (onlyActive) {
       qb.andWhere('p.active = true');
@@ -48,23 +42,12 @@ export class ProductsService {
     const workspaceId = this.tenant.requireWorkspaceId();
     const name = dto.name.trim();
     if (!name) throw new BadRequestException('Nome inválido');
-    const clientId = dto.clientId ?? null;
-    const clientType = dto.clientType ?? null;
-    const appliesTo: ProductAppliesTo =
-      dto.appliesTo ??
-      (clientType === 'company' ? 'empresa' : clientType === 'contact' ? 'pessoa' : 'ambos');
-    if (clientId) {
-      const dup = await this.repo.findOne({ where: { workspaceId, clientId, name } });
-      if (dup) throw new ConflictException('Produto/serviço já cadastrado para este cliente');
-    }
+    const dup = await this.repo.findOne({ where: { workspaceId, name } });
+    if (dup) throw new ConflictException('Produto/serviço com este nome já existe');
     const entity = this.repo.create({
       workspaceId,
       name,
-      clientId,
-      clientType,
-      clientName: dto.clientName?.trim() || null,
       type: dto.type ?? 'produto',
-      appliesTo,
       price: dto.price != null ? String(dto.price) : null,
       active: dto.active ?? true,
     });
@@ -79,20 +62,13 @@ export class ProductsService {
     if (dto.name !== undefined) {
       const name = dto.name.trim();
       if (!name) throw new BadRequestException('Nome inválido');
+      if (name !== entity.name) {
+        const dup = await this.repo.findOne({ where: { workspaceId, name } });
+        if (dup) throw new ConflictException('Produto/serviço com este nome já existe');
+      }
       entity.name = name;
     }
-    if (dto.clientId !== undefined) entity.clientId = dto.clientId;
-    if (dto.clientType !== undefined) entity.clientType = dto.clientType;
-    if (dto.clientName !== undefined) {
-      entity.clientName = dto.clientName ? dto.clientName.trim() : null;
-    }
     if (dto.type !== undefined) entity.type = dto.type;
-    if (dto.appliesTo !== undefined) {
-      entity.appliesTo = dto.appliesTo;
-    } else if (dto.clientType !== undefined) {
-      entity.appliesTo =
-        dto.clientType === 'company' ? 'empresa' : dto.clientType === 'contact' ? 'pessoa' : 'ambos';
-    }
     if (dto.price !== undefined) entity.price = dto.price != null ? String(dto.price) : null;
     if (dto.active !== undefined) entity.active = dto.active;
 

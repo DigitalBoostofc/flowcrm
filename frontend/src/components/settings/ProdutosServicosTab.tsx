@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Search, Pencil, Trash2, Plus, Building2, User as UserIcon } from 'lucide-react';
+import { Search, Pencil, Trash2, Plus } from 'lucide-react';
 import {
   createProduct,
   deleteProduct,
@@ -67,11 +67,7 @@ export default function ProdutosServicosTab() {
   const filtered = useMemo(() => {
     if (!search.trim()) return data;
     const s = search.trim().toLowerCase();
-    return data.filter(
-      (x) =>
-        x.name.toLowerCase().includes(s) ||
-        (x.clientName ?? '').toLowerCase().includes(s),
-    );
+    return data.filter((x) => x.name.toLowerCase().includes(s));
   }, [data, search]);
 
   const onDelete = (p: Product) => {
@@ -85,8 +81,7 @@ export default function ProdutosServicosTab() {
           Produtos e serviços
         </h2>
         <p className="mt-1 text-sm" style={{ color: 'var(--ink-3)' }}>
-          Catálogo vinculado a uma empresa ou pessoa específica. Cada item aparece na
-          ficha do cliente selecionado.
+          Catálogo de itens disponíveis para seleção no cadastro de negócios.
         </p>
       </div>
 
@@ -99,7 +94,7 @@ export default function ProdutosServicosTab() {
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Buscar por nome ou cliente"
+            placeholder="Buscar por nome"
             className="w-full pl-9 pr-3 py-2.5 rounded-lg outline-none text-sm"
             style={{
               background: 'var(--surface)',
@@ -124,13 +119,12 @@ export default function ProdutosServicosTab() {
       <div
         className="grid items-center gap-3 px-4 py-3 text-xs font-bold uppercase tracking-wide"
         style={{
-          gridTemplateColumns: '1fr 1fr 110px 140px 80px 110px',
+          gridTemplateColumns: '1fr 110px 140px 80px 110px',
           color: 'var(--ink-2)',
           borderBottom: '1px solid var(--edge-strong, var(--edge))',
         }}
       >
         <div>Nome</div>
-        <div>Cliente</div>
         <div>Tipo</div>
         <div>Preço</div>
         <div>Ativo</div>
@@ -152,7 +146,7 @@ export default function ProdutosServicosTab() {
               key={p.id}
               className="group grid items-center gap-3 px-4 py-3"
               style={{
-                gridTemplateColumns: '1fr 1fr 110px 140px 80px 110px',
+                gridTemplateColumns: '1fr 110px 140px 80px 110px',
                 borderBottom: '1px solid var(--edge)',
               }}
             >
@@ -170,17 +164,6 @@ export default function ProdutosServicosTab() {
                   style={{ color: 'var(--brand-500, #6366f1)' }}
                 />
               </button>
-              <div
-                className="flex items-center gap-1.5 text-sm min-w-0"
-                style={{ color: p.clientName ? 'var(--ink-2)' : 'var(--ink-3)' }}
-              >
-                {p.clientType === 'company' ? (
-                  <Building2 className="w-3.5 h-3.5 flex-shrink-0" />
-                ) : p.clientType === 'contact' ? (
-                  <UserIcon className="w-3.5 h-3.5 flex-shrink-0" />
-                ) : null}
-                <span className="truncate">{p.clientName ?? '—'}</span>
-              </div>
               <div className="text-sm" style={{ color: 'var(--ink-2)' }}>
                 {p.type === 'servico' ? 'Serviço' : 'Produto'}
               </div>

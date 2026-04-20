@@ -15,7 +15,6 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { ProductsService } from './products.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
-import { ProductAppliesTo } from './entities/product.entity';
 
 @Controller('products')
 @UseGuards(JwtAuthGuard)
@@ -23,13 +22,8 @@ export class ProductsController {
   constructor(private service: ProductsService) {}
 
   @Get()
-  findAll(
-    @Query('appliesTo') appliesTo?: ProductAppliesTo,
-    @Query('onlyActive') onlyActive?: string,
-  ) {
-    const filter =
-      appliesTo === 'pessoa' || appliesTo === 'empresa' ? appliesTo : undefined;
-    return this.service.findAll(filter, onlyActive === 'true');
+  findAll(@Query('onlyActive') onlyActive?: string) {
+    return this.service.findAll(onlyActive === 'true');
   }
 
   @Post()

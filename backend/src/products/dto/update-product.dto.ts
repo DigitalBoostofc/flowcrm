@@ -4,12 +4,11 @@ import {
   IsNumber,
   IsOptional,
   IsString,
-  IsUUID,
   MaxLength,
   Min,
 } from 'class-validator';
 import { Type } from 'class-transformer';
-import { ProductAppliesTo, ProductClientType, ProductType } from '../entities/product.entity';
+import { ProductType } from '../entities/product.entity';
 
 export class UpdateProductDto {
   @IsOptional()
@@ -18,25 +17,8 @@ export class UpdateProductDto {
   name?: string;
 
   @IsOptional()
-  @IsUUID()
-  clientId?: string | null;
-
-  @IsOptional()
-  @IsIn(['contact', 'company'])
-  clientType?: ProductClientType;
-
-  @IsOptional()
-  @IsString()
-  @MaxLength(200)
-  clientName?: string | null;
-
-  @IsOptional()
   @IsIn(['produto', 'servico'])
   type?: ProductType;
-
-  @IsOptional()
-  @IsIn(['pessoa', 'empresa', 'ambos'])
-  appliesTo?: ProductAppliesTo;
 
   @IsOptional()
   @Type(() => Number)
