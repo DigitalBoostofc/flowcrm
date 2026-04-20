@@ -6,10 +6,11 @@ import {
 } from 'lucide-react';
 import { useAuthStore } from '@/store/auth.store';
 import { useSidebarStore } from '@/store/sidebar.store';
+import { useFeatures } from '@/hooks/useFeatures';
+import { Lock } from 'lucide-react';
 import GlobalSearch from './GlobalSearch';
 import ThemeToggle from '@/components/ui/ThemeToggle';
 import Avatar from '@/components/ui/Avatar';
-import FeatureGate from '@/components/ui/FeatureGate';
 
 type NavItem = { to: string; icon: typeof Home; label: string; feature?: string };
 
@@ -29,6 +30,7 @@ export default function Sidebar() {
   const qc = useQueryClient();
   const { user, logout } = useAuthStore();
   const { collapsed, toggle } = useSidebarStore();
+  const { has } = useFeatures();
   const isOwner = user?.role === 'owner';
   const isPlatformAdmin = !!user?.isPlatformAdmin;
 
@@ -92,7 +94,8 @@ export default function Sidebar() {
       {/* Nav */}
       <nav className="flex-1 px-2 py-2 space-y-0.5 overflow-y-auto overflow-x-hidden">
         {NAV_ITEMS.map((item) => {
-          const link = (
+          const locked = item.feature ? !has(item.feature) : false;
+          return (
             <NavLink
               key={item.to}
               to={item.to}
@@ -122,18 +125,13 @@ export default function Sidebar() {
                   >
                     {item.label}
                   </span>
+                  {locked && !collapsed && (
+                    <Lock className="w-3 h-3 flex-shrink-0" style={{ color: 'var(--ink-3)' }} />
+                  )}
                 </>
               )}
             </NavLink>
           );
-          if (item.feature) {
-            return (
-              <FeatureGate key={item.to} feature={item.feature} mode="overlay">
-                {link}
-              </FeatureGate>
-            );
-          }
-          return link;
         })}
 
         {isPlatformAdmin && (

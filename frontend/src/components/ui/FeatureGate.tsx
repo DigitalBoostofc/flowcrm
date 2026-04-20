@@ -131,34 +131,58 @@ export function FeatureLockedScreen({ feature }: { feature: string }) {
   const navigate = useNavigate();
   const label = FEATURE_LABELS[feature] ?? 'Esta função';
   return (
-    <div className="flex items-center justify-center h-full p-8" style={{ background: 'var(--canvas)' }}>
+    <div
+      className="fixed inset-0 flex items-center justify-center p-6"
+      style={{ background: 'var(--canvas)' }}
+    >
       <div
-        className="max-w-md w-full rounded-2xl p-8 text-center"
-        style={{ background: 'var(--surface)', border: '1px solid var(--edge)' }}
+        className="feature-locked-card relative max-w-md w-full rounded-2xl p-8 text-center"
+        style={{
+          background: 'var(--surface)',
+          border: '1px solid rgba(99,91,255,0.4)',
+          boxShadow:
+            '0 0 0 1px rgba(99,91,255,0.15), 0 20px 60px rgba(99,91,255,0.45), 0 0 80px rgba(99,91,255,0.35)',
+        }}
       >
         <div
-          className="inline-flex w-12 h-12 rounded-2xl items-center justify-center mb-4"
+          className="inline-flex w-14 h-14 rounded-2xl items-center justify-center mb-5"
           style={{
             background: 'linear-gradient(135deg, #635BFF 0%, #4B44E8 100%)',
-            boxShadow: '0 8px 24px rgba(99,91,255,0.35)',
+            boxShadow: '0 12px 32px rgba(99,91,255,0.55), 0 0 40px rgba(99,91,255,0.4)',
           }}
         >
-          <Zap className="w-6 h-6 text-white" fill="white" strokeWidth={2.5} />
+          <Zap className="w-7 h-7 text-white" fill="white" strokeWidth={2.5} />
         </div>
         <h2 className="text-xl font-semibold mb-2" style={{ color: 'var(--ink-1)' }}>
           Turbine seu CRM com Performance
         </h2>
-        <p className="text-sm mb-6" style={{ color: 'var(--ink-3)' }}>
+        <p className="text-sm mb-6" style={{ color: 'var(--ink-2)' }}>
           <strong>{label}</strong> faz parte do plano Performance. Desbloqueie Inbox, Automações, Templates e Canais WhatsApp para acelerar seu time.
         </p>
         <button
           onClick={() => navigate('/assinar?plan=performance')}
-          className="w-full py-2.5 text-sm font-medium rounded-lg text-white"
-          style={{ background: 'var(--brand-500)' }}
+          className="w-full py-2.5 text-sm font-medium rounded-lg text-white transition-transform hover:scale-[1.02]"
+          style={{
+            background: 'linear-gradient(135deg, #635BFF 0%, #4B44E8 100%)',
+            boxShadow: '0 6px 20px rgba(99,91,255,0.45)',
+          }}
         >
           Fazer upgrade agora
         </button>
       </div>
+      <style>{`
+        @keyframes feature-locked-glow {
+          0%, 100% {
+            box-shadow: 0 0 0 1px rgba(99,91,255,0.15), 0 20px 60px rgba(99,91,255,0.45), 0 0 80px rgba(99,91,255,0.35);
+          }
+          50% {
+            box-shadow: 0 0 0 1px rgba(99,91,255,0.25), 0 24px 70px rgba(99,91,255,0.6), 0 0 100px rgba(99,91,255,0.5);
+          }
+        }
+        .feature-locked-card {
+          animation: feature-locked-glow 2.8s ease-in-out infinite;
+        }
+      `}</style>
     </div>
   );
 }
