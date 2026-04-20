@@ -9,6 +9,7 @@ import type { Contact, User, Task, TaskType } from '@/types/api';
 import { updateContact } from '@/api/contacts';
 import { listTasks, createTask, completeTask, reopenTask } from '@/api/tasks';
 import Avatar from '@/components/ui/Avatar';
+import ProductSelector from '@/components/products/ProductSelector';
 
 /* ── Types ───────────────────────────────────────────── */
 
@@ -103,6 +104,7 @@ export default function PessoaDetailPanel({ contact, currentUser, users, onClose
   const [activityType, setActivityType] = useState<ActivityType | 'note'>('note');
   const [activityText, setActivityText] = useState('');
   const [subTab, setSubTab] = useState<'feed' | 'fixadas'>('feed');
+  const [editingProducts, setEditingProducts] = useState(false);
 
   const responsavel = useMemo(
     () => users.find((u) => u.id === contact.responsibleId) ?? null,
@@ -554,30 +556,52 @@ export default function PessoaDetailPanel({ contact, currentUser, users, onClose
 
             {/* Produtos */}
             <Section title="Produtos e serviços">
-              {contact.produtos && contact.produtos.length > 0 ? (
-                <div className="flex flex-wrap gap-1.5">
-                  {contact.produtos.map((p, i) => (
-                    <span
-                      key={i}
-                      className="px-2 py-1 rounded text-xs font-medium"
-                      style={{ background: 'var(--surface-hover)', color: 'var(--ink-1)' }}
-                    >
-                      {p}
-                    </span>
-                  ))}
-                </div>
+              {editingProducts ? (
+                <>
+                  <ProductSelector
+                    value={contact.produtos ?? []}
+                    onChange={(names) =>
+                      updateMut.mutate({ produtos: names.length ? names : [] })
+                    }
+                    appliesTo="pessoa"
+                  />
+                  <button
+                    onClick={() => setEditingProducts(false)}
+                    className="w-full mt-2 px-3 py-2 rounded-lg text-xs font-semibold transition-colors hover:bg-[var(--surface-hover)]"
+                    style={{ color: 'var(--ink-2)', border: '1px solid var(--edge)' }}
+                  >
+                    Concluir
+                  </button>
+                </>
               ) : (
-                <p className="text-sm mb-3" style={{ color: 'var(--ink-2)' }}>
-                  Nenhum produto ou serviço cadastrado.
-                </p>
+                <>
+                  {contact.produtos && contact.produtos.length > 0 ? (
+                    <div className="flex flex-wrap gap-1.5">
+                      {contact.produtos.map((p, i) => (
+                        <span
+                          key={i}
+                          className="px-2 py-1 rounded text-xs font-medium"
+                          style={{ background: 'var(--surface-hover)', color: 'var(--ink-1)' }}
+                        >
+                          {p}
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm mb-3" style={{ color: 'var(--ink-2)' }}>
+                      Nenhum produto ou serviço cadastrado.
+                    </p>
+                  )}
+                  <button
+                    onClick={() => setEditingProducts(true)}
+                    className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold mt-2"
+                    style={{ background: 'rgba(99,102,241,0.12)', color: 'var(--brand-500, #6366f1)' }}
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    {contact.produtos?.length ? 'Editar produtos e serviços' : 'Adicionar produtos e serviços'}
+                  </button>
+                </>
               )}
-              <button
-                className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold mt-2"
-                style={{ background: 'rgba(99,102,241,0.12)', color: 'var(--brand-500, #6366f1)' }}
-              >
-                <Plus className="w-3.5 h-3.5" />
-                Adicionar produtos e serviços
-              </button>
             </Section>
 
             {/* Redes sociais */}
