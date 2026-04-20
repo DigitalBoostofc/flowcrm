@@ -10,6 +10,7 @@ import { getLead } from '@/api/leads';
 import { useWs } from '@/hooks/useWebSocket';
 import { useQualificationStore } from '@/store/qualification.store';
 import type { Message } from '@/types/api';
+import Avatar from '@/components/ui/Avatar';
 
 /* ── helpers ──────────────────────────────────────────── */
 
@@ -18,18 +19,6 @@ function timeAgo(iso: string | null) {
   try {
     return formatDistanceToNow(new Date(iso), { locale: ptBR, addSuffix: false });
   } catch { return ''; }
-}
-
-function initials(name: string | null) {
-  if (!name) return '?';
-  return name.split(' ').filter(Boolean).slice(0, 2).map(p => p[0].toUpperCase()).join('');
-}
-
-const COLORS = ['#635BFF', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#06B6D4', '#EC4899'];
-function colorFor(id: string) {
-  let h = 0;
-  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
-  return COLORS[h % COLORS.length];
 }
 
 /* ── ConvItem ─────────────────────────────────────────── */
@@ -46,13 +35,7 @@ function ConvItem({ item, selected, onClick }: { item: InboxItem; selected: bool
         borderLeft: selected ? '2px solid var(--brand-500)' : '2px solid transparent',
       }}
     >
-      {/* Avatar */}
-      <div
-        className="w-9 h-9 rounded-full flex items-center justify-center text-white text-xs font-semibold flex-shrink-0"
-        style={{ background: colorFor(item.id) }}
-      >
-        {initials(item.contactName)}
-      </div>
+      <Avatar name={item.contactName} url={item.contactAvatarUrl} size={36} />
 
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between gap-2">
@@ -147,12 +130,7 @@ function ChatView({ item, onQualify }: { item: InboxItem; onQualify: () => void 
         className="flex items-center gap-3 px-5 py-3.5 flex-shrink-0"
         style={{ borderBottom: '1px solid var(--edge)', background: 'var(--surface)' }}
       >
-        <div
-          className="w-9 h-9 rounded-full flex items-center justify-center text-white text-xs font-semibold"
-          style={{ background: colorFor(item.id) }}
-        >
-          {initials(item.contactName)}
-        </div>
+        <Avatar name={item.contactName} url={item.contactAvatarUrl} size={36} />
         <div className="flex-1 min-w-0">
           <div className="text-sm font-semibold" style={{ color: 'var(--ink-1)' }}>
             {item.contactName ?? 'Desconhecido'}

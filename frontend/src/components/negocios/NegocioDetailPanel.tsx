@@ -9,39 +9,7 @@ import type { Lead, LeadStatus, LeadActivity, ActivityType, Pipeline, User, Stag
 import { updateLead, updateLeadStatus, moveLead } from '@/api/leads';
 import { updateContact } from '@/api/contacts';
 import { getLeadActivities, createLeadActivity } from '@/api/lead-activities';
-
-/* ── Avatar helpers ──────────────────────────────────── */
-
-function initials(name: string) {
-  return name
-    .split(' ')
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((p) => p[0]?.toUpperCase() ?? '')
-    .join('');
-}
-
-const AVATAR_COLORS = [
-  '#6366f1', '#22c55e', '#ef4444', '#f59e0b', '#8b5cf6',
-  '#06b6d4', '#ec4899', '#10b981', '#f97316', '#0ea5e9',
-];
-
-function colorFor(id: string) {
-  let h = 0;
-  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
-  return AVATAR_COLORS[h % AVATAR_COLORS.length];
-}
-
-function Avatar({ name, id, size = 28 }: { name: string; id: string; size?: number }) {
-  return (
-    <div
-      className="rounded-full flex items-center justify-center text-white font-semibold flex-shrink-0"
-      style={{ width: size, height: size, background: colorFor(id), fontSize: size * 0.38 }}
-    >
-      {initials(name) || '?'}
-    </div>
-  );
-}
+import Avatar from '@/components/ui/Avatar';
 
 /* ── Formatters ──────────────────────────────────────── */
 
@@ -374,7 +342,7 @@ export default function NegocioDetailPanel({ lead, currentUser, users, pipelines
               <Stars value={lead.ranking ?? 0} onChange={(r) => leadMut.mutate({ ranking: r })} />
               {assignedTo && (
                 <span className="flex items-center gap-1.5 text-sm" style={{ color: 'var(--ink-2)' }}>
-                  <Avatar name={assignedTo.name} id={assignedTo.id} size={20} />
+                  <Avatar name={assignedTo.name} url={assignedTo.avatarUrl} size={20} />
                   {assignedTo.name}
                 </span>
               )}
@@ -711,7 +679,7 @@ export default function NegocioDetailPanel({ lead, currentUser, users, pipelines
                   className="flex items-center gap-2 p-2 rounded-md mb-2"
                   style={{ background: 'var(--surface)', border: '1px solid var(--edge)' }}
                 >
-                  <Avatar name={lead.contact.name} id={lead.contact.id} size={28} />
+                  <Avatar name={lead.contact.name} url={lead.contact.avatarUrl} size={28} />
                   <span className="text-sm font-medium truncate" style={{ color: 'var(--ink-1)' }}>
                     {lead.contact.name}
                   </span>
@@ -956,7 +924,7 @@ function InlineResponsavel({
       >
         {current ? (
           <>
-            <Avatar name={current.name} id={current.id} size={22} />
+            <Avatar name={current.name} url={current.avatarUrl} size={22} />
             {current.name}
           </>
         ) : (

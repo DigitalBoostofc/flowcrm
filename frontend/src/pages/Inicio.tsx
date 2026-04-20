@@ -16,6 +16,7 @@ import { listPipelines } from '@/api/pipelines';
 import { useAuthStore } from '@/store/auth.store';
 import { useWorkspace } from '@/hooks/useWorkspace';
 import type { Task, TaskType, User } from '@/types/api';
+import Avatar from '@/components/ui/Avatar';
 
 const TYPE_META: Record<TaskType, { label: string; icon: typeof Mail; title: string }> = {
   email:    { label: 'E-mail',   icon: Mail,          title: 'Enviar email' },
@@ -26,31 +27,6 @@ const TYPE_META: Record<TaskType, { label: string; icon: typeof Mail; title: str
   visit:    { label: 'Visita',   icon: MapPin,        title: 'Agendar visita' },
 };
 
-const AVATAR_COLORS = [
-  '#6366f1', '#22c55e', '#ef4444', '#f59e0b', '#8b5cf6',
-  '#06b6d4', '#ec4899', '#10b981', '#f97316', '#0ea5e9',
-];
-
-function colorFor(id: string) {
-  let h = 0;
-  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
-  return AVATAR_COLORS[h % AVATAR_COLORS.length];
-}
-
-function initials(name: string) {
-  return name.split(' ').filter(Boolean).slice(0, 3).map((p) => p[0]?.toUpperCase() ?? '').join('');
-}
-
-function Avatar({ name, id, size = 36 }: { name: string; id: string; size?: number }) {
-  return (
-    <div
-      className="rounded-full flex items-center justify-center font-semibold text-white flex-shrink-0"
-      style={{ width: size, height: size, background: colorFor(id), fontSize: size * 0.32 }}
-    >
-      {initials(name) || '?'}
-    </div>
-  );
-}
 
 function toISODate(d: Date) {
   return d.toISOString().slice(0, 10);
@@ -240,7 +216,7 @@ function ActivityCard({
       <div className="flex items-center gap-3 px-4 py-3">
         {creator ? (
           <>
-            <Avatar name={creator.name} id={creator.id} size={36} />
+            <Avatar name={creator.name} url={creator.avatarUrl} size={36} />
             <div className="min-w-0">
               <div className="text-sm font-semibold" style={{ color: 'var(--ink-1)' }}>
                 {creator.name}

@@ -1,7 +1,7 @@
 import { useRef, useState, useEffect, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
-  Search, Filter, Plus, X, Users, Pencil, Camera, Trash2,
+  Search, Filter, Plus, X, Users, Pencil, Camera, Trash2, Columns3,
 } from 'lucide-react';
 import {
   listContacts, createContact, updateContact,
@@ -12,6 +12,12 @@ import { useAuthStore } from '@/store/auth.store';
 import type { Contact, ContactPrivacy, User } from '@/types/api';
 import PessoaDetailPanel from '@/components/pessoas/PessoaDetailPanel';
 import Avatar from '@/components/ui/Avatar';
+import {
+  ResizableDataList,
+  ViewEditorModal,
+  useColumnPrefs,
+  type ColumnDef,
+} from '@/components/data-list';
 
 /* ── Form helpers ────────────────────────────────────── */
 
@@ -788,6 +794,7 @@ export default function Pessoas() {
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [addOpen, setAddOpen] = useState(false);
   const [filterOpen, setFilterOpen] = useState(false);
+  const [viewEditorOpen, setViewEditorOpen] = useState(false);
   const [selectedPessoa, setSelectedPessoa] = useState<Contact | null>(null);
   const [editingPessoa, setEditingPessoa] = useState<Contact | null>(null);
 
@@ -831,6 +838,146 @@ export default function Pessoas() {
   }, [contacts, filterCategoria, filterOrigem, filterResponsavel, sort]);
 
   const total = filteredContacts.length;
+
+  const pessoasColumns = useMemo<ColumnDef<Contact>[]>(() => [
+    {
+      key: 'index',
+      label: '#',
+      defaultWidth: 56,
+      minWidth: 40,
+      render: (_row, idx) => (
+        <span className="text-xs font-mono tabular-nums" style={{ color: 'var(--ink-3)' }}>
+          {String(idx + 1).padStart(2, '0')}
+        </span>
+      ),
+    },
+    {
+      key: 'name',
+      label: 'Nome',
+      defaultWidth: 260,
+      required: true,
+      render: (c) => (
+        <div className="flex items-center gap-2 min-w-0">
+          <Avatar name={c.name} url={c.avatarUrl} size={28} />
+          <span className="font-medium truncate">{c.name}</span>
+        </div>
+      ),
+    },
+    {
+      key: 'company',
+      label: 'Empresa',
+      defaultWidth: 180,
+      render: (c) => <span className="truncate block" style={{ color: 'var(--ink-2)' }}>{c.company ?? '—'}</span>,
+    },
+    {
+      key: 'categoria',
+      label: 'Categoria',
+      defaultWidth: 140,
+      render: (c) => (
+        <span className="truncate block" style={{ color: 'var(--ink-2)' }}>
+          {c.categoria ? (
+            <span
+              className="px-2 py-0.5 rounded-full text-xs"
+              style={{ background: 'var(--surface-hover)', border: '1px solid var(--edge)' }}
+            >
+              {c.categoria}
+            </span>
+          ) : '—'}
+        </span>
+      ),
+    },
+    {
+      key: 'responsavel',
+      label: 'Responsável',
+      defaultWidth: 200,
+      render: (c) => {
+        const responsavel = c.responsibleId ? userById.get(c.responsibleId) : null;
+        return responsavel ? (
+          <div className="flex items-center gap-2 min-w-0">
+            <Avatar name={responsavel.name} url={responsavel.avatarUrl} size={26} />
+            <span className="truncate" style={{ color: 'var(--ink-2)' }}>{responsavel.name}</span>
+          </div>
+        ) : (
+          <span style={{ color: 'var(--ink-3)' }}>—</span>
+        );
+      },
+    },
+    {
+      key: 'email',
+      label: 'Email',
+      defaultWidth: 220,
+      render: (c) => <span className="truncate block" style={{ color: 'var(--ink-2)' }}>{c.email ?? '—'}</span>,
+    },
+    {
+      key: 'whatsapp',
+      label: 'WhatsApp',
+      defaultWidth: 160,
+      hiddenByDefault: true,
+      render: (c) => <span className="truncate block" style={{ color: 'var(--ink-2)' }}>{c.whatsapp ?? '—'}</span>,
+    },
+    {
+      key: 'celular',
+      label: 'Celular',
+      defaultWidth: 160,
+      hiddenByDefault: true,
+      render: (c) => <span className="truncate block" style={{ color: 'var(--ink-2)' }}>{c.celular ?? '—'}</span>,
+    },
+    {
+      key: 'phone',
+      label: 'Telefone',
+      defaultWidth: 160,
+      hiddenByDefault: true,
+      render: (c) => <span className="truncate block" style={{ color: 'var(--ink-2)' }}>{c.phone ?? '—'}</span>,
+    },
+    {
+      key: 'role',
+      label: 'Cargo',
+      defaultWidth: 160,
+      hiddenByDefault: true,
+      render: (c) => <span className="truncate block" style={{ color: 'var(--ink-2)' }}>{c.role ?? '—'}</span>,
+    },
+    {
+      key: 'cpf',
+      label: 'CPF',
+      defaultWidth: 140,
+      hiddenByDefault: true,
+      render: (c) => <span className="truncate block" style={{ color: 'var(--ink-2)' }}>{c.cpf ?? '—'}</span>,
+    },
+    {
+      key: 'origem',
+      label: 'Origem',
+      defaultWidth: 140,
+      hiddenByDefault: true,
+      render: (c) => <span className="truncate block" style={{ color: 'var(--ink-2)' }}>{c.origem ?? '—'}</span>,
+    },
+    {
+      key: 'cidade',
+      label: 'Cidade',
+      defaultWidth: 140,
+      hiddenByDefault: true,
+      render: (c) => <span className="truncate block" style={{ color: 'var(--ink-2)' }}>{c.cidade ?? '—'}</span>,
+    },
+    {
+      key: 'estado',
+      label: 'Estado',
+      defaultWidth: 90,
+      hiddenByDefault: true,
+      render: (c) => <span className="truncate block" style={{ color: 'var(--ink-2)' }}>{c.estado ?? '—'}</span>,
+    },
+    {
+      key: 'createdAt',
+      label: 'Criado em',
+      defaultWidth: 140,
+      hiddenByDefault: true,
+      render: (c) => (
+        <span className="truncate block" style={{ color: 'var(--ink-2)' }}>
+          {new Date(c.createdAt).toLocaleDateString('pt-BR')}
+        </span>
+      ),
+    },
+  ], [userById]);
+
+  const cols = useColumnPrefs<Contact>('pessoas', pessoasColumns);
 
   return (
     <div className="p-6 space-y-4">
@@ -884,6 +1031,15 @@ export default function Pessoas() {
 
         <div className="flex items-center gap-2">
           <button
+            onClick={() => setViewEditorOpen(true)}
+            className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors"
+            style={{ background: 'var(--surface)', border: '1px solid var(--edge)', color: 'var(--ink-1)' }}
+            title="Editar visualização"
+          >
+            <Columns3 className="w-4 h-4" />
+            Visualização
+          </button>
+          <button
             onClick={() => setAddOpen(true)}
             className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-white shadow-sm transition-all hover:opacity-90"
             style={{ background: 'var(--brand-500, #6366f1)' }}
@@ -931,93 +1087,27 @@ export default function Pessoas() {
         </div>
       )}
 
-      {/* Table */}
-      <div
-        className="rounded-xl overflow-hidden"
-        style={{ background: 'var(--surface)', border: '1px solid var(--edge)' }}
-      >
-        <div
-          className="grid gap-4 px-6 py-3 text-xs font-bold uppercase tracking-wide"
-          style={{
-            gridTemplateColumns: '48px 2fr 1.4fr 1fr 1.4fr 1.6fr 36px',
-            borderBottom: '1px solid var(--edge)',
-            color: 'var(--ink-2)',
-          }}
-        >
-          <div>#</div>
-          <div>Nome</div>
-          <div>Empresa</div>
-          <div>Categoria</div>
-          <div>Responsável</div>
-          <div>Email</div>
-          <div></div>
-        </div>
-
-        {isLoading ? (
-          <div className="text-center py-10 text-sm" style={{ color: 'var(--ink-3)' }}>
-            Carregando...
-          </div>
-        ) : filteredContacts.length === 0 ? (
-          <EmptyState onAdd={() => setAddOpen(true)} />
-        ) : (
-          <div>
-            {filteredContacts.map((c: Contact, idx) => {
-              const responsavel = c.responsibleId ? userById.get(c.responsibleId) : null;
-              return (
-                <div
-                  key={c.id}
-                  onClick={() => setEditingPessoa(c)}
-                  className="group grid gap-4 px-6 py-3 text-sm transition-colors hover:bg-[var(--surface-hover)] cursor-pointer items-center"
-                  style={{
-                    gridTemplateColumns: '48px 2fr 1.4fr 1fr 1.4fr 1.6fr 36px',
-                    borderBottom: '1px solid var(--edge)',
-                    color: 'var(--ink-1)',
-                  }}
-                >
-                  <div className="text-xs font-mono tabular-nums" style={{ color: 'var(--ink-3)' }}>
-                    {String(idx + 1).padStart(2, '0')}
-                  </div>
-                  <div className="flex items-center gap-2 min-w-0">
-                    <Avatar name={c.name} url={c.avatarUrl} size={28} />
-                    <span className="font-medium truncate">{c.name}</span>
-                  </div>
-                  <div className="truncate" style={{ color: 'var(--ink-2)' }}>{c.company ?? '—'}</div>
-                  <div className="truncate" style={{ color: 'var(--ink-2)' }}>
-                    {c.categoria ? (
-                      <span
-                        className="px-2 py-0.5 rounded-full text-xs"
-                        style={{ background: 'var(--surface-hover)', border: '1px solid var(--edge)' }}
-                      >
-                        {c.categoria}
-                      </span>
-                    ) : '—'}
-                  </div>
-                  <div className="flex items-center gap-2 min-w-0">
-                    {responsavel ? (
-                      <>
-                        <Avatar name={responsavel.name} url={responsavel.avatarUrl} size={26} />
-                        <span className="truncate" style={{ color: 'var(--ink-2)' }}>{responsavel.name}</span>
-                      </>
-                    ) : (
-                      <span style={{ color: 'var(--ink-3)' }}>—</span>
-                    )}
-                  </div>
-                  <div className="truncate" style={{ color: 'var(--ink-2)' }}>{c.email ?? '—'}</div>
-                  <button
-                    onClick={(e) => { e.stopPropagation(); setEditingPessoa(c); }}
-                    className="p-1.5 rounded-md opacity-0 group-hover:opacity-100 transition-opacity hover:bg-[var(--edge)]"
-                    style={{ color: 'var(--ink-3)' }}
-                    title="Editar pessoa"
-                    aria-label="Editar pessoa"
-                  >
-                    <Pencil className="w-4 h-4" />
-                  </button>
-                </div>
-              );
-            })}
-          </div>
+      <ResizableDataList<Contact>
+        rows={filteredContacts}
+        rowKey={(c) => c.id}
+        columns={cols.visibleColumns}
+        widths={cols.prefs.widths}
+        onWidthChange={cols.setWidth}
+        loading={isLoading}
+        onRowClick={(c) => setEditingPessoa(c)}
+        emptyState={<EmptyState onAdd={() => setAddOpen(true)} />}
+        trailing={(c) => (
+          <button
+            onClick={() => setEditingPessoa(c)}
+            className="p-1.5 rounded-md opacity-0 group-hover:opacity-100 transition-opacity hover:bg-[var(--edge)]"
+            style={{ color: 'var(--ink-3)' }}
+            title="Editar pessoa"
+            aria-label="Editar pessoa"
+          >
+            <Pencil className="w-4 h-4" />
+          </button>
         )}
-      </div>
+      />
 
       {/* Footer */}
       <div className="flex justify-end text-xs" style={{ color: 'var(--ink-3)' }}>
@@ -1047,6 +1137,20 @@ export default function Pessoas() {
           onClose={() => setSelectedPessoa(null)}
         />
       )}
+
+      <ViewEditorModal<Contact>
+        open={viewEditorOpen}
+        onClose={() => setViewEditorOpen(false)}
+        title="Visualização de pessoas"
+        columns={pessoasColumns}
+        order={cols.prefs.order}
+        hidden={cols.prefs.hidden}
+        onApply={({ order, hidden }) => {
+          cols.setOrder(order);
+          cols.setVisible(pessoasColumns.map((c) => c.key).filter((k) => !hidden.includes(k)));
+        }}
+        onReset={cols.reset}
+      />
     </div>
   );
 }

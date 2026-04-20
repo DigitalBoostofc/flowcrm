@@ -1,7 +1,7 @@
 import { useRef, useState, useEffect, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
-  Search, Filter, Plus, X, Building2, Star, Pencil, Camera, Trash2,
+  Search, Filter, Plus, X, Building2, Star, Pencil, Camera, Trash2, Columns3,
 } from 'lucide-react';
 import {
   listCompanies, createCompany, updateCompany,
@@ -12,6 +12,12 @@ import { listContacts } from '@/api/contacts';
 import { useAuthStore } from '@/store/auth.store';
 import type { Company, CompanyPrivacy, User } from '@/types/api';
 import Avatar from '@/components/ui/Avatar';
+import {
+  ResizableDataList,
+  ViewEditorModal,
+  useColumnPrefs,
+  type ColumnDef,
+} from '@/components/data-list';
 
 /* ── Form helpers ────────────────────────────────────── */
 
@@ -725,6 +731,7 @@ export default function Companies() {
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [addOpen, setAddOpen] = useState(false);
   const [filterOpen, setFilterOpen] = useState(false);
+  const [viewEditorOpen, setViewEditorOpen] = useState(false);
   const [editingCompany, setEditingCompany] = useState<Company | null>(null);
   const [filterSetor, setFilterSetor] = useState('');
   const [filterResponsavel, setFilterResponsavel] = useState('');
@@ -754,6 +761,115 @@ export default function Companies() {
     });
     return result;
   }, [companies, filterSetor, filterResponsavel, sort]);
+
+  const companiesColumns = useMemo<ColumnDef<Company>[]>(() => [
+    {
+      key: 'name',
+      label: 'Nome',
+      defaultWidth: 260,
+      required: true,
+      render: (c) => (
+        <div className="flex items-center gap-2 min-w-0">
+          <Avatar name={c.name} url={c.avatarUrl} size={28} />
+          <span className="font-medium truncate">{c.name}</span>
+        </div>
+      ),
+    },
+    {
+      key: 'categoria',
+      label: 'Categoria',
+      defaultWidth: 160,
+      render: (c) => <span className="truncate block" style={{ color: 'var(--ink-2)' }}>{c.categoria ?? '—'}</span>,
+    },
+    {
+      key: 'responsavel',
+      label: 'Responsável',
+      defaultWidth: 180,
+      render: (c) => <span className="truncate block" style={{ color: 'var(--ink-2)' }}>{c.responsible?.name ?? '—'}</span>,
+    },
+    {
+      key: 'email',
+      label: 'Email',
+      defaultWidth: 220,
+      render: (c) => <span className="truncate block" style={{ color: 'var(--ink-2)' }}>{c.email ?? '—'}</span>,
+    },
+    {
+      key: 'telefone',
+      label: 'Telefone',
+      defaultWidth: 160,
+      render: (c) => <span className="truncate block" style={{ color: 'var(--ink-2)' }}>{c.telefone ?? c.celular ?? '—'}</span>,
+    },
+    {
+      key: 'ranking',
+      label: 'Ranking',
+      defaultWidth: 110,
+      render: (c) => (
+        <div className="flex items-center gap-1" style={{ color: 'var(--ink-2)' }}>
+          {c.ranking ? (
+            <>
+              <Star className="w-3.5 h-3.5" style={{ color: '#f59e0b' }} fill="#f59e0b" />
+              {c.ranking}
+            </>
+          ) : '—'}
+        </div>
+      ),
+    },
+    {
+      key: 'cnpj',
+      label: 'CNPJ',
+      defaultWidth: 170,
+      hiddenByDefault: true,
+      render: (c) => <span className="truncate block" style={{ color: 'var(--ink-2)' }}>{c.cnpj ?? '—'}</span>,
+    },
+    {
+      key: 'setor',
+      label: 'Setor',
+      defaultWidth: 150,
+      hiddenByDefault: true,
+      render: (c) => <span className="truncate block" style={{ color: 'var(--ink-2)' }}>{c.setor ?? '—'}</span>,
+    },
+    {
+      key: 'origem',
+      label: 'Origem',
+      defaultWidth: 140,
+      hiddenByDefault: true,
+      render: (c) => <span className="truncate block" style={{ color: 'var(--ink-2)' }}>{c.origem ?? '—'}</span>,
+    },
+    {
+      key: 'whatsapp',
+      label: 'WhatsApp',
+      defaultWidth: 160,
+      hiddenByDefault: true,
+      render: (c) => <span className="truncate block" style={{ color: 'var(--ink-2)' }}>{c.whatsapp ?? '—'}</span>,
+    },
+    {
+      key: 'cidade',
+      label: 'Cidade',
+      defaultWidth: 140,
+      hiddenByDefault: true,
+      render: (c) => <span className="truncate block" style={{ color: 'var(--ink-2)' }}>{c.cidade ?? '—'}</span>,
+    },
+    {
+      key: 'estado',
+      label: 'Estado',
+      defaultWidth: 90,
+      hiddenByDefault: true,
+      render: (c) => <span className="truncate block" style={{ color: 'var(--ink-2)' }}>{c.estado ?? '—'}</span>,
+    },
+    {
+      key: 'createdAt',
+      label: 'Criada em',
+      defaultWidth: 140,
+      hiddenByDefault: true,
+      render: (c) => (
+        <span className="truncate block" style={{ color: 'var(--ink-2)' }}>
+          {new Date(c.createdAt).toLocaleDateString('pt-BR')}
+        </span>
+      ),
+    },
+  ], []);
+
+  const cols = useColumnPrefs<Company>('companies', companiesColumns);
 
   return (
     <div className="p-6 space-y-4">
@@ -804,6 +920,15 @@ export default function Companies() {
 
         <div className="flex items-center gap-2">
           <button
+            onClick={() => setViewEditorOpen(true)}
+            className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors"
+            style={{ background: 'var(--surface)', border: '1px solid var(--edge)', color: 'var(--ink-1)' }}
+            title="Editar visualização"
+          >
+            <Columns3 className="w-4 h-4" />
+            Visualização
+          </button>
+          <button
             onClick={() => setAddOpen(true)}
             className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-white shadow-sm transition-all hover:opacity-90"
             style={{ background: 'var(--brand-500, #6366f1)' }}
@@ -843,77 +968,26 @@ export default function Companies() {
         </div>
       )}
 
-      {/* Table */}
-      <div
-        className="rounded-xl overflow-hidden"
-        style={{ background: 'var(--surface)', border: '1px solid var(--edge)' }}
-      >
-        <div
-          className="grid gap-4 px-6 py-3 text-xs font-bold uppercase tracking-wide"
-          style={{
-            gridTemplateColumns: 'repeat(6, minmax(0, 1fr)) 36px',
-            borderBottom: '1px solid var(--edge)',
-            color: 'var(--ink-2)',
-          }}
-        >
-          <div>Nome</div>
-          <div>Categoria</div>
-          <div>Responsável</div>
-          <div>Email</div>
-          <div>Telefone</div>
-          <div>Ranking</div>
-          <div></div>
-        </div>
-
-        {isLoading ? (
-          <div className="text-center py-10 text-sm" style={{ color: 'var(--ink-3)' }}>
-            Carregando...
-          </div>
-        ) : filteredCompanies.length === 0 ? (
-          <EmptyState onAdd={() => setAddOpen(true)} />
-        ) : (
-          <div>
-            {filteredCompanies.map((c: Company) => (
-              <div
-                key={c.id}
-                className="group grid gap-4 px-6 py-3 text-sm transition-colors hover:bg-[var(--surface-hover)]"
-                style={{
-                  gridTemplateColumns: 'repeat(6, minmax(0, 1fr)) 36px',
-                  borderBottom: '1px solid var(--edge)',
-                  color: 'var(--ink-1)',
-                }}
-              >
-                <div className="flex items-center gap-2 min-w-0">
-                  <Avatar name={c.name} url={c.avatarUrl} size={28} />
-                  <span className="font-medium truncate">{c.name}</span>
-                </div>
-                <div className="truncate" style={{ color: 'var(--ink-2)' }}>{c.categoria ?? '—'}</div>
-                <div className="truncate" style={{ color: 'var(--ink-2)' }}>{c.responsible?.name ?? '—'}</div>
-                <div className="truncate" style={{ color: 'var(--ink-2)' }}>{c.email ?? '—'}</div>
-                <div className="truncate" style={{ color: 'var(--ink-2)' }}>{c.telefone ?? c.celular ?? '—'}</div>
-                <div className="flex items-center gap-1" style={{ color: 'var(--ink-2)' }}>
-                  {c.ranking ? (
-                    <>
-                      <Star className="w-3.5 h-3.5" style={{ color: '#f59e0b' }} fill="#f59e0b" />
-                      {c.ranking}
-                    </>
-                  ) : '—'}
-                </div>
-                <div className="flex items-center justify-end">
-                  <button
-                    onClick={(e) => { e.stopPropagation(); setEditingCompany(c); }}
-                    className="p-1.5 rounded-md opacity-0 group-hover:opacity-100 transition-opacity hover:bg-[var(--edge)]"
-                    style={{ color: 'var(--ink-3)' }}
-                    title="Editar empresa"
-                  >
-                    <Pencil className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
+      <ResizableDataList<Company>
+        rows={filteredCompanies}
+        rowKey={(c) => c.id}
+        columns={cols.visibleColumns}
+        widths={cols.prefs.widths}
+        onWidthChange={cols.setWidth}
+        loading={isLoading}
+        onRowClick={(c) => setEditingCompany(c)}
+        emptyState={<EmptyState onAdd={() => setAddOpen(true)} />}
+        trailing={(c) => (
+          <button
+            onClick={() => setEditingCompany(c)}
+            className="p-1.5 rounded-md opacity-0 group-hover:opacity-100 transition-opacity hover:bg-[var(--edge)]"
+            style={{ color: 'var(--ink-3)' }}
+            title="Editar empresa"
+          >
+            <Pencil className="w-4 h-4" />
+          </button>
         )}
-      </div>
+      />
 
       <AddCompanyModal
         open={addOpen}
@@ -927,6 +1001,20 @@ export default function Companies() {
         currentUser={user}
         users={users}
         company={editingCompany}
+      />
+
+      <ViewEditorModal<Company>
+        open={viewEditorOpen}
+        onClose={() => setViewEditorOpen(false)}
+        title="Visualização de empresas"
+        columns={companiesColumns}
+        order={cols.prefs.order}
+        hidden={cols.prefs.hidden}
+        onApply={({ order, hidden }) => {
+          cols.setOrder(order);
+          cols.setVisible(companiesColumns.map((c) => c.key).filter((k) => !hidden.includes(k)));
+        }}
+        onReset={cols.reset}
       />
     </div>
   );

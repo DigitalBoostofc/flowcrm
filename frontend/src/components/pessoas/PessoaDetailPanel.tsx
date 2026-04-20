@@ -8,6 +8,7 @@ import {
 import type { Contact, User, Task, TaskType } from '@/types/api';
 import { updateContact } from '@/api/contacts';
 import { listTasks, createTask, completeTask, reopenTask } from '@/api/tasks';
+import Avatar from '@/components/ui/Avatar';
 
 /* ── Types ───────────────────────────────────────────── */
 
@@ -21,39 +22,6 @@ const ACTIVITY_TYPES: { key: ActivityType; label: string; icon: React.ComponentT
   { key: 'meeting',  label: 'Reunião',  icon: UsersIcon },
   { key: 'visit',    label: 'Visita',   icon: MapPin },
 ];
-
-/* ── Avatar helpers ──────────────────────────────────── */
-
-function initials(name: string) {
-  return name
-    .split(' ')
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((p) => p[0]?.toUpperCase() ?? '')
-    .join('');
-}
-
-const AVATAR_COLORS = [
-  '#6366f1', '#22c55e', '#ef4444', '#f59e0b', '#8b5cf6',
-  '#06b6d4', '#ec4899', '#10b981', '#f97316', '#0ea5e9',
-];
-
-function colorFor(id: string) {
-  let h = 0;
-  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
-  return AVATAR_COLORS[h % AVATAR_COLORS.length];
-}
-
-function Avatar({ name, id, size = 32 }: { name: string; id: string; size?: number }) {
-  return (
-    <div
-      className="rounded-full flex items-center justify-center text-white font-semibold flex-shrink-0"
-      style={{ width: size, height: size, background: colorFor(id), fontSize: size * 0.38 }}
-    >
-      {initials(name) || '?'}
-    </div>
-  );
-}
 
 /* ── Inline editable field ───────────────────────────── */
 
@@ -226,7 +194,7 @@ export default function PessoaDetailPanel({ contact, currentUser, users, onClose
         >
           <div className="flex items-start justify-between gap-4">
             <div className="flex items-start gap-3 min-w-0 flex-1">
-              <Avatar name={contact.name} id={contact.id} size={48} />
+              <Avatar name={contact.name} url={contact.avatarUrl} size={48} />
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
                   <h2 className="font-semibold text-lg truncate" style={{ color: 'var(--ink-1)' }}>{contact.name}</h2>
@@ -253,7 +221,7 @@ export default function PessoaDetailPanel({ contact, currentUser, users, onClose
                   {!contact.email && <span style={{ color: 'var(--ink-3)' }}>·</span>}
                   {responsavel && (
                     <span className="inline-flex items-center gap-1" style={{ color: 'var(--ink-2)' }}>
-                      <Avatar name={responsavel.name} id={responsavel.id} size={18} />
+                      <Avatar name={responsavel.name} url={responsavel.avatarUrl} size={18} />
                       {responsavel.name}
                     </span>
                   )}
@@ -489,7 +457,7 @@ export default function PessoaDetailPanel({ contact, currentUser, users, onClose
                                     Criada por{' '}
                                     <Avatar
                                       name={users.find((u) => u.id === t.createdById)!.name}
-                                      id={t.createdById}
+                                      url={users.find((u) => u.id === t.createdById)!.avatarUrl}
                                       size={16}
                                     />
                                   </span>
@@ -499,7 +467,7 @@ export default function PessoaDetailPanel({ contact, currentUser, users, onClose
                                     Responsáveis
                                     {t.responsibleIds.slice(0, 3).map((id) => {
                                       const u = users.find((x) => x.id === id);
-                                      return u ? <Avatar key={id} name={u.name} id={id} size={16} /> : null;
+                                      return u ? <Avatar key={id} name={u.name} url={u.avatarUrl} size={16} /> : null;
                                     })}
                                   </span>
                                 )}
@@ -547,7 +515,7 @@ export default function PessoaDetailPanel({ contact, currentUser, users, onClose
                 <div className="flex items-center gap-1.5 text-sm" style={{ color: 'var(--ink-1)' }}>
                   {responsavel ? (
                     <>
-                      <Avatar name={responsavel.name} id={responsavel.id} size={20} />
+                      <Avatar name={responsavel.name} url={responsavel.avatarUrl} size={20} />
                       <span className="truncate">
                         {responsavel.id === currentUser?.id ? responsavel.name : responsavel.name}
                       </span>

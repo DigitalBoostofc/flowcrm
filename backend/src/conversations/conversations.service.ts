@@ -14,6 +14,7 @@ export interface InboxItem {
   contactName: string | null;
   contactPhone: string | null;
   contactCategoria: string | null;
+  contactAvatarUrl: string | null;
   lastMessageBody: string | null;
   lastMessageDirection: string | null;
   lastMessageSentAt: Date | null;
@@ -67,6 +68,7 @@ export class ConversationsService {
         COALESCE(contact.name, l."externalName")                    AS "contactName",
         COALESCE(contact.whatsapp, contact.celular, contact.phone, l."externalPhone") AS "contactPhone",
         contact.categoria                                           AS "contactCategoria",
+        contact."avatarUrl"                                         AS "contactAvatarUrl",
         lm.body                                                     AS "lastMessageBody",
         lm.direction                                                AS "lastMessageDirection",
         lm."sentAt"                                                 AS "lastMessageSentAt"
@@ -93,6 +95,7 @@ export class ConversationsService {
       contactName: r.contactName,
       contactPhone: r.contactPhone,
       contactCategoria: r.contactCategoria,
+      contactAvatarUrl: r.contactAvatarUrl,
       lastMessageBody: r.lastMessageBody,
       lastMessageDirection: r.lastMessageDirection,
       lastMessageSentAt: r.lastMessageSentAt,

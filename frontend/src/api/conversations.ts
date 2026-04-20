@@ -10,6 +10,7 @@ export interface InboxItem {
   contactName: string | null;
   contactPhone: string | null;
   contactCategoria: string | null;
+  contactAvatarUrl: string | null;
   lastMessageBody: string | null;
   lastMessageDirection: 'inbound' | 'outbound' | null;
   lastMessageSentAt: string | null;

@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
-  Search, Filter, ArrowUpDown, Columns3, Download, Upload, Plus,
+  Search, Filter, Columns3, Plus,
   List, GitBranch, TrendingUp, Star, Pencil, Trash2,
   ChevronDown, Briefcase, Building2, X, Settings as SettingsIcon, Lock, Users as UsersIcon,
 } from 'lucide-react';
@@ -15,49 +15,13 @@ import { listUsers } from '@/api/users';
 import { useAuthStore } from '@/store/auth.store';
 import type { Company, Contact, Lead, LeadStatus, Pipeline, User } from '@/types/api';
 import NegocioDetailPanel from '@/components/negocios/NegocioDetailPanel';
-
-const NEGOCIOS_COLS = [
-  { key: 'title',       label: 'Título' },
-  { key: 'contact',     label: 'Contato',   required: true },
-  { key: 'pipeline',    label: 'Funil' },
-  { key: 'stage',       label: 'Etapa' },
-  { key: 'value',       label: 'Valor' },
-  { key: 'status',      label: 'Status' },
-  { key: 'notes',       label: 'Observações' },
-];
-
-/* ── Avatar helpers ──────────────────────────────────── */
-
-function initials(name: string) {
-  return name
-    .split(' ')
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((p) => p[0]?.toUpperCase() ?? '')
-    .join('');
-}
-
-const AVATAR_COLORS = [
-  '#6366f1', '#22c55e', '#ef4444', '#f59e0b', '#8b5cf6',
-  '#06b6d4', '#ec4899', '#10b981', '#f97316', '#0ea5e9',
-];
-
-function colorFor(id: string) {
-  let h = 0;
-  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
-  return AVATAR_COLORS[h % AVATAR_COLORS.length];
-}
-
-function Avatar({ name, id, size = 28 }: { name: string; id: string; size?: number }) {
-  return (
-    <div
-      className="rounded-full flex items-center justify-center font-semibold text-white flex-shrink-0"
-      style={{ width: size, height: size, background: colorFor(id), fontSize: size * 0.38 }}
-    >
-      {initials(name) || '?'}
-    </div>
-  );
-}
+import Avatar from '@/components/ui/Avatar';
+import {
+  ResizableDataList,
+  ViewEditorModal,
+  useColumnPrefs,
+  type ColumnDef,
+} from '@/components/data-list';
 
 /* ── Formatters ──────────────────────────────────────── */
 
@@ -457,7 +421,7 @@ function ContactAutocomplete({
                   className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-[var(--surface-hover)] text-left"
                   style={{ color: 'var(--ink-1)' }}
                 >
-                  <Avatar name={c.name} id={c.id} size={24} />
+                  <Avatar name={c.name} url={c.avatarUrl} size={24} />
                   <div className="min-w-0">
                     <div className="truncate">{c.name}</div>
                     {c.company && (
@@ -999,6 +963,7 @@ export default function Negocios() {
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [addOpen, setAddOpen] = useState(false);
   const [filterOpen, setFilterOpen] = useState(false);
+  const [viewEditorOpen, setViewEditorOpen] = useState(false);
   const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
   const [filterStatus, setFilterStatus] = useState('');
   const [filterPipeline, setFilterPipeline] = useState('');
@@ -1062,7 +1027,130 @@ export default function Negocios() {
     [filteredLeads],
   );
 
-  const gridCols = '44px 1.6fr 1.4fr 1.2fr 1.2fr 1.2fr 1.4fr 1fr 1.1fr 80px';
+  const negociosColumns = useMemo<ColumnDef<Lead>[]>(() => [
+    {
+      key: 'index',
+      label: '#',
+      defaultWidth: 56,
+      minWidth: 40,
+      render: (_row, idx) => (
+        <span className="text-xs font-mono tabular-nums" style={{ color: 'var(--ink-3)' }}>
+          {String(idx + 1).padStart(2, '0')}
+        </span>
+      ),
+    },
+    {
+      key: 'title',
+      label: 'Nome',
+      defaultWidth: 240,
+      required: true,
+      render: (lead) => (
+        <span className="font-medium truncate block">
+          {lead.title ?? lead.contact?.name ?? 'Sem título'}
+        </span>
+      ),
+    },
+    {
+      key: 'contact',
+      label: 'Contato',
+      defaultWidth: 220,
+      render: (lead) => {
+        const contact = lead.contact;
+        return contact ? (
+          <div className="flex items-center gap-2 min-w-0">
+            <Avatar name={contact.name} url={contact.avatarUrl} size={26} />
+            <span className="truncate" style={{ color: 'var(--ink-2)' }}>{contact.name}</span>
+          </div>
+        ) : (
+          <span style={{ color: 'var(--ink-3)' }}>—</span>
+        );
+      },
+    },
+    {
+      key: 'createdBy',
+      label: 'Cadastrado por',
+      defaultWidth: 180,
+      render: (lead) => {
+        const createdBy = lead.createdBy ?? (lead.createdById ? userById.get(lead.createdById) : null);
+        return createdBy ? (
+          <div className="flex items-center gap-2 min-w-0">
+            <Avatar name={createdBy.name} url={createdBy.avatarUrl} size={24} />
+            <span className="truncate text-xs" style={{ color: 'var(--ink-2)' }}>{createdBy.name}</span>
+          </div>
+        ) : (
+          <span style={{ color: 'var(--ink-3)' }}>—</span>
+        );
+      },
+    },
+    {
+      key: 'assignedTo',
+      label: 'Responsável',
+      defaultWidth: 180,
+      render: (lead) => {
+        const assignedTo = lead.assignedTo ?? (lead.assignedToId ? userById.get(lead.assignedToId) : null);
+        return assignedTo ? (
+          <div className="flex items-center gap-2 min-w-0">
+            <Avatar name={assignedTo.name} url={assignedTo.avatarUrl} size={24} />
+            <span className="truncate text-xs" style={{ color: 'var(--ink-2)' }}>{assignedTo.name}</span>
+          </div>
+        ) : (
+          <span style={{ color: 'var(--ink-3)' }}>—</span>
+        );
+      },
+    },
+    {
+      key: 'status',
+      label: 'Status',
+      defaultWidth: 160,
+      render: (lead) => <StatusCell lead={lead} />,
+    },
+    {
+      key: 'stage',
+      label: 'Etapa',
+      defaultWidth: 200,
+      render: (lead) => <StageCell lead={lead} />,
+    },
+    {
+      key: 'value',
+      label: 'Valor',
+      defaultWidth: 140,
+      render: (lead) => (
+        <span className="truncate block" style={{ color: lead.value ? 'var(--ink-1)' : 'var(--ink-3)' }}>
+          {lead.value ? formatBRL(Number(lead.value)) : 'Indefinido'}
+        </span>
+      ),
+    },
+    {
+      key: 'ranking',
+      label: 'Ranking',
+      defaultWidth: 150,
+      render: (lead) => <RankingCell lead={lead} />,
+    },
+    {
+      key: 'pipeline',
+      label: 'Funil',
+      defaultWidth: 160,
+      hiddenByDefault: true,
+      render: (lead) => (
+        <span className="truncate block" style={{ color: 'var(--ink-2)' }}>
+          {lead.pipeline?.name ?? '—'}
+        </span>
+      ),
+    },
+    {
+      key: 'createdAt',
+      label: 'Criado em',
+      defaultWidth: 140,
+      hiddenByDefault: true,
+      render: (lead) => (
+        <span className="truncate block" style={{ color: 'var(--ink-2)' }}>
+          {new Date(lead.createdAt).toLocaleDateString('pt-BR')}
+        </span>
+      ),
+    },
+  ], [userById]);
+
+  const cols = useColumnPrefs<Lead>('negocios', negociosColumns);
 
   return (
     <div className="p-6 space-y-4">
@@ -1165,6 +1253,15 @@ export default function Negocios() {
 
         <div className="flex items-center gap-2">
           <button
+            onClick={() => setViewEditorOpen(true)}
+            className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors"
+            style={{ background: 'var(--surface)', border: '1px solid var(--edge)', color: 'var(--ink-1)' }}
+            title="Editar visualização"
+          >
+            <Columns3 className="w-4 h-4" />
+            Visualização
+          </button>
+          <button
             onClick={() => setAddOpen(true)}
             className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-white shadow-sm transition-all hover:opacity-90"
             style={{ background: 'var(--brand-500, #6366f1)' }}
@@ -1212,122 +1309,18 @@ export default function Negocios() {
         </div>
       )}
 
-      {/* Table */}
-      <div
-        className="rounded-xl overflow-hidden"
-        style={{ background: 'var(--surface)', border: '1px solid var(--edge)' }}
-      >
-        <div
-          className="grid gap-3 px-6 py-3 text-xs font-bold uppercase tracking-wide"
-          style={{
-            gridTemplateColumns: gridCols,
-            borderBottom: '1px solid var(--edge)',
-            color: 'var(--ink-2)',
-          }}
-        >
-          <div>#</div>
-          <div>Nome</div>
-          <div>Contato</div>
-          <div>Cadastrado por</div>
-          <div>Responsável</div>
-          <div>Status</div>
-          <div>Etapa</div>
-          <div>Valor</div>
-          <div>Ranking</div>
-          <div></div>
-        </div>
-
-        {isLoading ? (
-          <div className="text-center py-10 text-sm" style={{ color: 'var(--ink-3)' }}>
-            Carregando...
-          </div>
-        ) : filteredLeads.length === 0 ? (
-          <EmptyState onAdd={() => setAddOpen(true)} />
-        ) : (
-          <div>
-            {filteredLeads.map((lead, idx) => {
-              const contact = lead.contact;
-              const createdBy = lead.createdBy ?? (lead.createdById ? userById.get(lead.createdById) : null);
-              const assignedTo = lead.assignedTo ?? (lead.assignedToId ? userById.get(lead.assignedToId) : null);
-              const displayName = lead.title ?? contact?.name ?? 'Sem título';
-
-              return (
-                <div
-                  key={lead.id}
-                  onClick={() => setSelectedLeadId(lead.id)}
-                  className="grid gap-3 px-6 py-3 text-sm transition-colors hover:bg-[var(--surface-hover)] cursor-pointer items-center"
-                  style={{
-                    gridTemplateColumns: gridCols,
-                    borderBottom: '1px solid var(--edge)',
-                    color: 'var(--ink-1)',
-                  }}
-                >
-                  <div className="text-xs font-mono tabular-nums" style={{ color: 'var(--ink-3)' }}>
-                    {String(idx + 1).padStart(2, '0')}
-                  </div>
-
-                  <div className="flex items-center gap-2 min-w-0">
-                    <span className="font-medium truncate">{displayName}</span>
-                  </div>
-
-                  <div className="flex items-center gap-2 min-w-0">
-                    {contact ? (
-                      <>
-                        <Avatar name={contact.name} id={contact.id} size={26} />
-                        <span className="truncate" style={{ color: 'var(--ink-2)' }}>{contact.name}</span>
-                      </>
-                    ) : (
-                      <span style={{ color: 'var(--ink-3)' }}>—</span>
-                    )}
-                  </div>
-
-                  <div className="flex items-center gap-2 min-w-0">
-                    {createdBy ? (
-                      <>
-                        <Avatar name={createdBy.name} id={createdBy.id} size={24} />
-                        <span className="truncate text-xs" style={{ color: 'var(--ink-2)' }}>{createdBy.name}</span>
-                      </>
-                    ) : (
-                      <span style={{ color: 'var(--ink-3)' }}>—</span>
-                    )}
-                  </div>
-
-                  <div className="flex items-center gap-2 min-w-0">
-                    {assignedTo ? (
-                      <>
-                        <Avatar name={assignedTo.name} id={assignedTo.id} size={24} />
-                        <span className="truncate text-xs" style={{ color: 'var(--ink-2)' }}>{assignedTo.name}</span>
-                      </>
-                    ) : (
-                      <span style={{ color: 'var(--ink-3)' }}>—</span>
-                    )}
-                  </div>
-
-                  <div>
-                    <StatusCell lead={lead} />
-                  </div>
-
-                  <div>
-                    <StageCell lead={lead} />
-                  </div>
-
-                  <div className="truncate" style={{ color: lead.value ? 'var(--ink-1)' : 'var(--ink-3)' }}>
-                    {lead.value ? formatBRL(Number(lead.value)) : 'Indefinido'}
-                  </div>
-
-                  <div>
-                    <RankingCell lead={lead} />
-                  </div>
-
-                  <div>
-                    <RowActions lead={lead} />
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
+      <ResizableDataList<Lead>
+        rows={filteredLeads}
+        rowKey={(l) => l.id}
+        columns={cols.visibleColumns}
+        widths={cols.prefs.widths}
+        onWidthChange={cols.setWidth}
+        loading={isLoading}
+        onRowClick={(l) => setSelectedLeadId(l.id)}
+        emptyState={<EmptyState onAdd={() => setAddOpen(true)} />}
+        trailing={(lead) => <RowActions lead={lead} />}
+        trailingWidth={80}
+      />
 
       {/* Footer */}
       <div className="flex justify-end text-xs" style={{ color: 'var(--ink-3)' }}>
@@ -1354,6 +1347,20 @@ export default function Negocios() {
           />
         );
       })()}
+
+      <ViewEditorModal<Lead>
+        open={viewEditorOpen}
+        onClose={() => setViewEditorOpen(false)}
+        title="Visualização de negócios"
+        columns={negociosColumns}
+        order={cols.prefs.order}
+        hidden={cols.prefs.hidden}
+        onApply={({ order, hidden }) => {
+          cols.setOrder(order);
+          cols.setVisible(negociosColumns.map((c) => c.key).filter((k) => !hidden.includes(k)));
+        }}
+        onReset={cols.reset}
+      />
     </div>
   );
 }
