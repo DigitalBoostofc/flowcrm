@@ -132,8 +132,8 @@ export function FeatureLockedScreen({ feature }: { feature: string }) {
   const label = FEATURE_LABELS[feature] ?? 'Esta função';
   return (
     <div
-      className="fixed inset-0 flex items-center justify-center p-6"
-      style={{ background: 'var(--canvas)' }}
+      className="w-full flex items-center justify-center p-6"
+      style={{ minHeight: '100%', background: 'var(--canvas)' }}
     >
       <div
         className="feature-locked-card relative max-w-md w-full rounded-2xl p-8 text-center"
