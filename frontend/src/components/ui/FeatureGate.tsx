@@ -104,7 +104,7 @@ function UpgradePopover({ feature, onClose }: { feature: string; onClose: () => 
         </h4>
       </div>
       <p className="text-xs mb-3" style={{ color: 'var(--ink-2)' }}>
-        <strong>{label}</strong> está disponível no plano Performance. Desbloqueie Inbox, Automações e Templates fazendo upgrade.
+        <strong>{label}</strong> está disponível no plano Performance. Desbloqueie Inbox, Automações, Templates e Canais WhatsApp fazendo upgrade.
       </p>
       <button
         onClick={() => {
@@ -124,6 +124,7 @@ const FEATURE_LABELS: Record<string, string> = {
   inbox: 'Inbox',
   automations: 'Automações',
   automation_templates: 'Templates de automação',
+  whatsapp_channels: 'Canais WhatsApp',
 };
 
 export function FeatureLockedScreen({ feature }: { feature: string }) {
@@ -148,7 +149,7 @@ export function FeatureLockedScreen({ feature }: { feature: string }) {
           Turbine seu CRM com Performance
         </h2>
         <p className="text-sm mb-6" style={{ color: 'var(--ink-3)' }}>
-          <strong>{label}</strong> faz parte do plano Performance. Desbloqueie Inbox, Automações e Templates para acelerar seu time.
+          <strong>{label}</strong> faz parte do plano Performance. Desbloqueie Inbox, Automações, Templates e Canais WhatsApp para acelerar seu time.
         </p>
         <button
           onClick={() => navigate('/assinar?plan=performance')}

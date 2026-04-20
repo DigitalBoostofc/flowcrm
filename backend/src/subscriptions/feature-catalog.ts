@@ -20,6 +20,11 @@ export const FEATURE_CATALOG: Record<string, FeatureDef> = {
     label: 'Templates de automação',
     description: 'Modelos de mensagem usados pelas automações.',
   },
+  whatsapp_channels: {
+    key: 'whatsapp_channels',
+    label: 'Canais WhatsApp',
+    description: 'Conecte números de WhatsApp para enviar e receber mensagens.',
+  },
 };
 
 export const FEATURE_KEYS = Object.keys(FEATURE_CATALOG);

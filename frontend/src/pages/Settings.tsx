@@ -55,7 +55,7 @@ const GROUPS: NavGroup[] = [
   {
     title: 'Comunicação & automação',
     items: [
-      { id: 'channels',             label: 'Canais WhatsApp',       icon: Radio,      ownerOnly: true },
+      { id: 'channels',             label: 'Canais WhatsApp',       icon: Radio,      ownerOnly: true, feature: 'whatsapp_channels' },
       { id: 'templates',            label: 'Templates',             icon: FileText,   ownerOnly: true, feature: 'automation_templates' },
       { id: 'automations',          label: 'Automações',            icon: Zap,        ownerOnly: true, feature: 'automations' },
     ],
@@ -177,7 +177,7 @@ export default function Settings() {
           {tab === 'categorias-clientes' && <CategoriasClientesTab />}
           {tab === 'setores'             && <SetoresTab />}
           {tab === 'produtos-servicos'   && <ProdutosServicosTab />}
-          {tab === 'channels'            && <ChannelsTab />}
+          {tab === 'channels'            && (has('whatsapp_channels') ? <ChannelsTab /> : <FeatureLockedScreen feature="whatsapp_channels" />)}
           {tab === 'templates'           && (has('automation_templates') ? <TemplatesTab /> : <FeatureLockedScreen feature="automation_templates" />)}
           {tab === 'automations'         && (has('automations') ? <AutomationsTab /> : <FeatureLockedScreen feature="automations" />)}
           {tab === 'agents'              && <AgentsTab />}

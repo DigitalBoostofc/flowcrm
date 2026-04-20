@@ -32,8 +32,8 @@ export class PlansAndWorkspacePlan1716700000000 implements MigrationInterface {
       VALUES
         ('pro','Pro','Ideal para começar a organizar seu comercial.',19700,
           '[]'::jsonb, false, true, 1),
-        ('performance','Performance','Tudo liberado. Acelera o time com Inbox, Automações e Templates.',39700,
-          '["inbox","automations","automation_templates"]'::jsonb, true, true, 2)
+        ('performance','Performance','Tudo liberado. Acelera o time com Inbox, Automações, Templates e Canais WhatsApp.',39700,
+          '["inbox","automations","automation_templates","whatsapp_channels"]'::jsonb, true, true, 2)
       ON CONFLICT ("slug") DO NOTHING
     `);
   }
