@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Search, Filter, Columns3, Plus,
@@ -1079,18 +1079,29 @@ export default function Negocios() {
   const navigate = useNavigate();
   const currentUser = useAuthStore((s) => s.user);
   const qc = useQueryClient();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const initialPipelineFilter = searchParams.get('pipeline') ?? '';
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [addOpen, setAddOpen] = useState(false);
-  const [filterOpen, setFilterOpen] = useState(false);
+  const [filterOpen, setFilterOpen] = useState(Boolean(initialPipelineFilter));
   const [viewEditorOpen, setViewEditorOpen] = useState(false);
   const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [deleteTarget, setDeleteTarget] = useState<Lead | null>(null);
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
   const [filterStatus, setFilterStatus] = useState('');
-  const [filterPipeline, setFilterPipeline] = useState('');
+  const [filterPipeline, setFilterPipeline] = useState(initialPipelineFilter);
   const [filterAssignee, setFilterAssignee] = useState('');
+
+  // Remove o query param assim que capturado (evita "colar" o filtro ao recarregar via link)
+  useEffect(() => {
+    if (searchParams.get('pipeline')) {
+      const next = new URLSearchParams(searchParams);
+      next.delete('pipeline');
+      setSearchParams(next, { replace: true });
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const [sort, setSort] = useState<SortNegocios>('recente');
   const activeFilters = [filterStatus, filterPipeline, filterAssignee].filter(Boolean).length;
 

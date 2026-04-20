@@ -728,7 +728,11 @@ export default function Funil() {
             style={{ background: 'var(--surface)', border: '1px solid var(--edge)' }}
           >
             <button
-              onClick={() => navigate('/negocios')}
+              onClick={() => navigate(
+                selectedPipelineId
+                  ? `/negocios?pipeline=${selectedPipelineId}`
+                  : '/negocios',
+              )}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all"
               style={{ background: 'transparent', color: 'var(--ink-2)' }}
             >
