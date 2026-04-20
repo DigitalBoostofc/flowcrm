@@ -300,12 +300,14 @@ function NegocioCard({ lead, onClick }: { lead: Lead; onClick: () => void }) {
       {labels.length > 0 && (
         <div className="flex flex-wrap gap-1 mb-1.5">
           {labels.map(l => (
-            <div
+            <span
               key={l.id}
-              className="h-2 rounded-full min-w-[24px] max-w-[60px]"
+              className="inline-flex items-center h-5 px-2 rounded-full text-[10px] font-semibold text-white truncate max-w-[120px]"
               style={{ background: l.color }}
               title={l.name}
-            />
+            >
+              {l.name}
+            </span>
           ))}
         </div>
       )}
