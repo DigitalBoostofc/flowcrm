@@ -12,7 +12,11 @@ export class LocalStorageProvider implements StorageProvider {
 
   constructor(config: ConfigService) {
     this.root = config.get<string>('UPLOAD_ROOT') || path.join(process.cwd(), 'uploads');
-    this.publicBaseUrl = (config.get<string>('PUBLIC_BASE_URL') ?? '').replace(/\/$/, '');
+    // Usa PUBLIC_BASE_URL ou FRONTEND_URL como fallback para gerar URLs absolutas corretas
+    const base = config.get<string>('PUBLIC_BASE_URL')
+      || config.get<string>('FRONTEND_URL')
+      || '';
+    this.publicBaseUrl = base.replace(/\/$/, '');
   }
 
   async upload(params: { key: string; body: Buffer; contentType: string }): Promise<StoredFile> {

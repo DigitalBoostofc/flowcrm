@@ -65,9 +65,7 @@ export async function updateContact(
 export async function uploadContactAvatar(id: string, file: File): Promise<Contact> {
   const form = new FormData();
   form.append('file', file);
-  const res = await api.post<Contact>(`/contacts/${id}/avatar`, form, {
-    headers: { 'Content-Type': 'multipart/form-data' },
-  });
+  const res = await api.post<Contact>(`/contacts/${id}/avatar`, form);
   return res.data;
 }
 

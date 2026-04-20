@@ -32,9 +32,7 @@ export async function deleteCompany(id: string): Promise<void> {
 export async function uploadCompanyAvatar(id: string, file: File): Promise<Company> {
   const form = new FormData();
   form.append('file', file);
-  const res = await api.post<Company>(`/companies/${id}/avatar`, form, {
-    headers: { 'Content-Type': 'multipart/form-data' },
-  });
+  const res = await api.post<Company>(`/companies/${id}/avatar`, form);
   return res.data;
 }
 
