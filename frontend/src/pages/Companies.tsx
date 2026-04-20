@@ -100,6 +100,29 @@ const BR_STATES = [
   'RR', 'SC', 'SP', 'SE', 'TO',
 ];
 
+type ViaCepResponse = {
+  cep?: string;
+  logradouro?: string;
+  bairro?: string;
+  localidade?: string;
+  uf?: string;
+  erro?: boolean;
+};
+
+async function lookupViaCep(cep: string): Promise<ViaCepResponse | null> {
+  const clean = cep.replace(/\D/g, '');
+  if (clean.length !== 8) return null;
+  try {
+    const res = await fetch(`https://viacep.com.br/ws/${clean}/json/`);
+    if (!res.ok) return null;
+    const data: ViaCepResponse = await res.json();
+    if (data.erro) return null;
+    return data;
+  } catch {
+    return null;
+  }
+}
+
 const CATEGORIAS = ['Cliente', 'Prospect', 'Parceiro', 'Fornecedor', 'Lead'];
 const ORIGENS = ['Site', 'Indicação', 'Redes sociais', 'E-mail', 'Evento', 'Outro'];
 const SETORES = [
@@ -191,6 +214,12 @@ function AddCompanyModal({ open, onClose, currentUser, users, company }: AddComp
   const [form, setForm] = useState(emptyForm);
   const [error, setError] = useState('');
   const [peopleSearch, setPeopleSearch] = useState('');
+  const [cepLoading, setCepLoading] = useState(false);
+  const [pendingAvatar, setPendingAvatar] = useState<{ file: File; previewUrl: string } | null>(null);
+
+  useEffect(() => () => {
+    if (pendingAvatar) URL.revokeObjectURL(pendingAvatar.previewUrl);
+  }, [pendingAvatar]);
 
   const { data: contacts = [] } = useQuery({
     queryKey: ['contacts', peopleSearch],
@@ -203,18 +232,46 @@ function AddCompanyModal({ open, onClose, currentUser, users, company }: AddComp
       setForm(emptyForm());
       setError('');
       setPeopleSearch('');
+      setPendingAvatar((prev) => {
+        if (prev) URL.revokeObjectURL(prev.previewUrl);
+        return null;
+      });
       return;
     }
     setForm(company ? formFromCompany(company) : emptyForm());
     setError('');
     setPeopleSearch('');
+    setPendingAvatar((prev) => {
+      if (prev) URL.revokeObjectURL(prev.previewUrl);
+      return null;
+    });
   }, [open, company]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // CEP autofill via ViaCEP — dispara quando chegar a 8 dígitos
+  useEffect(() => {
+    const clean = form.cep.replace(/\D/g, '');
+    if (clean.length !== 8) return;
+    let cancelled = false;
+    setCepLoading(true);
+    lookupViaCep(clean).then((data) => {
+      if (cancelled || !data) { setCepLoading(false); return; }
+      setForm((f) => ({
+        ...f,
+        estado: data.uf ? data.uf.toUpperCase() : f.estado,
+        cidade: data.localidade ?? f.cidade,
+        bairro: data.bairro ?? f.bairro,
+        rua: data.logradouro ?? f.rua,
+      }));
+      setCepLoading(false);
+    });
+    return () => { cancelled = true; };
+  }, [form.cep]);
 
   const set = <K extends keyof typeof form>(key: K, value: (typeof form)[K]) =>
     setForm((f) => ({ ...f, [key]: value }));
 
   const mutation = useMutation({
-    mutationFn: () => {
+    mutationFn: async () => {
       const cleaned: Record<string, unknown> = {};
       for (const [key, value] of Object.entries(form)) {
         if (typeof value === 'string' && value.trim() === '') continue;
@@ -222,7 +279,17 @@ function AddCompanyModal({ open, onClose, currentUser, users, company }: AddComp
         cleaned[key] = value;
       }
       cleaned.ranking = form.ranking || undefined;
-      return company ? updateCompany(company.id, cleaned) : createCompany(cleaned as any);
+      const saved = company
+        ? await updateCompany(company.id, cleaned)
+        : await createCompany(cleaned as any);
+      if (!company && pendingAvatar) {
+        try {
+          await uploadCompanyAvatar(saved.id, pendingAvatar.file);
+        } catch {
+          // não falhar o cadastro por causa do upload; user pode tentar pelo modo editar
+        }
+      }
+      return saved;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['companies'] });
@@ -289,12 +356,29 @@ function AddCompanyModal({ open, onClose, currentUser, users, company }: AddComp
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-8">
-          {isEdit && company && (
-            <section>
-              <SectionTitle title="Logo" subtitle="Imagem de até 5MB (JPG, PNG ou WebP)." />
+          <section>
+            <SectionTitle title="Logo" subtitle="Imagem de até 5MB (JPG, PNG ou WebP)." />
+            {isEdit && company ? (
               <CompanyAvatarEditor company={company} />
-            </section>
-          )}
+            ) : (
+              <CompanyAvatarPicker
+                name={form.name}
+                pending={pendingAvatar}
+                onPick={(file, previewUrl) => {
+                  setPendingAvatar((prev) => {
+                    if (prev) URL.revokeObjectURL(prev.previewUrl);
+                    return { file, previewUrl };
+                  });
+                }}
+                onRemove={() => {
+                  setPendingAvatar((prev) => {
+                    if (prev) URL.revokeObjectURL(prev.previewUrl);
+                    return null;
+                  });
+                }}
+              />
+            )}
+          </section>
 
           {/* ── Dados básicos ── */}
           <section>
@@ -486,7 +570,21 @@ function AddCompanyModal({ open, onClose, currentUser, users, company }: AddComp
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <Label>CEP</Label>
-                <Input value={form.cep} onChange={(e) => set('cep', e.target.value)} placeholder="00000-000" />
+                <div className="relative">
+                  <Input
+                    value={form.cep}
+                    onChange={(e) => set('cep', e.target.value)}
+                    placeholder="00000-000"
+                  />
+                  {cepLoading && (
+                    <span
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-xs"
+                      style={{ color: 'var(--ink-3)' }}
+                    >
+                      buscando…
+                    </span>
+                  )}
+                </div>
               </div>
               <div>
                 <Label>País</Label>
@@ -1033,6 +1131,55 @@ export default function Companies() {
         }}
         onReset={cols.reset}
       />
+    </div>
+  );
+}
+
+/* ── Avatar picker (modo criação) ─────────────────────── */
+
+function CompanyAvatarPicker({
+  name, pending, onPick, onRemove,
+}: {
+  name: string;
+  pending: { file: File; previewUrl: string } | null;
+  onPick: (file: File, previewUrl: string) => void;
+  onRemove: () => void;
+}) {
+  const fileRef = useRef<HTMLInputElement | null>(null);
+
+  const handlePick = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    if (f.size > 5 * 1024 * 1024) return;
+    onPick(f, URL.createObjectURL(f));
+    e.target.value = '';
+  };
+
+  return (
+    <div className="flex items-center gap-4">
+      <div className="relative">
+        <Avatar name={name || 'Nova empresa'} url={pending?.previewUrl ?? null} size={72} />
+        <button
+          type="button"
+          onClick={() => fileRef.current?.click()}
+          className="absolute -bottom-1 -right-1 p-1.5 rounded-full"
+          style={{ background: 'var(--brand-500)', color: '#fff' }}
+          aria-label="Escolher logo"
+        >
+          <Camera className="w-3.5 h-3.5" />
+        </button>
+        <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handlePick} />
+      </div>
+      {pending && (
+        <button
+          type="button"
+          onClick={onRemove}
+          className="inline-flex items-center gap-1.5 text-xs"
+          style={{ color: 'var(--danger)' }}
+        >
+          <Trash2 className="w-3.5 h-3.5" /> Remover
+        </button>
+      )}
     </div>
   );
 }
