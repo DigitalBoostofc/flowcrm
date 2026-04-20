@@ -661,18 +661,38 @@ function AddPessoaModal({
 function PessoaAvatarEditor({ contact }: { contact: Contact }) {
   const qc = useQueryClient();
   const fileRef = useRef<HTMLInputElement | null>(null);
+  const [preview, setPreview] = useState<string | null>(null);
+  const previewRef = useRef<string | null>(null);
+
+  useEffect(() => () => { if (previewRef.current) URL.revokeObjectURL(previewRef.current); }, []);
+
+  const patchLists = (updated: Contact) => {
+    const patch = (old: Contact[] | undefined) =>
+      old?.map((c) => (c.id === updated.id ? { ...c, avatarUrl: updated.avatarUrl } : c)) ?? old;
+    qc.setQueriesData<Contact[]>({ queryKey: ['pessoas'] }, patch);
+    qc.setQueriesData<Contact[]>({ queryKey: ['contacts'] }, patch);
+  };
 
   const uploadMut = useMutation({
     mutationFn: (file: File) => uploadContactAvatar(contact.id, file),
-    onSuccess: () => {
+    onSuccess: (updated) => {
+      patchLists(updated);
       qc.invalidateQueries({ queryKey: ['pessoas'] });
       qc.invalidateQueries({ queryKey: ['contacts'] });
+    },
+    onSettled: () => {
+      if (previewRef.current) {
+        URL.revokeObjectURL(previewRef.current);
+        previewRef.current = null;
+      }
+      setPreview(null);
     },
   });
 
   const removeMut = useMutation({
     mutationFn: () => removeContactAvatar(contact.id),
-    onSuccess: () => {
+    onSuccess: (updated) => {
+      patchLists(updated);
       qc.invalidateQueries({ queryKey: ['pessoas'] });
       qc.invalidateQueries({ queryKey: ['contacts'] });
     },
@@ -682,14 +702,20 @@ function PessoaAvatarEditor({ contact }: { contact: Contact }) {
     const f = e.target.files?.[0];
     if (!f) return;
     if (f.size > 5 * 1024 * 1024) return;
+    const blob = URL.createObjectURL(f);
+    if (previewRef.current) URL.revokeObjectURL(previewRef.current);
+    previewRef.current = blob;
+    setPreview(blob);
     uploadMut.mutate(f);
     e.target.value = '';
   };
 
+  const displayUrl = preview ?? contact.avatarUrl;
+
   return (
     <div className="flex items-center gap-4">
       <div className="relative">
-        <Avatar name={contact.name} url={contact.avatarUrl} size={72} />
+        <Avatar name={contact.name} url={displayUrl} size={72} />
         <button
           type="button"
           onClick={() => fileRef.current?.click()}

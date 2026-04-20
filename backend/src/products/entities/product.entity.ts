@@ -4,15 +4,14 @@ import {
   Column,
   CreateDateColumn,
   UpdateDateColumn,
-  Unique,
   Index,
 } from 'typeorm';
 
 export type ProductType = 'produto' | 'servico';
 export type ProductAppliesTo = 'pessoa' | 'empresa' | 'ambos';
+export type ProductClientType = 'contact' | 'company' | null;
 
 @Entity('products')
-@Unique(['workspaceId', 'name'])
 @Index(['workspaceId'])
 export class Product {
   @PrimaryGeneratedColumn('uuid')
@@ -21,8 +20,21 @@ export class Product {
   @Column({ type: 'uuid' })
   workspaceId: string;
 
+  /** Nome do produto ou serviço */
   @Column({ length: 150 })
   name: string;
+
+  /** Cliente vinculado (empresa ou pessoa) */
+  @Column({ type: 'uuid', nullable: true })
+  clientId: string | null;
+
+  /** Tipo do cliente: 'contact' | 'company' | null */
+  @Column({ type: 'varchar', length: 20, nullable: true })
+  clientType: ProductClientType;
+
+  /** Nome do cliente (desnormalizado para exibição rápida) */
+  @Column({ type: 'varchar', length: 200, nullable: true })
+  clientName: string | null;
 
   @Column({ type: 'varchar', length: 20, default: 'produto' })
   type: ProductType;

@@ -1,21 +1,28 @@
 import {
-  IsBoolean,
-  IsIn,
-  IsNotEmpty,
-  IsNumber,
-  IsOptional,
-  IsString,
-  MaxLength,
-  Min,
+  IsBoolean, IsIn, IsNotEmpty, IsNumber, IsOptional,
+  IsString, IsUUID, MaxLength, Min,
 } from 'class-validator';
 import { Type } from 'class-transformer';
-import { ProductAppliesTo, ProductType } from '../entities/product.entity';
+import { ProductAppliesTo, ProductClientType, ProductType } from '../entities/product.entity';
 
 export class CreateProductDto {
   @IsNotEmpty()
   @IsString()
   @MaxLength(150)
   name: string;
+
+  @IsOptional()
+  @IsUUID()
+  clientId?: string | null;
+
+  @IsOptional()
+  @IsIn(['contact', 'company'])
+  clientType?: ProductClientType;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  clientName?: string | null;
 
   @IsOptional()
   @IsIn(['produto', 'servico'])

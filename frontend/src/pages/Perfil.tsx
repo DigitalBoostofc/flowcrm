@@ -22,6 +22,10 @@ export default function Perfil() {
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const fileRef = useRef<HTMLInputElement | null>(null);
+  const [preview, setPreview] = useState<string | null>(null);
+  const previewRef = useRef<string | null>(null);
+
+  useEffect(() => () => { if (previewRef.current) URL.revokeObjectURL(previewRef.current); }, []);
 
   const [otpOpen, setOtpOpen] = useState<null | ProfileOtpPurpose>(null);
 
@@ -47,6 +51,13 @@ export default function Perfil() {
     mutationFn: (file: File) => uploadMyAvatar(file),
     onSuccess: (u) => { syncAuth(u); toast({ title: 'Foto atualizada' }); },
     onError: (err: any) => toast({ title: 'Erro', body: err?.response?.data?.message ?? 'Falha no upload' }),
+    onSettled: () => {
+      if (previewRef.current) {
+        URL.revokeObjectURL(previewRef.current);
+        previewRef.current = null;
+      }
+      setPreview(null);
+    },
   });
 
   const removeAvatar = useMutation({
@@ -61,6 +72,10 @@ export default function Perfil() {
       toast({ title: 'Arquivo grande', body: 'Limite de 5MB por imagem.' });
       return;
     }
+    const blob = URL.createObjectURL(f);
+    if (previewRef.current) URL.revokeObjectURL(previewRef.current);
+    previewRef.current = blob;
+    setPreview(blob);
     uploadAvatar.mutate(f);
     e.target.value = '';
   };
@@ -89,7 +104,7 @@ export default function Perfil() {
       >
         <div className="flex items-center gap-5">
           <div className="relative">
-            <Avatar name={me.name} url={me.avatarUrl} size={80} />
+            <Avatar name={me.name} url={preview ?? me.avatarUrl} size={80} />
             <button
               type="button"
               onClick={() => fileRef.current?.click()}

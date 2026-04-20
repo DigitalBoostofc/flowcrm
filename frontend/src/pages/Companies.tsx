@@ -739,6 +739,17 @@ export default function Companies() {
 
   const companiesColumns = useMemo<ColumnDef<Company>[]>(() => [
     {
+      key: 'index',
+      label: '#',
+      defaultWidth: 56,
+      minWidth: 40,
+      render: (_row, idx) => (
+        <span className="text-xs font-mono tabular-nums" style={{ color: 'var(--ink-3)' }}>
+          {String(idx + 1).padStart(2, '0')}
+        </span>
+      ),
+    },
+    {
       key: 'name',
       label: 'Nome',
       defaultWidth: 260,
@@ -1061,28 +1072,57 @@ export default function Companies() {
 function CompanyAvatarEditor({ company }: { company: Company }) {
   const qc = useQueryClient();
   const fileRef = useRef<HTMLInputElement | null>(null);
+  const [preview, setPreview] = useState<string | null>(null);
+  const previewRef = useRef<string | null>(null);
+
+  useEffect(() => () => { if (previewRef.current) URL.revokeObjectURL(previewRef.current); }, []);
+
+  const patchLists = (updated: Company) => {
+    const patch = (old: Company[] | undefined) =>
+      old?.map((c) => (c.id === updated.id ? { ...c, avatarUrl: updated.avatarUrl } : c)) ?? old;
+    qc.setQueriesData<Company[]>({ queryKey: ['companies'] }, patch);
+  };
 
   const uploadMut = useMutation({
     mutationFn: (file: File) => uploadCompanyAvatar(company.id, file),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['companies'] }),
+    onSuccess: (updated) => {
+      patchLists(updated);
+      qc.invalidateQueries({ queryKey: ['companies'] });
+    },
+    onSettled: () => {
+      if (previewRef.current) {
+        URL.revokeObjectURL(previewRef.current);
+        previewRef.current = null;
+      }
+      setPreview(null);
+    },
   });
   const removeMut = useMutation({
     mutationFn: () => removeCompanyAvatar(company.id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['companies'] }),
+    onSuccess: (updated) => {
+      patchLists(updated);
+      qc.invalidateQueries({ queryKey: ['companies'] });
+    },
   });
 
   const onPick = (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
     if (!f) return;
     if (f.size > 5 * 1024 * 1024) return;
+    const blob = URL.createObjectURL(f);
+    if (previewRef.current) URL.revokeObjectURL(previewRef.current);
+    previewRef.current = blob;
+    setPreview(blob);
     uploadMut.mutate(f);
     e.target.value = '';
   };
 
+  const displayUrl = preview ?? company.avatarUrl;
+
   return (
     <div className="flex items-center gap-4">
       <div className="relative">
-        <Avatar name={company.name} url={company.avatarUrl} size={72} />
+        <Avatar name={company.name} url={displayUrl} size={72} />
         <button
           type="button"
           onClick={() => fileRef.current?.click()}

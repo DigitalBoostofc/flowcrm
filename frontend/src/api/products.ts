@@ -2,10 +2,14 @@ import { api } from './client';
 
 export type ProductType = 'produto' | 'servico';
 export type ProductAppliesTo = 'pessoa' | 'empresa' | 'ambos';
+export type ProductClientType = 'contact' | 'company' | null;
 
 export interface Product {
   id: string;
   name: string;
+  clientId: string | null;
+  clientType: ProductClientType;
+  clientName: string | null;
   type: ProductType;
   appliesTo: ProductAppliesTo;
   price: string | null;
@@ -16,6 +20,9 @@ export interface Product {
 
 export interface ProductInput {
   name: string;
+  clientId?: string | null;
+  clientType?: ProductClientType;
+  clientName?: string | null;
   type?: ProductType;
   appliesTo?: ProductAppliesTo;
   price?: number | null;
