@@ -12,6 +12,7 @@ import { listContacts } from '@/api/contacts';
 import { useAuthStore } from '@/store/auth.store';
 import type { Company, CompanyPrivacy, User } from '@/types/api';
 import Avatar from '@/components/ui/Avatar';
+import ProductSelector from '@/components/products/ProductSelector';
 import {
   ResizableDataList,
   ViewEditorModal,
@@ -197,7 +198,6 @@ function AddCompanyModal({ open, onClose, currentUser, users, company }: AddComp
   const [form, setForm] = useState(emptyForm);
   const [error, setError] = useState('');
   const [peopleSearch, setPeopleSearch] = useState('');
-  const [productInput, setProductInput] = useState('');
 
   const { data: contacts = [] } = useQuery({
     queryKey: ['contacts', peopleSearch],
@@ -210,13 +210,11 @@ function AddCompanyModal({ open, onClose, currentUser, users, company }: AddComp
       setForm(emptyForm());
       setError('');
       setPeopleSearch('');
-      setProductInput('');
       return;
     }
     setForm(company ? formFromCompany(company) : emptyForm());
     setError('');
     setPeopleSearch('');
-    setProductInput('');
   }, [open, company]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const set = <K extends keyof typeof form>(key: K, value: (typeof form)[K]) =>
@@ -252,13 +250,6 @@ function AddCompanyModal({ open, onClose, currentUser, users, company }: AddComp
     }
     setError('');
     mutation.mutate();
-  };
-
-  const addProduct = () => {
-    const v = productInput.trim();
-    if (!v) return;
-    set('produtos', [...form.produtos, v]);
-    setProductInput('');
   };
 
   const togglePeople = (id: string) => {
@@ -560,40 +551,11 @@ function AddCompanyModal({ open, onClose, currentUser, users, company }: AddComp
           <section>
             <SectionTitle title="Produtos e serviços" subtitle="Quais esta empresa tem potencial de compra?" />
             <Label>Produtos</Label>
-            <div className="flex gap-2">
-              <Input
-                value={productInput}
-                onChange={(e) => setProductInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') { e.preventDefault(); addProduct(); }
-                }}
-                placeholder="Buscar..."
-              />
-              <button
-                type="button"
-                onClick={addProduct}
-                className="px-3 rounded-lg text-sm font-medium"
-                style={{ background: 'var(--surface-hover)', color: 'var(--ink-2)', border: '1px solid var(--edge)' }}
-              >
-                Adicionar
-              </button>
-            </div>
-            {form.produtos.length > 0 && (
-              <div className="mt-2 flex flex-wrap gap-1.5">
-                {form.produtos.map((p, i) => (
-                  <span
-                    key={i}
-                    className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium"
-                    style={{ background: '#1f2937', color: '#fff' }}
-                  >
-                    {p}
-                    <button type="button" onClick={() => set('produtos', form.produtos.filter((_, j) => j !== i))}>
-                      <X className="w-3 h-3" />
-                    </button>
-                  </span>
-                ))}
-              </div>
-            )}
+            <ProductSelector
+              value={form.produtos}
+              onChange={(names) => set('produtos', names)}
+              appliesTo="empresa"
+            />
           </section>
 
           {/* ── Pessoas ── */}

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
   GitBranch, XCircle, Users2, Tags, Building2, Radio, FileText,
-  Zap, User as UserIcon, Puzzle, Server, AlertTriangle,
+  Zap, User as UserIcon, Puzzle, Server, AlertTriangle, Package,
 } from 'lucide-react';
 import { useAuthStore } from '@/store/auth.store';
 import { useWorkspace } from '@/hooks/useWorkspace';
@@ -18,10 +18,11 @@ import TemplatesTab from '@/components/settings/TemplatesTab';
 import IntegrationsTab from '@/components/settings/IntegrationsTab';
 import SistemaTab from '@/components/settings/SistemaTab';
 import DangerZoneTab from '@/components/settings/DangerZoneTab';
+import ProdutosServicosTab from '@/components/settings/ProdutosServicosTab';
 
 type Tab =
   | 'funis-etapas' | 'motivos-perda' | 'origens-clientes'
-  | 'categorias-clientes' | 'setores' | 'channels'
+  | 'categorias-clientes' | 'setores' | 'produtos-servicos' | 'channels'
   | 'templates' | 'automations' | 'agents' | 'integrations' | 'sistema' | 'danger';
 
 interface NavItem { id: Tab; label: string; icon: typeof GitBranch; ownerOnly?: boolean; platformAdminOnly?: boolean; danger?: boolean }
@@ -40,6 +41,7 @@ const GROUPS: NavGroup[] = [
     items: [
       { id: 'origens-clientes',     label: 'Origens de clientes',   icon: Users2,     ownerOnly: true },
       { id: 'categorias-clientes',  label: 'Categorias',            icon: Tags,       ownerOnly: true },
+      { id: 'produtos-servicos',    label: 'Produtos e serviços',   icon: Package,    ownerOnly: true },
     ],
   },
   {
@@ -161,6 +163,7 @@ export default function Settings() {
           {tab === 'origens-clientes'    && <OrigensClientesTab />}
           {tab === 'categorias-clientes' && <CategoriasClientesTab />}
           {tab === 'setores'             && <SetoresTab />}
+          {tab === 'produtos-servicos'   && <ProdutosServicosTab />}
           {tab === 'channels'            && <ChannelsTab />}
           {tab === 'templates'           && <TemplatesTab />}
           {tab === 'automations'         && <AutomationsTab />}

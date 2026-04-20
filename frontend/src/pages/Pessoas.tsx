@@ -12,6 +12,7 @@ import { useAuthStore } from '@/store/auth.store';
 import type { Contact, ContactPrivacy, User } from '@/types/api';
 import PessoaDetailPanel from '@/components/pessoas/PessoaDetailPanel';
 import Avatar from '@/components/ui/Avatar';
+import ProductSelector from '@/components/products/ProductSelector';
 import {
   ResizableDataList,
   ViewEditorModal,
@@ -191,18 +192,15 @@ function AddPessoaModal({
   });
 
   const [form, setForm] = useState(emptyForm);
-  const [productInput, setProductInput] = useState('');
   const [error, setError] = useState('');
 
   useEffect(() => {
     if (!open) {
       setForm(emptyForm());
-      setProductInput('');
       setError('');
       return;
     }
     setForm(contact ? formFromContact(contact) : emptyForm());
-    setProductInput('');
     setError('');
   }, [open, contact]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -216,13 +214,6 @@ function AddPessoaModal({
         ? form.additionalAccessUserIds.filter((x) => x !== id)
         : [...form.additionalAccessUserIds, id],
     );
-  };
-
-  const addProduct = () => {
-    const v = productInput.trim();
-    if (!v) return;
-    set('produtos', [...form.produtos, v]);
-    setProductInput('');
   };
 
   const mutation = useMutation({
@@ -598,40 +589,11 @@ function AddPessoaModal({
           <section>
             <SectionTitle title="Produtos e serviços" subtitle="Quais esta pessoa tem potencial de compra?" />
             <Label>Produtos</Label>
-            <div className="flex gap-2">
-              <Input
-                value={productInput}
-                onChange={(e) => setProductInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') { e.preventDefault(); addProduct(); }
-                }}
-                placeholder="Buscar..."
-              />
-              <button
-                type="button"
-                onClick={addProduct}
-                className="px-3 rounded-lg text-sm font-medium"
-                style={{ background: 'var(--surface-hover)', color: 'var(--ink-2)', border: '1px solid var(--edge)' }}
-              >
-                Adicionar
-              </button>
-            </div>
-            {form.produtos.length > 0 && (
-              <div className="mt-2 flex flex-wrap gap-1.5">
-                {form.produtos.map((p, i) => (
-                  <span
-                    key={i}
-                    className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium"
-                    style={{ background: '#1f2937', color: '#fff' }}
-                  >
-                    {p}
-                    <button type="button" onClick={() => set('produtos', form.produtos.filter((_, j) => j !== i))}>
-                      <X className="w-3 h-3" />
-                    </button>
-                  </span>
-                ))}
-              </div>
-            )}
+            <ProductSelector
+              value={form.produtos}
+              onChange={(names) => set('produtos', names)}
+              appliesTo="pessoa"
+            />
           </section>
 
           {/* ── Redes sociais ── */}

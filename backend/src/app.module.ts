@@ -38,6 +38,7 @@ import { SubscriptionModule } from './common/subscription/subscription.module';
 import { PlatformAdminModule } from './platform-admin/platform-admin.module';
 import { StorageModule } from './storage/storage.module';
 import { OtpModule } from './otp/otp.module';
+import { ProductsModule } from './products/products.module';
 
 @Module({
   imports: [
@@ -95,6 +96,7 @@ import { OtpModule } from './otp/otp.module';
     PlatformAdminModule,
     StorageModule,
     OtpModule,
+    ProductsModule,
   ],
 })
 export class AppModule {}
