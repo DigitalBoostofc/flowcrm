@@ -8,17 +8,17 @@ import { UploadsController } from './uploads.controller';
 
 const providerFactory: Provider = {
   provide: STORAGE_PROVIDER,
-  useFactory: (config: ConfigService, local: LocalStorageProvider, s3: S3StorageProvider) => {
+  useFactory: (config: ConfigService, local: LocalStorageProvider) => {
     const driver = (config.get<string>('STORAGE_DRIVER') || 'local').toLowerCase();
-    return driver === 's3' ? s3 : local;
+    return driver === 's3' ? new S3StorageProvider(config) : local;
   },
-  inject: [ConfigService, LocalStorageProvider, S3StorageProvider],
+  inject: [ConfigService, LocalStorageProvider],
 };
 
 @Global()
 @Module({
   imports: [ConfigModule],
-  providers: [LocalStorageProvider, S3StorageProvider, providerFactory, StorageService],
+  providers: [LocalStorageProvider, providerFactory, StorageService],
   controllers: [UploadsController],
   exports: [StorageService],
 })
