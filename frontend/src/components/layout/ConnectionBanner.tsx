@@ -11,8 +11,8 @@ export default function ConnectionBanner() {
       setShow(false);
       return;
     }
-    // Só exibe após 3s desconectado para evitar flash no carregamento
-    const t = setTimeout(() => setShow(true), 3000);
+    // Só exibe após 30s desconectado para evitar ruído em quedas curtas
+    const t = setTimeout(() => setShow(true), 30000);
     return () => clearTimeout(t);
   }, [connected]);
 
