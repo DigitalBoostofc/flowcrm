@@ -1,4 +1,6 @@
 import { NestFactory, Reflector } from '@nestjs/core';
+import * as fs from 'fs';
+import * as path from 'path';
 import { ValidationPipe, Logger, ClassSerializerInterceptor } from '@nestjs/common';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { ExpressAdapter } from '@bull-board/express';
@@ -8,6 +10,10 @@ import { Queue, QueueOptions } from 'bullmq';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
+  // Garante que o diretório de uploads existe ao iniciar
+  const uploadRoot = process.env.UPLOAD_ROOT || path.join(process.cwd(), 'uploads');
+  fs.mkdirSync(path.join(uploadRoot, 'avatars'), { recursive: true });
+
   const app = await NestFactory.create<NestExpressApplication>(AppModule, { rawBody: true });
   app.set('trust proxy', 1);
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
