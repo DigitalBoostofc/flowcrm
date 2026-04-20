@@ -46,7 +46,7 @@ export class LeadsService {
     }
     return this.repo.find({
       where,
-      relations: ['contact', 'company', 'stage', 'assignedTo', 'createdBy', 'pipeline'],
+      relations: ['contact', 'company', 'stage', 'assignedTo', 'createdBy', 'pipeline', 'labels'],
       order: { createdAt: 'ASC' },
     });
   }
@@ -55,7 +55,7 @@ export class LeadsService {
     const workspaceId = this.tenant.requireWorkspaceId();
     return this.repo.find({
       where: { workspaceId, archivedAt: IsNull() },
-      relations: ['contact', 'company', 'stage', 'assignedTo', 'createdBy', 'pipeline'],
+      relations: ['contact', 'company', 'stage', 'assignedTo', 'createdBy', 'pipeline', 'labels'],
       order: { createdAt: 'DESC' },
     });
   }
@@ -64,7 +64,7 @@ export class LeadsService {
     const workspaceId = this.tenant.requireWorkspaceId();
     const lead = await this.repo.findOne({
       where: { id, workspaceId },
-      relations: ['contact', 'company', 'stage', 'pipeline', 'assignedTo'],
+      relations: ['contact', 'company', 'stage', 'pipeline', 'assignedTo', 'labels'],
     });
     if (!lead) throw new NotFoundException('Lead não encontrado');
     return lead;
@@ -75,7 +75,7 @@ export class LeadsService {
     const workspaceId = this.tenant.requireWorkspaceId();
     return this.repo.findOne({
       where: { contactId, pipelineId, workspaceId },
-      relations: ['contact', 'company', 'stage', 'pipeline', 'assignedTo'],
+      relations: ['contact', 'company', 'stage', 'pipeline', 'assignedTo', 'labels'],
     });
   }
 
@@ -83,7 +83,7 @@ export class LeadsService {
     const workspaceId = this.tenant.requireWorkspaceId();
     return this.repo.findOne({
       where: { externalPhone: phone, pipelineId, workspaceId, contactId: IsNull() },
-      relations: ['contact', 'company', 'stage', 'pipeline', 'assignedTo'],
+      relations: ['contact', 'company', 'stage', 'pipeline', 'assignedTo', 'labels'],
     });
   }
 

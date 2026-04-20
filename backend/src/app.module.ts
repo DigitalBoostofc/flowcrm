@@ -30,6 +30,7 @@ import { SectorsModule } from './sectors/sectors.module';
 import { StageRequiredFieldsModule } from './stage-required-fields/stage-required-fields.module';
 import { WorkspacesModule } from './workspaces/workspaces.module';
 import { IntegrationsModule } from './integrations/integrations.module';
+import { LabelsModule } from './labels/labels.module';
 import { AppSettingsModule } from './app-settings/app-settings.module';
 import { SignupModule } from './signup/signup.module';
 import { SubscriptionsModule } from './subscriptions/subscriptions.module';
@@ -86,6 +87,7 @@ import { OtpModule } from './otp/otp.module';
     StageRequiredFieldsModule,
     WorkspacesModule,
     IntegrationsModule,
+    LabelsModule,
     AppSettingsModule,
     SignupModule,
     SubscriptionsModule,

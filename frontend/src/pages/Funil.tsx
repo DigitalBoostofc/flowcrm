@@ -4,9 +4,10 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Search, Filter, ArrowUpDown, Plus, List, GitBranch,
   TrendingUp, X, Pencil, Trash2, GripVertical, Link as LinkIcon, Info,
-  ListChecks, Trophy, ChevronLeft, ChevronRight, Settings as SettingsIcon,
+  ListChecks, Trophy, ChevronLeft, ChevronRight, Settings as SettingsIcon, Tag,
 } from 'lucide-react';
 import { listAllLeads } from '@/api/leads';
+import LabelsManager from '@/components/labels/LabelsManager';
 import { listPipelines, createPipeline, updatePipeline, deletePipeline } from '@/api/pipelines';
 import { createStage, updateStage, deleteStage } from '@/api/stages';
 import { listUsers } from '@/api/users';
@@ -606,6 +607,7 @@ export default function Funil() {
   const sidebarCollapsed = useSidebarStore((s) => s.collapsed);
   const toggleSidebar = useSidebarStore((s) => s.toggle);
   const [search, setSearch] = useState('');
+  const [labelsOpen, setLabelsOpen] = useState(false);
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [selectedPipelineId, setSelectedPipelineId] = useState<string>('');
   const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
@@ -780,11 +782,16 @@ export default function Funil() {
             Filtros
           </button>
           <button
-            className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium"
-            style={{ color: 'var(--brand-500, #6366f1)' }}
+            onClick={() => setLabelsOpen(o => !o)}
+            className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors"
+            style={{
+              background: labelsOpen ? 'var(--brand-50)' : 'var(--surface)',
+              border: `1px solid ${labelsOpen ? 'var(--brand-500)' : 'var(--edge)'}`,
+              color: labelsOpen ? 'var(--brand-500)' : 'var(--ink-1)',
+            }}
           >
-            <ArrowUpDown className="w-4 h-4" />
-            Ordenar
+            <Tag className="w-4 h-4" />
+            Etiquetas
           </button>
         </div>
 
@@ -799,6 +806,16 @@ export default function Funil() {
           </button>
         </div>
       </div>
+
+      {/* Painel de etiquetas */}
+      {labelsOpen && (
+        <div
+          className="rounded-xl p-4"
+          style={{ background: 'var(--surface)', border: '1px solid var(--edge)', boxShadow: 'var(--shadow-md)' }}
+        >
+          <LabelsManager />
+        </div>
+      )}
 
       {/* Body: kanban */}
       <div>

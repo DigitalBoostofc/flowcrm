@@ -10,11 +10,13 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useMemo, useRef, useState } from 'react';
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle, Tag } from 'lucide-react';
 import type { Lead, Pipeline, Stage } from '@/types/api';
 import { moveLead } from '@/api/leads';
 import { formatBRL } from '@/lib/format';
 import { useToastStore } from '@/store/toast.store';
+import LabelPicker from '@/components/labels/LabelPicker';
+import type { Label } from '@/api/labels';
 
 interface Props {
   pipeline: Pipeline | null;
@@ -256,6 +258,8 @@ function NegocioColumn({
 /* ── Card ────────────────────────────────────────────── */
 
 function NegocioCard({ lead, onClick }: { lead: Lead; onClick: () => void }) {
+  const tagBtnRef = useRef<HTMLButtonElement>(null);
+  const [pickerOpen, setPickerOpen] = useState(false);
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: lead.id,
     data: { type: 'lead', lead },
@@ -267,6 +271,7 @@ function NegocioCard({ lead, onClick }: { lead: Lead; onClick: () => void }) {
     opacity: isDragging ? 0.3 : 1,
   };
 
+  const labels: Label[] = (lead as any).labels ?? [];
   const title = lead.title ?? lead.contact?.name ?? 'Sem título';
   const isStale = lead.status === 'active' && lead.updatedAt
     ? daysSinceUpdate(lead.updatedAt) >= 7
@@ -278,6 +283,7 @@ function NegocioCard({ lead, onClick }: { lead: Lead; onClick: () => void }) {
     : 'var(--surface)';
 
   return (
+    <>
     <div
       ref={setNodeRef}
       style={{ ...style, background: statusBg, border: '1px solid var(--edge)', boxShadow: 'var(--shadow-sm)' }}
@@ -288,8 +294,22 @@ function NegocioCard({ lead, onClick }: { lead: Lead; onClick: () => void }) {
         e.stopPropagation();
         onClick();
       }}
-      className="cursor-grab active:cursor-grabbing rounded-md p-2 transition-shadow hover:shadow-md"
+      className="cursor-grab active:cursor-grabbing rounded-md p-2 transition-shadow hover:shadow-md group"
     >
+      {/* Label strips — Trello style */}
+      {labels.length > 0 && (
+        <div className="flex flex-wrap gap-1 mb-1.5">
+          {labels.map(l => (
+            <div
+              key={l.id}
+              className="h-2 rounded-full min-w-[24px] max-w-[60px]"
+              style={{ background: l.color }}
+              title={l.name}
+            />
+          ))}
+        </div>
+      )}
+
       <div className="flex items-start justify-between gap-1.5">
         <div className="min-w-0 flex-1">
           <div className="text-[12px] font-medium leading-snug" style={{ color: 'var(--ink-1)' }}>
@@ -306,16 +326,36 @@ function NegocioCard({ lead, onClick }: { lead: Lead; onClick: () => void }) {
             </div>
           ) : null}
         </div>
-        {isStale && (
-          <span
-            className="flex items-center justify-center w-4 h-4 rounded flex-shrink-0"
-            style={{ background: 'rgba(229,72,77,0.1)' }}
-            title="Parado há +7 dias"
+        <div className="flex items-center gap-1 flex-shrink-0">
+          <button
+            ref={tagBtnRef}
+            onClick={e => { e.stopPropagation(); setPickerOpen(o => !o); }}
+            className="opacity-0 group-hover:opacity-100 transition-opacity w-5 h-5 rounded flex items-center justify-center"
+            style={{ color: 'var(--ink-3)' }}
+            title="Etiquetas"
           >
-            <AlertTriangle className="w-2.5 h-2.5" style={{ color: 'var(--danger)' }} />
-          </span>
-        )}
+            <Tag className="w-3 h-3" strokeWidth={2} />
+          </button>
+          {isStale && (
+            <span
+              className="flex items-center justify-center w-4 h-4 rounded flex-shrink-0"
+              style={{ background: 'rgba(229,72,77,0.1)' }}
+              title="Parado há +7 dias"
+            >
+              <AlertTriangle className="w-2.5 h-2.5" style={{ color: 'var(--danger)' }} />
+            </span>
+          )}
+        </div>
       </div>
     </div>
+    {pickerOpen && (
+      <LabelPicker
+        leadId={lead.id}
+        leadLabels={labels}
+        onClose={() => setPickerOpen(false)}
+        anchorRef={tagBtnRef as React.RefObject<HTMLElement | null>}
+      />
+    )}
+    </>
   );
 }

@@ -1,9 +1,10 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, CreateDateColumn, UpdateDateColumn, JoinColumn } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, ManyToMany, JoinTable, CreateDateColumn, UpdateDateColumn, JoinColumn } from 'typeorm';
 import { Contact } from '../../contacts/entities/contact.entity';
 import { Company } from '../../companies/entities/company.entity';
 import { Stage } from '../../stages/entities/stage.entity';
 import { Pipeline } from '../../pipelines/entities/pipeline.entity';
 import { User } from '../../users/entities/user.entity';
+import { Label } from '../../labels/entities/label.entity';
 
 export enum LeadStatus {
   ACTIVE = 'active',
@@ -118,6 +119,14 @@ export class Lead {
 
   @Column({ type: 'jsonb', default: () => `'[]'` })
   items: LeadItem[];
+
+  @ManyToMany(() => Label, (label) => label.leads, { eager: false })
+  @JoinTable({
+    name: 'lead_labels',
+    joinColumn: { name: 'leadId', referencedColumnName: 'id' },
+    inverseJoinColumn: { name: 'labelId', referencedColumnName: 'id' },
+  })
+  labels: Label[];
 
   @CreateDateColumn()
   createdAt: Date;
