@@ -193,22 +193,9 @@ function RankingCell({ lead }: { lead: Lead }) {
 
 /* ── Row actions ─────────────────────────────────────── */
 
-function RowActions({ lead }: { lead: Lead }) {
-  const qc = useQueryClient();
-  const mut = useMutation({
-    mutationFn: () => deleteLead(lead.id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['negocios'] }),
-  });
-
-  const onDelete = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (confirm(`Excluir o negócio "${lead.title ?? lead.contact?.name ?? 'sem título'}"?`)) {
-      mut.mutate();
-    }
-  };
-
+function RowActions({ lead, onDelete }: { lead: Lead; onDelete: (l: Lead) => void }) {
   return (
-    <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+    <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
       <button
         className="p-1.5 rounded-md transition-colors hover:bg-[var(--surface-hover)]"
         style={{ color: 'var(--ink-2)' }}
@@ -217,7 +204,7 @@ function RowActions({ lead }: { lead: Lead }) {
         <Pencil className="w-4 h-4" />
       </button>
       <button
-        onClick={onDelete}
+        onClick={(e) => { e.stopPropagation(); onDelete(lead); }}
         className="p-1.5 rounded-md transition-colors hover:bg-red-500/10 hover:text-red-500"
         style={{ color: 'var(--ink-2)' }}
         title="Excluir"
@@ -965,6 +952,9 @@ export default function Negocios() {
   const [filterOpen, setFilterOpen] = useState(false);
   const [viewEditorOpen, setViewEditorOpen] = useState(false);
   const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [deleteTarget, setDeleteTarget] = useState<Lead | null>(null);
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
   const [filterStatus, setFilterStatus] = useState('');
   const [filterPipeline, setFilterPipeline] = useState('');
   const [filterAssignee, setFilterAssignee] = useState('');
@@ -981,6 +971,11 @@ export default function Negocios() {
   const { data: leads = [], isLoading } = useQuery({
     queryKey: ['negocios'],
     queryFn: listAllLeads,
+  });
+
+  const bulkDeleteMut = useMutation({
+    mutationFn: () => Promise.all([...selectedIds].map((id) => deleteLead(id))),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['negocios'] }); setSelectedIds(new Set()); setBulkDeleteOpen(false); },
   });
 
   const userById = useMemo(() => {
@@ -1309,6 +1304,22 @@ export default function Negocios() {
         </div>
       )}
 
+      {selectedIds.size > 0 && (
+        <div className="flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm"
+          style={{ background: 'var(--brand-50,#eef2ff)', border: '1px solid var(--brand-200,#c7d2fe)' }}>
+          <button onClick={() => setSelectedIds(new Set())} className="p-1 rounded hover:bg-black/5" title="Cancelar seleção">
+            <X className="w-4 h-4" style={{ color: 'var(--ink-2)' }} />
+          </button>
+          <span style={{ color: 'var(--ink-2)' }}>{selectedIds.size} {selectedIds.size === 1 ? 'negócio selecionado' : 'negócios selecionados'}</span>
+          <button onClick={() => setBulkDeleteOpen(true)}
+            className="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium"
+            style={{ background: 'var(--danger)', color: '#fff' }}>
+            <Trash2 className="w-3.5 h-3.5" />
+            Deletar selecionados
+          </button>
+        </div>
+      )}
+
       <ResizableDataList<Lead>
         rows={filteredLeads}
         rowKey={(l) => l.id}
@@ -1318,9 +1329,53 @@ export default function Negocios() {
         loading={isLoading}
         onRowClick={(l) => setSelectedLeadId(l.id)}
         emptyState={<EmptyState onAdd={() => setAddOpen(true)} />}
-        trailing={(lead) => <RowActions lead={lead} />}
-        trailingWidth={80}
+        selectedIds={selectedIds}
+        onSelectionChange={setSelectedIds}
+        trailing={(lead) => <RowActions lead={lead} onDelete={setDeleteTarget} />}
+        trailingWidth={72}
       />
+
+      {deleteTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.5)' }}
+          onClick={() => setDeleteTarget(null)}>
+          <div className="w-full max-w-sm rounded-xl p-5 space-y-4" onClick={(e) => e.stopPropagation()}
+            style={{ background: 'var(--surface)', border: '1px solid var(--edge-strong)' }}>
+            <p className="text-sm font-semibold" style={{ color: 'var(--ink-1)' }}>
+              Deletar "{deleteTarget.title ?? deleteTarget.contact?.name ?? deleteTarget.company?.name ?? 'sem título'}"?
+            </p>
+            <p className="text-xs" style={{ color: 'var(--ink-3)' }}>Esta ação não pode ser desfeita.</p>
+            <div className="flex gap-2 justify-end">
+              <button onClick={() => setDeleteTarget(null)} className="px-3 py-1.5 rounded-lg text-sm"
+                style={{ background: 'var(--surface-hover)', color: 'var(--ink-2)' }}>Cancelar</button>
+              <button
+                onClick={() => { deleteLead(deleteTarget.id).then(() => { qc.invalidateQueries({ queryKey: ['negocios'] }); setDeleteTarget(null); }); }}
+                className="px-3 py-1.5 rounded-lg text-sm font-medium text-white" style={{ background: 'var(--danger)' }}>
+                Deletar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {bulkDeleteOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.5)' }}
+          onClick={() => setBulkDeleteOpen(false)}>
+          <div className="w-full max-w-sm rounded-xl p-5 space-y-4" onClick={(e) => e.stopPropagation()}
+            style={{ background: 'var(--surface)', border: '1px solid var(--edge-strong)' }}>
+            <p className="text-sm font-semibold" style={{ color: 'var(--ink-1)' }}>Deletar {selectedIds.size} {selectedIds.size === 1 ? 'negócio' : 'negócios'}?</p>
+            <p className="text-xs" style={{ color: 'var(--ink-3)' }}>Esta ação não pode ser desfeita.</p>
+            <div className="flex gap-2 justify-end">
+              <button onClick={() => setBulkDeleteOpen(false)} className="px-3 py-1.5 rounded-lg text-sm"
+                style={{ background: 'var(--surface-hover)', color: 'var(--ink-2)' }}>Cancelar</button>
+              <button onClick={() => bulkDeleteMut.mutate()} disabled={bulkDeleteMut.isPending}
+                className="px-3 py-1.5 rounded-lg text-sm font-medium text-white disabled:opacity-50"
+                style={{ background: 'var(--danger)' }}>
+                {bulkDeleteMut.isPending ? 'Deletando…' : 'Deletar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Footer */}
       <div className="flex justify-end text-xs" style={{ color: 'var(--ink-3)' }}>

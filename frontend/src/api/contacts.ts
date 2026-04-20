@@ -62,6 +62,10 @@ export async function updateContact(
   return res.data;
 }
 
+export async function deleteContact(id: string): Promise<void> {
+  await api.delete(`/contacts/${id}`);
+}
+
 export async function uploadContactAvatar(id: string, file: File): Promise<Contact> {
   const form = new FormData();
   form.append('file', file);

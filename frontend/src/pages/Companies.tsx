@@ -4,7 +4,7 @@ import {
   Search, Filter, Plus, X, Building2, Star, Pencil, Camera, Trash2, Columns3,
 } from 'lucide-react';
 import {
-  listCompanies, createCompany, updateCompany,
+  listCompanies, createCompany, updateCompany, deleteCompany,
   uploadCompanyAvatar, removeCompanyAvatar,
 } from '@/api/companies';
 import { listUsers } from '@/api/users';
@@ -733,6 +733,9 @@ export default function Companies() {
   const [filterOpen, setFilterOpen] = useState(false);
   const [viewEditorOpen, setViewEditorOpen] = useState(false);
   const [editingCompany, setEditingCompany] = useState<Company | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [deleteTarget, setDeleteTarget] = useState<Company | null>(null);
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
   const [filterSetor, setFilterSetor] = useState('');
   const [filterResponsavel, setFilterResponsavel] = useState('');
   const [sort, setSort] = useState<SortCompanies>('recente');
@@ -747,6 +750,16 @@ export default function Companies() {
   const { data: companies = [], isLoading } = useQuery({
     queryKey: ['companies', debouncedSearch],
     queryFn: () => listCompanies(debouncedSearch || undefined),
+  });
+
+  const deleteMut = useMutation({
+    mutationFn: (id: string) => deleteCompany(id),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['companies'] }); setDeleteTarget(null); },
+  });
+
+  const bulkDeleteMut = useMutation({
+    mutationFn: () => Promise.all([...selectedIds].map((id) => deleteCompany(id))),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['companies'] }); setSelectedIds(new Set()); setBulkDeleteOpen(false); },
   });
 
   const filteredCompanies = useMemo(() => {
@@ -968,6 +981,22 @@ export default function Companies() {
         </div>
       )}
 
+      {selectedIds.size > 0 && (
+        <div className="flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm"
+          style={{ background: 'var(--brand-50,#eef2ff)', border: '1px solid var(--brand-200,#c7d2fe)' }}>
+          <button onClick={() => setSelectedIds(new Set())} className="p-1 rounded hover:bg-black/5" title="Cancelar seleção">
+            <X className="w-4 h-4" style={{ color: 'var(--ink-2)' }} />
+          </button>
+          <span style={{ color: 'var(--ink-2)' }}>{selectedIds.size} {selectedIds.size === 1 ? 'empresa selecionada' : 'empresas selecionadas'}</span>
+          <button onClick={() => setBulkDeleteOpen(true)}
+            className="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium"
+            style={{ background: 'var(--danger)', color: '#fff' }}>
+            <Trash2 className="w-3.5 h-3.5" />
+            Deletar selecionados
+          </button>
+        </div>
+      )}
+
       <ResizableDataList<Company>
         rows={filteredCompanies}
         rowKey={(c) => c.id}
@@ -977,17 +1006,62 @@ export default function Companies() {
         loading={isLoading}
         onRowClick={(c) => setEditingCompany(c)}
         emptyState={<EmptyState onAdd={() => setAddOpen(true)} />}
+        selectedIds={selectedIds}
+        onSelectionChange={setSelectedIds}
         trailing={(c) => (
-          <button
-            onClick={() => setEditingCompany(c)}
-            className="p-1.5 rounded-md opacity-0 group-hover:opacity-100 transition-opacity hover:bg-[var(--edge)]"
-            style={{ color: 'var(--ink-3)' }}
-            title="Editar empresa"
-          >
-            <Pencil className="w-4 h-4" />
-          </button>
+          <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+            <button onClick={(e) => { e.stopPropagation(); setEditingCompany(c); }}
+              className="p-1.5 rounded-md hover:bg-[var(--edge)]" style={{ color: 'var(--ink-3)' }} title="Editar empresa">
+              <Pencil className="w-4 h-4" />
+            </button>
+            <button onClick={(e) => { e.stopPropagation(); setDeleteTarget(c); }}
+              className="p-1.5 rounded-md hover:bg-red-500/10 hover:text-red-500" style={{ color: 'var(--ink-3)' }} title="Deletar empresa">
+              <Trash2 className="w-4 h-4" />
+            </button>
+          </div>
         )}
+        trailingWidth={72}
       />
+
+      {deleteTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.5)' }}
+          onClick={() => setDeleteTarget(null)}>
+          <div className="w-full max-w-sm rounded-xl p-5 space-y-4" onClick={(e) => e.stopPropagation()}
+            style={{ background: 'var(--surface)', border: '1px solid var(--edge-strong)' }}>
+            <p className="text-sm font-semibold" style={{ color: 'var(--ink-1)' }}>Deletar "{deleteTarget.name}"?</p>
+            <p className="text-xs" style={{ color: 'var(--ink-3)' }}>Esta ação não pode ser desfeita.</p>
+            <div className="flex gap-2 justify-end">
+              <button onClick={() => setDeleteTarget(null)} className="px-3 py-1.5 rounded-lg text-sm"
+                style={{ background: 'var(--surface-hover)', color: 'var(--ink-2)' }}>Cancelar</button>
+              <button onClick={() => deleteMut.mutate(deleteTarget.id)} disabled={deleteMut.isPending}
+                className="px-3 py-1.5 rounded-lg text-sm font-medium text-white disabled:opacity-50"
+                style={{ background: 'var(--danger)' }}>
+                {deleteMut.isPending ? 'Deletando…' : 'Deletar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {bulkDeleteOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.5)' }}
+          onClick={() => setBulkDeleteOpen(false)}>
+          <div className="w-full max-w-sm rounded-xl p-5 space-y-4" onClick={(e) => e.stopPropagation()}
+            style={{ background: 'var(--surface)', border: '1px solid var(--edge-strong)' }}>
+            <p className="text-sm font-semibold" style={{ color: 'var(--ink-1)' }}>Deletar {selectedIds.size} {selectedIds.size === 1 ? 'empresa' : 'empresas'}?</p>
+            <p className="text-xs" style={{ color: 'var(--ink-3)' }}>Esta ação não pode ser desfeita.</p>
+            <div className="flex gap-2 justify-end">
+              <button onClick={() => setBulkDeleteOpen(false)} className="px-3 py-1.5 rounded-lg text-sm"
+                style={{ background: 'var(--surface-hover)', color: 'var(--ink-2)' }}>Cancelar</button>
+              <button onClick={() => bulkDeleteMut.mutate()} disabled={bulkDeleteMut.isPending}
+                className="px-3 py-1.5 rounded-lg text-sm font-medium text-white disabled:opacity-50"
+                style={{ background: 'var(--danger)' }}>
+                {bulkDeleteMut.isPending ? 'Deletando…' : 'Deletar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <AddCompanyModal
         open={addOpen}

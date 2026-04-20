@@ -13,6 +13,8 @@ interface Props<T> {
   loadingState?: React.ReactNode;
   trailing?: (row: T, index: number) => React.ReactNode;
   trailingWidth?: number;
+  selectedIds?: Set<string>;
+  onSelectionChange?: (ids: Set<string>) => void;
 }
 
 export default function ResizableDataList<T>({
@@ -27,11 +29,38 @@ export default function ResizableDataList<T>({
   loadingState,
   trailing,
   trailingWidth = 36,
+  selectedIds,
+  onSelectionChange,
 }: Props<T>) {
+  const selectable = selectedIds !== undefined && onSelectionChange !== undefined;
+  const allSelected = selectable && rows.length > 0 && rows.every((r, i) => selectedIds!.has(rowKey(r, i)));
+  const someSelected = selectable && !allSelected && rows.some((r, i) => selectedIds!.has(rowKey(r, i)));
+
+  const toggleAll = () => {
+    if (!onSelectionChange) return;
+    if (allSelected) {
+      const next = new Set(selectedIds);
+      rows.forEach((r, i) => next.delete(rowKey(r, i)));
+      onSelectionChange(next);
+    } else {
+      const next = new Set(selectedIds);
+      rows.forEach((r, i) => next.add(rowKey(r, i)));
+      onSelectionChange(next);
+    }
+  };
+
+  const toggleRow = (key: string) => {
+    if (!onSelectionChange || !selectedIds) return;
+    const next = new Set(selectedIds);
+    if (next.has(key)) next.delete(key); else next.add(key);
+    onSelectionChange(next);
+  };
+
   const gridTemplate = useMemo(() => {
     const cols = columns.map((c) => `${widths[c.key] ?? c.defaultWidth}px`).join(' ');
-    return trailing ? `${cols} ${trailingWidth}px` : cols;
-  }, [columns, widths, trailing, trailingWidth]);
+    const withTrailing = trailing ? `${cols} ${trailingWidth}px` : cols;
+    return selectable ? `32px ${withTrailing}` : withTrailing;
+  }, [columns, widths, trailing, trailingWidth, selectable]);
 
   return (
     <div
@@ -48,6 +77,17 @@ export default function ResizableDataList<T>({
               color: 'var(--ink-2)',
             }}
           >
+            {selectable && (
+              <div className="flex items-center" onClick={(e) => e.stopPropagation()}>
+                <input
+                  type="checkbox"
+                  checked={allSelected}
+                  ref={(el) => { if (el) el.indeterminate = someSelected; }}
+                  onChange={toggleAll}
+                  className="cursor-pointer accent-[var(--brand-500,#6366f1)]"
+                />
+              </div>
+            )}
             {columns.map((col, idx) => (
               <HeaderCell
                 key={col.key}
@@ -76,32 +116,47 @@ export default function ResizableDataList<T>({
             )
           ) : (
             <div>
-              {rows.map((row, idx) => (
-                <div
-                  key={rowKey(row, idx)}
-                  onClick={onRowClick ? () => onRowClick(row, idx) : undefined}
-                  className={`group grid px-6 py-3 text-sm transition-colors items-center ${onRowClick ? 'hover:bg-[var(--surface-hover)] cursor-pointer' : ''}`}
-                  style={{
-                    gridTemplateColumns: gridTemplate,
-                    borderBottom: '1px solid var(--edge)',
-                    color: 'var(--ink-1)',
-                  }}
-                >
-                  {columns.map((col) => (
-                    <div
-                      key={col.key}
-                      className={`min-w-0 ${col.cellClassName ?? ''}`}
-                      style={{
-                        textAlign: col.align,
-                        paddingRight: 12,
-                      }}
-                    >
-                      {col.render(row, idx)}
-                    </div>
-                  ))}
-                  {trailing && <div onClick={(e) => e.stopPropagation()}>{trailing(row, idx)}</div>}
-                </div>
-              ))}
+              {rows.map((row, idx) => {
+                const key = rowKey(row, idx);
+                const isSelected = selectable && selectedIds!.has(key);
+                return (
+                  <div
+                    key={key}
+                    onClick={onRowClick ? () => onRowClick(row, idx) : undefined}
+                    className={`group grid px-6 py-3 text-sm transition-colors items-center ${onRowClick ? 'hover:bg-[var(--surface-hover)] cursor-pointer' : ''} ${isSelected ? 'bg-[var(--brand-50,#eef2ff)]' : ''}`}
+                    style={{
+                      gridTemplateColumns: gridTemplate,
+                      borderBottom: '1px solid var(--edge)',
+                      color: 'var(--ink-1)',
+                    }}
+                  >
+                    {selectable && (
+                      <div
+                        className="flex items-center"
+                        onClick={(e) => { e.stopPropagation(); toggleRow(key); }}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => toggleRow(key)}
+                          onClick={(e) => e.stopPropagation()}
+                          className="cursor-pointer accent-[var(--brand-500,#6366f1)]"
+                        />
+                      </div>
+                    )}
+                    {columns.map((col) => (
+                      <div
+                        key={col.key}
+                        className={`min-w-0 ${col.cellClassName ?? ''}`}
+                        style={{ textAlign: col.align, paddingRight: 12 }}
+                      >
+                        {col.render(row, idx)}
+                      </div>
+                    ))}
+                    {trailing && <div onClick={(e) => e.stopPropagation()}>{trailing(row, idx)}</div>}
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>

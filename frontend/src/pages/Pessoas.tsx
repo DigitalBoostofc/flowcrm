@@ -4,7 +4,7 @@ import {
   Search, Filter, Plus, X, Users, Pencil, Camera, Trash2, Columns3,
 } from 'lucide-react';
 import {
-  listContacts, createContact, updateContact,
+  listContacts, createContact, updateContact, deleteContact,
   uploadContactAvatar, removeContactAvatar,
 } from '@/api/contacts';
 import { listUsers } from '@/api/users';
@@ -797,6 +797,9 @@ export default function Pessoas() {
   const [viewEditorOpen, setViewEditorOpen] = useState(false);
   const [selectedPessoa, setSelectedPessoa] = useState<Contact | null>(null);
   const [editingPessoa, setEditingPessoa] = useState<Contact | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [deleteTarget, setDeleteTarget] = useState<Contact | null>(null);
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
 
   // Filtros
   const [filterCategoria, setFilterCategoria] = useState('');
@@ -815,6 +818,23 @@ export default function Pessoas() {
   const { data: contacts = [], isLoading } = useQuery({
     queryKey: ['pessoas', debouncedSearch],
     queryFn: () => listContacts(debouncedSearch || undefined),
+  });
+
+  const deleteMut = useMutation({
+    mutationFn: (id: string) => deleteContact(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['pessoas'] });
+      setDeleteTarget(null);
+    },
+  });
+
+  const bulkDeleteMut = useMutation({
+    mutationFn: () => Promise.all([...selectedIds].map((id) => deleteContact(id))),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['pessoas'] });
+      setSelectedIds(new Set());
+      setBulkDeleteOpen(false);
+    },
   });
 
   const userById = useMemo(() => {
@@ -1087,6 +1107,24 @@ export default function Pessoas() {
         </div>
       )}
 
+      {selectedIds.size > 0 && (
+        <div className="flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm"
+          style={{ background: 'var(--brand-50,#eef2ff)', border: '1px solid var(--brand-200,#c7d2fe)' }}>
+          <button onClick={() => setSelectedIds(new Set())} className="p-1 rounded hover:bg-black/5" title="Cancelar seleção">
+            <X className="w-4 h-4" style={{ color: 'var(--ink-2)' }} />
+          </button>
+          <span style={{ color: 'var(--ink-2)' }}>{selectedIds.size} {selectedIds.size === 1 ? 'pessoa selecionada' : 'pessoas selecionadas'}</span>
+          <button
+            onClick={() => setBulkDeleteOpen(true)}
+            className="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium"
+            style={{ background: 'var(--danger)', color: '#fff' }}
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+            Deletar selecionados
+          </button>
+        </div>
+      )}
+
       <ResizableDataList<Contact>
         rows={filteredContacts}
         rowKey={(c) => c.id}
@@ -1096,18 +1134,76 @@ export default function Pessoas() {
         loading={isLoading}
         onRowClick={(c) => setEditingPessoa(c)}
         emptyState={<EmptyState onAdd={() => setAddOpen(true)} />}
+        selectedIds={selectedIds}
+        onSelectionChange={setSelectedIds}
         trailing={(c) => (
-          <button
-            onClick={() => setEditingPessoa(c)}
-            className="p-1.5 rounded-md opacity-0 group-hover:opacity-100 transition-opacity hover:bg-[var(--edge)]"
-            style={{ color: 'var(--ink-3)' }}
-            title="Editar pessoa"
-            aria-label="Editar pessoa"
-          >
-            <Pencil className="w-4 h-4" />
-          </button>
+          <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+            <button
+              onClick={(e) => { e.stopPropagation(); setEditingPessoa(c); }}
+              className="p-1.5 rounded-md hover:bg-[var(--edge)]"
+              style={{ color: 'var(--ink-3)' }}
+              title="Editar pessoa"
+            >
+              <Pencil className="w-4 h-4" />
+            </button>
+            <button
+              onClick={(e) => { e.stopPropagation(); setDeleteTarget(c); }}
+              className="p-1.5 rounded-md hover:bg-red-500/10 hover:text-red-500"
+              style={{ color: 'var(--ink-3)' }}
+              title="Deletar pessoa"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+          </div>
         )}
+        trailingWidth={72}
       />
+
+      {/* Confirm delete individual */}
+      {deleteTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.5)' }}
+          onClick={() => setDeleteTarget(null)}>
+          <div className="w-full max-w-sm rounded-xl p-5 space-y-4" onClick={(e) => e.stopPropagation()}
+            style={{ background: 'var(--surface)', border: '1px solid var(--edge-strong)' }}>
+            <p className="text-sm font-semibold" style={{ color: 'var(--ink-1)' }}>
+              Deletar "{deleteTarget.name}"?
+            </p>
+            <p className="text-xs" style={{ color: 'var(--ink-3)' }}>Esta ação não pode ser desfeita.</p>
+            <div className="flex gap-2 justify-end">
+              <button onClick={() => setDeleteTarget(null)} className="px-3 py-1.5 rounded-lg text-sm"
+                style={{ background: 'var(--surface-hover)', color: 'var(--ink-2)' }}>Cancelar</button>
+              <button onClick={() => deleteMut.mutate(deleteTarget.id)} disabled={deleteMut.isPending}
+                className="px-3 py-1.5 rounded-lg text-sm font-medium text-white disabled:opacity-50"
+                style={{ background: 'var(--danger)' }}>
+                {deleteMut.isPending ? 'Deletando…' : 'Deletar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Confirm bulk delete */}
+      {bulkDeleteOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.5)' }}
+          onClick={() => setBulkDeleteOpen(false)}>
+          <div className="w-full max-w-sm rounded-xl p-5 space-y-4" onClick={(e) => e.stopPropagation()}
+            style={{ background: 'var(--surface)', border: '1px solid var(--edge-strong)' }}>
+            <p className="text-sm font-semibold" style={{ color: 'var(--ink-1)' }}>
+              Deletar {selectedIds.size} {selectedIds.size === 1 ? 'pessoa' : 'pessoas'}?
+            </p>
+            <p className="text-xs" style={{ color: 'var(--ink-3)' }}>Esta ação não pode ser desfeita.</p>
+            <div className="flex gap-2 justify-end">
+              <button onClick={() => setBulkDeleteOpen(false)} className="px-3 py-1.5 rounded-lg text-sm"
+                style={{ background: 'var(--surface-hover)', color: 'var(--ink-2)' }}>Cancelar</button>
+              <button onClick={() => bulkDeleteMut.mutate()} disabled={bulkDeleteMut.isPending}
+                className="px-3 py-1.5 rounded-lg text-sm font-medium text-white disabled:opacity-50"
+                style={{ background: 'var(--danger)' }}>
+                {bulkDeleteMut.isPending ? 'Deletando…' : 'Deletar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Footer */}
       <div className="flex justify-end text-xs" style={{ color: 'var(--ink-3)' }}>
