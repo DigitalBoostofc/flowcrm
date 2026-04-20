@@ -8,15 +8,9 @@ import { StorageProvider, StoredFile } from './storage.interface';
 export class LocalStorageProvider implements StorageProvider {
   private readonly logger = new Logger(LocalStorageProvider.name);
   private readonly root: string;
-  private readonly publicBaseUrl: string;
 
   constructor(config: ConfigService) {
     this.root = config.get<string>('UPLOAD_ROOT') || path.join(process.cwd(), 'uploads');
-    // Usa PUBLIC_BASE_URL ou FRONTEND_URL como fallback para gerar URLs absolutas corretas
-    const base = config.get<string>('PUBLIC_BASE_URL')
-      || config.get<string>('FRONTEND_URL')
-      || '';
-    this.publicBaseUrl = base.replace(/\/$/, '');
   }
 
   async upload(params: { key: string; body: Buffer; contentType: string }): Promise<StoredFile> {
@@ -24,7 +18,7 @@ export class LocalStorageProvider implements StorageProvider {
     const full = path.join(this.root, safeKey);
     await fs.mkdir(path.dirname(full), { recursive: true });
     await fs.writeFile(full, params.body);
-    const url = `${this.publicBaseUrl}/api/uploads/${safeKey}`;
+    const url = `/api/uploads/${safeKey}`;
     return { key: safeKey, url };
   }
 
