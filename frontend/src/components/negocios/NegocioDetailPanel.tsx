@@ -3,13 +3,14 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   X, Star, MoreHorizontal, Plus, Mail, Phone, MessageSquare, FileText,
   PhoneCall, Users as UsersIcon, MapPin, StickyNote, Clock, Check,
-  Trophy, Ban, TrendingDown, Copy, Pin, HelpCircle, ChevronRight, ChevronDown,
+  Trophy, Ban, TrendingDown, Copy, Pin, HelpCircle, ChevronRight, ChevronDown, Tag,
 } from 'lucide-react';
 import type { Lead, LeadStatus, LeadActivity, ActivityType, Pipeline, User, Stage } from '@/types/api';
 import { updateLead, updateLeadStatus, moveLead } from '@/api/leads';
 import { updateContact } from '@/api/contacts';
 import { getLeadActivities, createLeadActivity } from '@/api/lead-activities';
 import Avatar from '@/components/ui/Avatar';
+import LabelPicker from '@/components/labels/LabelPicker';
 
 /* ── Formatters ──────────────────────────────────────── */
 
@@ -340,6 +341,7 @@ export default function NegocioDetailPanel({ lead, currentUser, users, pipelines
                 </span>
               )}
               <Stars value={lead.ranking ?? 0} onChange={(r) => leadMut.mutate({ ranking: r })} />
+              <LeadLabelsRow lead={lead} />
               {assignedTo && (
                 <span className="flex items-center gap-1.5 text-sm" style={{ color: 'var(--ink-2)' }}>
                   <Avatar name={assignedTo.name} url={assignedTo.avatarUrl} size={20} />
@@ -791,6 +793,45 @@ function InlineTitle({ value, onSave }: { value: string; onSave: (v: string) => 
     >
       {value}
     </h2>
+  );
+}
+
+function LeadLabelsRow({ lead }: { lead: Lead }) {
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const labels = lead.labels ?? [];
+
+  return (
+    <div className="flex items-center gap-1 flex-wrap">
+      {labels.map((l) => (
+        <span
+          key={l.id}
+          className="inline-flex items-center h-5 px-2 rounded-full text-[11px] font-semibold text-white"
+          style={{ background: l.color }}
+          title={l.name}
+        >
+          {l.name}
+        </span>
+      ))}
+      <button
+        ref={btnRef}
+        onClick={() => setPickerOpen((o) => !o)}
+        className="flex items-center gap-1 h-5 px-1.5 rounded-full text-[11px] transition-colors hover:bg-[var(--surface-hover)]"
+        style={{ border: '1px dashed var(--edge-strong)', color: 'var(--ink-3)' }}
+        title="Gerenciar etiquetas"
+      >
+        <Tag className="w-3 h-3" />
+        {labels.length === 0 && <span>Etiqueta</span>}
+      </button>
+      {pickerOpen && (
+        <LabelPicker
+          leadId={lead.id}
+          leadLabels={labels}
+          onClose={() => setPickerOpen(false)}
+          anchorRef={btnRef}
+        />
+      )}
+    </div>
   );
 }
 

@@ -87,6 +87,13 @@ export interface Pipeline {
   updatedAt: string;
 }
 
+export interface Label {
+  id: string;
+  name: string;
+  color: string;
+  createdAt: string;
+}
+
 export interface Lead {
   id: string;
   contactId: string | null;
@@ -95,6 +102,7 @@ export interface Lead {
   company?: Company | null;
   externalName?: string | null;
   externalPhone?: string | null;
+  labels?: Label[];
   stageId: string;
   stage?: Stage;
   pipelineId: string;
