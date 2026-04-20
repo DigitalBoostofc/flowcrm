@@ -135,9 +135,6 @@ function AddCompanyModal({ open, onClose, currentUser, users, company }: AddComp
     email: '',
     whatsapp: '',
     telefone: '',
-    celular: '',
-    fax: '',
-    ramal: '',
     website: '',
     cep: '',
     pais: 'Brasil',
@@ -172,9 +169,6 @@ function AddCompanyModal({ open, onClose, currentUser, users, company }: AddComp
     email: c.email ?? '',
     whatsapp: c.whatsapp ?? '',
     telefone: c.telefone ?? '',
-    celular: c.celular ?? '',
-    fax: c.fax ?? '',
-    ramal: c.ramal ?? '',
     website: c.website ?? '',
     cep: c.cep ?? '',
     pais: c.pais ?? 'Brasil',
@@ -478,18 +472,6 @@ function AddCompanyModal({ open, onClose, currentUser, users, company }: AddComp
               <div>
                 <Label>Telefone</Label>
                 <Input value={form.telefone} onChange={(e) => set('telefone', e.target.value)} placeholder="(00) 0000-0000" />
-              </div>
-              <div>
-                <Label>Celular</Label>
-                <Input value={form.celular} onChange={(e) => set('celular', e.target.value)} placeholder="(00) 00000-0000" />
-              </div>
-              <div>
-                <Label>Fax</Label>
-                <Input value={form.fax} onChange={(e) => set('fax', e.target.value)} placeholder="(00) 0000-0000" />
-              </div>
-              <div>
-                <Label>Ramal</Label>
-                <Input value={form.ramal} onChange={(e) => set('ramal', e.target.value)} placeholder="00" />
               </div>
               <div className="md:col-span-2">
                 <Label>Website</Label>
