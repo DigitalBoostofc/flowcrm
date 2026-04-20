@@ -37,7 +37,7 @@ export class OtpService {
       password_change: 'alteração de senha',
       signup_verify: 'verificação de cadastro',
     };
-    return `${greet}👋\n\nSeu código de ${label[purpose]} no *FlowCRM* é:\n\n*${code}*\n\nEle expira em 10 minutos.`;
+    return `${greet}👋\n\nSeu código de ${label[purpose]} no *AppexCRM* é:\n\n*${code}*\n\nEle expira em 10 minutos.`;
   }
 
   async send(params: { purpose: OtpPurpose; subject: string; phone: string; name?: string }): Promise<void> {

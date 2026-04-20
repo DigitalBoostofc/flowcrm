@@ -68,7 +68,7 @@ export default function IntegrationsTab() {
             </div>
 
             <p className="text-xs leading-relaxed" style={{ color: 'var(--ink-3)' }}>
-              Tarefas criadas no FlowCRM aparecem automaticamente no Google Calendar
+              Tarefas criadas no AppexCRM aparecem automaticamente no Google Calendar
               dos responsáveis que tiverem a integração ativa.
             </p>
 

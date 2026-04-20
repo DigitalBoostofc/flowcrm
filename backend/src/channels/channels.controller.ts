@@ -83,7 +83,7 @@ export class ChannelsController {
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>FlowCRM - Escanear WhatsApp</title>
+  <title>AppexCRM - Escanear WhatsApp</title>
   <style>
     body { font-family: -apple-system, sans-serif; background: #0f172a; color: #e2e8f0; display: flex; min-height: 100vh; align-items: center; justify-content: center; margin: 0; }
     .card { background: #1e293b; border-radius: 12px; padding: 32px; text-align: center; max-width: 400px; }

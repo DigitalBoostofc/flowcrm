@@ -38,7 +38,7 @@ export class UazapiAdapter implements ChannelAdapter {
 
     const res = await axios.post(
       `${this.baseUrl}/instance/create`,
-      { name: instanceName, systemName: 'FlowCRM' },
+      { name: instanceName, systemName: 'AppexCRM' },
       { headers: this.adminHeaders(), timeout: 20000 },
     );
 

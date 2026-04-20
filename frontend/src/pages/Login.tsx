@@ -335,7 +335,7 @@ export default function Login() {
             <Zap className="w-5 h-5 text-white" strokeWidth={2.5} fill="white" />
           </div>
           <h1 className="text-xl font-semibold" style={{ color: 'var(--ink-1)', letterSpacing: '-0.02em' }}>
-            {showForgot ? 'FlowCRM' : 'Entrar no FlowCRM'}
+            {showForgot ? 'AppexCRM' : 'Entrar no AppexCRM'}
           </h1>
           {!showForgot && (
             <p className="text-sm mt-1" style={{ color: 'var(--ink-3)' }}>Gestão de vendas inteligente</p>

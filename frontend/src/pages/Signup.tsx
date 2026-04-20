@@ -101,7 +101,7 @@ export default function Signup() {
             <Zap className="w-5 h-5 text-white" strokeWidth={2.5} fill="white" />
           </div>
           <h1 className="text-xl font-semibold" style={{ color: 'var(--ink-1)', letterSpacing: '-0.02em' }}>
-            {step === 'form' ? 'Criar conta no FlowCRM' : 'Verificar WhatsApp'}
+            {step === 'form' ? 'Criar conta no AppexCRM' : 'Verificar WhatsApp'}
           </h1>
           <p className="text-sm mt-1" style={{ color: 'var(--ink-3)' }}>
             {step === 'form' ? '7 dias grátis. Sem cartão.' : `Enviamos um código para ${phoneMasked}`}

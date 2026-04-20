@@ -64,7 +64,7 @@ export default function Sidebar() {
           style={{ opacity: collapsed ? 0 : 1, transition: 'opacity 0.15s', whiteSpace: 'nowrap' }}
         >
           <div className="text-sm font-semibold tracking-tight" style={{ color: 'var(--ink-1)', letterSpacing: '-0.01em' }}>
-            FlowCRM
+            AppexCRM
           </div>
         </div>
 

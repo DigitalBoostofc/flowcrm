@@ -55,10 +55,10 @@ export default function Assinar() {
           </h1>
           <p className="text-sm mt-2" style={{ color: 'var(--ink-3)' }}>
             {blocked
-              ? 'Assine um plano para continuar usando o FlowCRM com todos os seus dados.'
+              ? 'Assine um plano para continuar usando o AppexCRM com todos os seus dados.'
               : trialDaysLeft > 0
                 ? `Faltam ${trialDaysLeft} ${trialDaysLeft === 1 ? 'dia' : 'dias'} no seu trial.`
-                : 'Desbloqueie todos os recursos do FlowCRM.'}
+                : 'Desbloqueie todos os recursos do AppexCRM.'}
           </p>
         </header>
 

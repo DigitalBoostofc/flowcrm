@@ -247,7 +247,7 @@ export class SignupService {
             name: signup.name,
             email: signup.email,
             phone: signup.phone,
-            origem: 'Cadastro FlowCRM',
+            origem: 'Cadastro AppexCRM',
           });
 
           const pipeline = await this.pipelines.findDefault();
@@ -272,7 +272,7 @@ export class SignupService {
   }
 
   private async sendOtpMessage(channelConfigId: string, phone: string, code: string): Promise<void> {
-    const body = `Seu código de verificação FlowCRM é: ${code}\n\nExpira em ${OTP_TTL_MINUTES} minutos.`;
+    const body = `Seu código de verificação AppexCRM é: ${code}\n\nExpira em ${OTP_TTL_MINUTES} minutos.`;
     try {
       await this.channels.send({ channelConfigId, to: phone, body });
     } catch (err) {

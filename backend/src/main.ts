@@ -51,6 +51,6 @@ async function bootstrap() {
 
   const port = process.env.PORT ?? 3001;
   await app.listen(port);
-  Logger.log(`FlowCRM backend running on port ${port}`, 'Bootstrap');
+  Logger.log(`AppexCRM backend running on port ${port}`, 'Bootstrap');
 }
 bootstrap();

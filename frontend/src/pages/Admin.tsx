@@ -48,7 +48,7 @@ export default function Admin() {
         </div>
         <div className="flex-1 min-w-0">
           <h1 className="text-base font-semibold" style={{ color: 'var(--ink-1)' }}>Admin da plataforma</h1>
-          <div className="text-xs" style={{ color: 'var(--ink-3)' }}>Gestão global do SaaS FlowCRM</div>
+          <div className="text-xs" style={{ color: 'var(--ink-3)' }}>Gestão global do SaaS AppexCRM</div>
         </div>
       </header>
 
