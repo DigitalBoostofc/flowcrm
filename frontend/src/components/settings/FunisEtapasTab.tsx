@@ -1,14 +1,135 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Plus, GripVertical, Trash2, Info, ListChecks, Trophy,
-  TrendingUp, LayoutGrid, X,
+  TrendingUp, LayoutGrid, X, Search, ChevronDown, Check,
+  CircleDot, CheckCircle2, XCircle,
 } from 'lucide-react';
-import type { PipelineKind } from '@/types/api';
+import type { PipelineKind, Lead, LeadStatus } from '@/types/api';
 import { listPipelines, createPipeline, updatePipeline, deletePipeline } from '@/api/pipelines';
 import { createStage, updateStage, deleteStage } from '@/api/stages';
+import { listLeads, updateLeadStatus } from '@/api/leads';
+import { listLossReasons } from '@/api/loss-reasons';
 import type { Pipeline, Stage } from '@/types/api';
 import RequiredFieldsDrawer from './RequiredFieldsDrawer';
+
+function leadDisplayName(lead: Lead): string {
+  return lead.contact?.name ?? lead.externalName ?? lead.title ?? 'Sem nome';
+}
+
+const STATUS_CONFIG: Record<LeadStatus, { label: string; color: string; bg: string; Icon: typeof CircleDot }> = {
+  active:  { label: 'Em andamento', color: '#635BFF', bg: 'rgba(99,91,255,0.1)',   Icon: CircleDot     },
+  won:     { label: 'Ganho',        color: '#10B981', bg: 'rgba(16,185,129,0.1)',  Icon: CheckCircle2  },
+  lost:    { label: 'Perdido',      color: '#ef4444', bg: 'rgba(239,68,68,0.1)',   Icon: XCircle       },
+};
+
+function StatusBadge({ status }: { status: LeadStatus }) {
+  const cfg = STATUS_CONFIG[status];
+  return (
+    <span
+      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold"
+      style={{ background: cfg.bg, color: cfg.color }}
+    >
+      <cfg.Icon className="w-3 h-3" />
+      {cfg.label}
+    </span>
+  );
+}
+
+function StatusDropdown({
+  lead,
+  lossReasons,
+  onUpdate,
+}: {
+  lead: Lead;
+  lossReasons: { id: string; label: string }[];
+  onUpdate: (id: string, status: LeadStatus, lossReason?: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [lostStep, setLostStep] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false);
+        setLostStep(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [open]);
+
+  const choose = (status: LeadStatus) => {
+    if (status === 'lost') { setLostStep(true); return; }
+    onUpdate(lead.id, status);
+    setOpen(false);
+  };
+
+  const cfg = STATUS_CONFIG[lead.status];
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        onClick={() => { setOpen(v => !v); setLostStep(false); }}
+        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold transition-opacity hover:opacity-80"
+        style={{ background: cfg.bg, color: cfg.color }}
+      >
+        <cfg.Icon className="w-3 h-3" />
+        {cfg.label}
+        <ChevronDown className="w-3 h-3 opacity-60" />
+      </button>
+
+      {open && (
+        <div
+          className="absolute left-0 top-full mt-1 z-50 rounded-xl shadow-xl py-1 min-w-[180px]"
+          style={{ background: 'var(--surface-raised)', border: '1px solid var(--edge)' }}
+        >
+          {!lostStep ? (
+            <>
+              {(Object.entries(STATUS_CONFIG) as [LeadStatus, typeof STATUS_CONFIG[LeadStatus]][]).map(([key, s]) => (
+                <button
+                  key={key}
+                  onClick={() => choose(key)}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-xs hover:bg-[var(--surface-hover)] transition-colors"
+                  style={{ color: key === lead.status ? s.color : 'var(--ink-1)' }}
+                >
+                  <s.Icon className="w-3.5 h-3.5" style={{ color: s.color }} />
+                  {s.label}
+                  {key === lead.status && <Check className="w-3 h-3 ml-auto" style={{ color: s.color }} />}
+                </button>
+              ))}
+            </>
+          ) : (
+            <>
+              <div className="px-3 py-2 text-xs font-semibold" style={{ color: 'var(--ink-2)', borderBottom: '1px solid var(--edge)' }}>
+                Motivo da perda
+              </div>
+              <button
+                onClick={() => { onUpdate(lead.id, 'lost'); setOpen(false); setLostStep(false); }}
+                className="w-full flex items-center gap-2 px-3 py-2 text-xs hover:bg-[var(--surface-hover)] transition-colors"
+                style={{ color: 'var(--ink-3)' }}
+              >
+                Sem motivo
+              </button>
+              {lossReasons.map((r) => (
+                <button
+                  key={r.id}
+                  onClick={() => { onUpdate(lead.id, 'lost', r.label); setOpen(false); setLostStep(false); }}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-xs hover:bg-[var(--surface-hover)] transition-colors"
+                  style={{ color: 'var(--ink-1)' }}
+                >
+                  {r.label}
+                </button>
+              ))}
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 function deriveSigla(name: string): string {
   const letters = name
@@ -42,6 +163,8 @@ export default function FunisEtapasTab() {
   const [kindDraft, setKindDraft] = useState<PipelineKind | null>(null);
   const [newName, setNewName] = useState('');
   const [newSigla, setNewSigla] = useState('');
+  const [statusSearch, setStatusSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState<LeadStatus | 'all'>('all');
 
   useEffect(() => {
     if (!selectedId && pipelines.length > 0) {
@@ -79,6 +202,37 @@ export default function FunisEtapasTab() {
     setStageNameDrafts(n);
     setStageTimeDrafts(t);
   }, [selected, stages]);
+
+  const { data: pipelineLeads = [], isFetching: leadsLoading } = useQuery({
+    queryKey: ['leads', selectedId, 'all'],
+    queryFn: () => listLeads(selectedId!),
+    enabled: !!selectedId && tab === 'status',
+  });
+
+  const { data: lossReasons = [] } = useQuery({
+    queryKey: ['loss-reasons'],
+    queryFn: listLossReasons,
+    enabled: tab === 'status',
+  });
+
+  const updateStatusMut = useMutation({
+    mutationFn: ({ id, status, lossReason }: { id: string; status: LeadStatus; lossReason?: string }) =>
+      updateLeadStatus(id, status, lossReason),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['leads', selectedId, 'all'] }),
+  });
+
+  const filteredLeads = useMemo(() => {
+    let leads = pipelineLeads;
+    if (statusFilter !== 'all') leads = leads.filter((l) => l.status === statusFilter);
+    if (statusSearch.trim()) {
+      const q = statusSearch.toLowerCase();
+      leads = leads.filter((l) =>
+        leadDisplayName(l).toLowerCase().includes(q) ||
+        l.stage?.name?.toLowerCase().includes(q),
+      );
+    }
+    return leads;
+  }, [pipelineLeads, statusFilter, statusSearch]);
 
   const updatePipelineMut = useMutation({
     mutationFn: ({ id, data }: { id: string; data: { name?: string; sigla?: string } }) =>
@@ -580,11 +734,108 @@ export default function FunisEtapasTab() {
                 </button>
               </>
             ) : (
-              <div
-                className="text-sm p-6 text-center rounded-lg"
-                style={{ background: 'var(--surface-hover)', color: 'var(--ink-3)' }}
-              >
-                Configuração de status por funil em breve.
+              <div className="flex flex-col gap-3">
+                {/* Barra de busca + filtros de status */}
+                <div className="flex items-center gap-2 flex-wrap">
+                  <div className="relative flex-1 min-w-[180px]">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5" style={{ color: 'var(--ink-3)' }} />
+                    <input
+                      value={statusSearch}
+                      onChange={(e) => setStatusSearch(e.target.value)}
+                      placeholder="Buscar negócio ou etapa..."
+                      className="w-full pl-8 pr-3 py-1.5 rounded-lg text-sm outline-none"
+                      style={{ background: 'var(--surface-raised)', border: '1px solid var(--edge)', color: 'var(--ink-1)' }}
+                    />
+                  </div>
+                  <div className="flex items-center gap-1">
+                    {(['all', 'active', 'won', 'lost'] as const).map((f) => {
+                      const cfg = f === 'all' ? null : STATUS_CONFIG[f];
+                      return (
+                        <button
+                          key={f}
+                          onClick={() => setStatusFilter(f)}
+                          className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
+                          style={{
+                            background: statusFilter === f
+                              ? (cfg ? cfg.bg : 'var(--surface-hover)')
+                              : 'transparent',
+                            color: statusFilter === f
+                              ? (cfg ? cfg.color : 'var(--ink-1)')
+                              : 'var(--ink-3)',
+                            border: statusFilter === f ? `1px solid ${cfg ? cfg.color : 'var(--edge)'}` : '1px solid transparent',
+                          }}
+                        >
+                          {f === 'all' ? 'Todos' : STATUS_CONFIG[f].label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Tabela de negócios */}
+                {leadsLoading ? (
+                  <div className="text-sm py-8 text-center" style={{ color: 'var(--ink-3)' }}>Carregando...</div>
+                ) : filteredLeads.length === 0 ? (
+                  <div className="text-sm py-8 text-center" style={{ color: 'var(--ink-3)' }}>
+                    {pipelineLeads.length === 0 ? 'Nenhum negócio neste funil.' : 'Nenhum negócio encontrado.'}
+                  </div>
+                ) : (
+                  <>
+                    {/* Header */}
+                    <div
+                      className="grid text-xs font-bold uppercase tracking-wide px-3 py-2"
+                      style={{ gridTemplateColumns: '1fr 160px 160px', color: 'var(--ink-3)', borderBottom: '1px solid var(--edge)' }}
+                    >
+                      <div>Negócio</div>
+                      <div>Etapa</div>
+                      <div>Status</div>
+                    </div>
+
+                    <div>
+                      {filteredLeads.map((lead) => (
+                        <div
+                          key={lead.id}
+                          className="grid items-center px-3 py-2.5 rounded-lg transition-colors hover:bg-[var(--surface-hover)]"
+                          style={{ gridTemplateColumns: '1fr 160px 160px' }}
+                        >
+                          {/* Nome */}
+                          <div className="flex flex-col gap-0.5 min-w-0">
+                            <span className="text-sm font-medium truncate" style={{ color: 'var(--ink-1)' }}>
+                              {leadDisplayName(lead)}
+                            </span>
+                            {lead.value != null && (
+                              <span className="text-xs" style={{ color: 'var(--ink-3)' }}>
+                                {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(lead.value))}
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Etapa */}
+                          <span
+                            className="text-xs font-medium px-2 py-1 rounded-md truncate"
+                            style={{ background: 'var(--surface-hover)', color: 'var(--ink-2)' }}
+                          >
+                            {lead.stage?.name ?? '—'}
+                          </span>
+
+                          {/* Status editável */}
+                          <StatusDropdown
+                            lead={lead}
+                            lossReasons={lossReasons}
+                            onUpdate={(id, status, lossReason) =>
+                              updateStatusMut.mutate({ id, status, lossReason })
+                            }
+                          />
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="text-xs pt-1" style={{ color: 'var(--ink-3)' }}>
+                      {filteredLeads.length} negócio{filteredLeads.length !== 1 ? 's' : ''}
+                      {statusFilter !== 'all' || statusSearch ? ` filtrado${filteredLeads.length !== 1 ? 's' : ''}` : ''} de {pipelineLeads.length} total
+                    </div>
+                  </>
+                )}
               </div>
             )}
           </div>
