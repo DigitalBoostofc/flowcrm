@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Search, Filter, ArrowUpDown, Plus, List, GitBranch,
-  TrendingUp, X, Pencil, Trash2, GripVertical, Link as LinkIcon, Info,
+  X, Pencil, Trash2, GripVertical, Link as LinkIcon, Info,
   ListChecks, Trophy, ChevronLeft, ChevronRight, Settings as SettingsIcon, Tag,
 } from 'lucide-react';
 import { listAllLeads } from '@/api/leads';
@@ -748,13 +748,6 @@ export default function Funil() {
             </button>
           </div>
 
-          <button
-            className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium"
-            style={{ color: 'var(--brand-500, #6366f1)' }}
-          >
-            <TrendingUp className="w-4 h-4" />
-            Conversão do funil
-          </button>
         </div>
       </div>
 
