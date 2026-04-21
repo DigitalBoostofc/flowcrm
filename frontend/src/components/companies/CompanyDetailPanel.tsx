@@ -66,7 +66,7 @@ export default function CompanyDetailPanel({ company, users, onClose, onEdit }: 
     >
       <div
         className="relative w-full max-w-4xl my-4 rounded-2xl shadow-2xl overflow-hidden"
-        style={{ background: 'var(--bg)', border: '1px solid var(--edge-strong)' }}
+        style={{ background: 'var(--surface-raised, var(--surface))', border: '1px solid var(--edge-strong)' }}
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}
