@@ -5,10 +5,13 @@ export interface AnalyticsSummary {
   values: { active: number; won: number; lost: number; forecast: number };
   conversionRate: number;
   avgDaysToWin: number;
+  avgTicket: number;
   byStage: { stageId: string; stageName: string; count: number; value: number }[];
   byAgent: { agentId: string; name: string; active: number; won: number; lost: number; value: number }[];
   topLossReasons: { reason: string; count: number }[];
   leadsByDay: Record<string, number>;
+  revenueByOrigin: { origin: string; count: number; value: number }[];
+  neglectedLeads: { id: string; title: string | null; contactName: string | null; assignedTo: string; daysSinceUpdate: number }[];
 }
 
 export const getAnalyticsSummary = (pipelineId?: string): Promise<AnalyticsSummary> =>

@@ -32,7 +32,7 @@ export class AnalyticsService {
     }
 
     // Run all aggregations in parallel with a single shared query each
-    const [totalsRows, byStageRows, byAgentRows, lossRows, leadsByDayRows, avgWinRow] =
+    const [totalsRows, byStageRows, byAgentRows, lossRows, leadsByDayRows, avgWinRow, revenueByOriginRows, neglectedRows] =
       await Promise.all([
         // totals + values per status
         qb.clone()
@@ -100,6 +100,40 @@ export class AnalyticsService {
           .andWhere('l.status = :status', { status: LeadStatus.WON })
           .andWhere(pipelineId ? 'l.pipelineId = :pipelineId' : "p.kind = 'sale'", pipelineId ? { pipelineId } : {})
           .getRawOne(),
+
+        // revenue by origin
+        qb.clone()
+          .leftJoin('l.contact', 'c')
+          .select("COALESCE(c.origin, 'Sem origem')", 'origin')
+          .addSelect('COUNT(*)', 'count')
+          .addSelect('COALESCE(SUM(l.value), 0)', 'value')
+          .where('l.workspaceId = :workspaceId', { workspaceId })
+          .andWhere('l.archivedAt IS NULL')
+          .andWhere('l.status = :status', { status: LeadStatus.WON })
+          .andWhere(pipelineId ? 'l.pipelineId = :pipelineId' : "p.kind = 'sale'", pipelineId ? { pipelineId } : {})
+          .groupBy("COALESCE(c.origin, 'Sem origem')")
+          .orderBy('value', 'DESC')
+          .limit(8)
+          .getRawMany(),
+
+        // neglected leads (active, no update in 14+ days)
+        qb.clone()
+          .leftJoin('l.contact', 'c')
+          .leftJoin('l.assignedTo', 'au')
+          .select('l.id', 'id')
+          .addSelect('l.title', 'title')
+          .addSelect('c.name', 'contactName')
+          .addSelect("COALESCE(au.name, 'Sem responsável')", 'assignedTo')
+          .addSelect('l.updatedAt', 'updatedAt')
+          .addSelect('EXTRACT(DAY FROM NOW() - l.updatedAt)', 'daysSinceUpdate')
+          .where('l.workspaceId = :workspaceId', { workspaceId })
+          .andWhere('l.archivedAt IS NULL')
+          .andWhere('l.status = :status', { status: LeadStatus.ACTIVE })
+          .andWhere('l.updatedAt < NOW() - INTERVAL \'14 days\'')
+          .andWhere(pipelineId ? 'l.pipelineId = :pipelineId' : "p.kind = 'sale'", pipelineId ? { pipelineId } : {})
+          .orderBy('l.updatedAt', 'ASC')
+          .limit(10)
+          .getRawMany(),
       ]);
 
     // Totals
@@ -118,6 +152,7 @@ export class AnalyticsService {
       ? Math.round((totals.won / (totals.won + totals.lost)) * 100)
       : 0;
     const avgDaysToWin = Math.round(parseFloat(avgWinRow?.avgDays ?? '0') || 0);
+    const avgTicket = totals.won > 0 ? Math.round(values.won / totals.won) : 0;
 
     // byStage
     const byStage = byStageRows.map((r) => ({
@@ -142,6 +177,20 @@ export class AnalyticsService {
     const leadsByDay: Record<string, number> = {};
     for (const r of leadsByDayRows) leadsByDay[r.day] = parseInt(r.count, 10);
 
-    return { totals, values, conversionRate, avgDaysToWin, byStage, byAgent, topLossReasons, leadsByDay };
+    const revenueByOrigin = revenueByOriginRows.map((r) => ({
+      origin: r.origin as string,
+      count: parseInt(r.count, 10),
+      value: parseFloat(r.value),
+    }));
+
+    const neglectedLeads = neglectedRows.map((r) => ({
+      id: r.id as string,
+      title: r.title as string | null,
+      contactName: r.contactName as string | null,
+      assignedTo: r.assignedTo as string,
+      daysSinceUpdate: Math.round(parseFloat(r.daysSinceUpdate ?? '0')),
+    }));
+
+    return { totals, values, conversionRate, avgDaysToWin, avgTicket, byStage, byAgent, topLossReasons, leadsByDay, revenueByOrigin, neglectedLeads };
   }
 }
