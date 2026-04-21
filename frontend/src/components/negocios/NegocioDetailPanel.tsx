@@ -482,135 +482,158 @@ export default function NegocioDetailPanel({ lead, currentUser, users, pipelines
         </div>
 
         {/* Stage progress */}
-        {stages.length > 0 && (
-          <div className="px-6 pb-4">
-            <div
-              className="flex items-stretch rounded-lg overflow-hidden"
-              style={{ background: 'var(--surface)', border: '1px solid var(--edge)' }}
-            >
-              <div className="flex-shrink-0" style={{ borderRight: '1px solid var(--edge)' }}>
-                <button
-                  ref={pipelineBtnRef}
-                  onClick={() => {
-                    if (!pipelinePickerOpen && pipelineBtnRef.current) {
-                      const rect = pipelineBtnRef.current.getBoundingClientRect();
-                      setPickerPos({ top: rect.bottom + 6, left: rect.left });
-                    }
-                    setSelectedPipelineId(lead.pipelineId ?? '');
-                    setPipelinePickerOpen(o => !o);
-                  }}
-                  className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium transition-colors hover:bg-[var(--surface-hover)]"
-                  style={{ color: 'var(--ink-2)' }}
-                  title="Trocar funil"
-                >
-                  <span className="w-4 h-4 rounded-full border-2 flex-shrink-0" style={{ borderColor: 'var(--brand-500, #6366f1)' }} />
-                  {pipeline?.name ?? 'Funil'}
-                  <ChevronDown className="w-3 h-3 opacity-60" />
-                </button>
-              </div>
-
-              {pipelinePickerOpen && (
-                <>
-                  <div className="fixed inset-0 z-[200]" onClick={() => setPipelinePickerOpen(false)} />
-                  <div
-                    className="rounded-xl shadow-xl z-[201] min-w-[220px] py-2"
-                    style={{
-                      position: 'fixed',
-                      top: pickerPos.top,
-                      left: pickerPos.left,
-                      background: 'var(--surface-raised)',
-                      border: '1px solid var(--edge-strong)',
-                      boxShadow: 'var(--shadow-xl)',
+        {stages.length > 0 && (() => {
+          const fillPct = stages.length > 0 ? ((currentStageIdx + 1) / stages.length) * 100 : 0;
+          const isLast = currentStageIdx === stages.length - 1;
+          return (
+            <div className="px-6 pb-4">
+              <style>{`
+                @keyframes liquid-flow {
+                  0%   { transform: translateX(-120%) skewX(-20deg); opacity: 0; }
+                  20%  { opacity: 1; }
+                  80%  { opacity: 1; }
+                  100% { transform: translateX(220%) skewX(-20deg); opacity: 0; }
+                }
+                .stage-shimmer { animation: liquid-flow 2.4s ease-in-out infinite; }
+              `}</style>
+              <div
+                className="flex items-stretch rounded-lg overflow-hidden"
+                style={{ background: 'var(--surface)', border: '1px solid var(--edge)' }}
+              >
+                {/* Pipeline switcher */}
+                <div className="flex-shrink-0" style={{ borderRight: '1px solid var(--edge)' }}>
+                  <button
+                    ref={pipelineBtnRef}
+                    onClick={() => {
+                      if (!pipelinePickerOpen && pipelineBtnRef.current) {
+                        const rect = pipelineBtnRef.current.getBoundingClientRect();
+                        setPickerPos({ top: rect.bottom + 6, left: rect.left });
+                      }
+                      setSelectedPipelineId(lead.pipelineId ?? '');
+                      setPipelinePickerOpen(o => !o);
                     }}
+                    className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium transition-colors hover:bg-[var(--surface-hover)]"
+                    style={{ color: 'var(--ink-2)' }}
+                    title="Trocar funil"
                   >
-                    <p className="px-3 pb-1.5 text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--ink-3)' }}>
-                      Selecione o funil
-                    </p>
-                    {pipelines.map(p => (
-                      <button
-                        key={p.id}
-                        onClick={() => setSelectedPipelineId(p.id)}
-                        className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left transition-colors hover:bg-[var(--surface-hover)]"
-                        style={{ color: selectedPipelineId === p.id ? 'var(--brand-500)' : 'var(--ink-1)', fontWeight: selectedPipelineId === p.id ? 600 : 400 }}
-                      >
-                        <span
-                          className="w-2 h-2 rounded-full flex-shrink-0"
-                          style={{ background: selectedPipelineId === p.id ? 'var(--brand-500)' : 'var(--edge-strong)' }}
-                        />
-                        {p.name}
-                        {p.id === lead.pipelineId && (
-                          <span className="ml-auto text-[10px]" style={{ color: 'var(--ink-3)' }}>atual</span>
-                        )}
-                      </button>
-                    ))}
-                    <div className="px-3 pt-2 mt-1" style={{ borderTop: '1px solid var(--edge)' }}>
-                      <button
-                        onClick={() => {
-                          if (selectedPipelineId && selectedPipelineId !== lead.pipelineId) {
-                            pipelineMut.mutate(selectedPipelineId);
-                          } else {
-                            setPipelinePickerOpen(false);
-                          }
-                        }}
-                        disabled={!selectedPipelineId || pipelineMut.isPending}
-                        className="w-full h-8 rounded-lg text-xs font-semibold text-white disabled:opacity-40"
-                        style={{ background: 'var(--brand-500)' }}
-                      >
-                        {pipelineMut.isPending ? 'Salvando...' : 'Salvar'}
-                      </button>
-                    </div>
-                  </div>
-                </>
-              )}
-              {stages.map((s, idx) => {
-                const isCurrent = idx === currentStageIdx;
-                const isPast = idx < currentStageIdx;
-                const isDone = isPast || isCurrent;
-                return (
-                  <div key={s.id} className="flex-1 flex items-stretch min-w-0">
-                    <button
-                      onClick={() => !isCurrent && stageMut.mutate(s.id)}
-                      className="flex-1 flex items-center justify-center gap-1.5 px-2 py-2 text-xs font-medium transition-all min-w-0"
+                    <span className="w-4 h-4 rounded-full border-2 flex-shrink-0" style={{ borderColor: 'var(--brand-500, #6366f1)' }} />
+                    {pipeline?.name ?? 'Funil'}
+                    <ChevronDown className="w-3 h-3 opacity-60" />
+                  </button>
+                </div>
+
+                {pipelinePickerOpen && (
+                  <>
+                    <div className="fixed inset-0 z-[200]" onClick={() => setPipelinePickerOpen(false)} />
+                    <div
+                      className="rounded-xl shadow-xl z-[201] min-w-[220px] py-2"
                       style={{
-                        background: isCurrent
-                          ? '#22c55e'
-                          : isPast
-                            ? '#16a34a'
-                            : 'transparent',
-                        color: isDone ? '#fff' : 'var(--ink-3)',
-                        boxShadow: isCurrent ? '0 0 12px rgba(34,197,94,0.55), inset 0 1px 0 rgba(255,255,255,0.15)' : 'none',
-                        cursor: isCurrent ? 'default' : 'pointer',
+                        position: 'fixed',
+                        top: pickerPos.top,
+                        left: pickerPos.left,
+                        background: 'var(--surface-raised)',
+                        border: '1px solid var(--edge-strong)',
+                        boxShadow: 'var(--shadow-xl)',
                       }}
                     >
-                      {isPast && <Check className="w-3 h-3 flex-shrink-0 opacity-80" strokeWidth={3} />}
-                      <span className="truncate">{s.name}</span>
-                      {isCurrent && (
-                        <span className="flex items-center gap-0.5 text-[10px] opacity-80 flex-shrink-0">
-                          <Clock className="w-3 h-3" />
-                          {timeInStage(lead.stageEnteredAt)}
-                        </span>
-                      )}
-                    </button>
-                    {idx < stages.length - 1 && (
-                      <div
-                        className="flex items-center justify-center flex-shrink-0 w-5"
+                      <p className="px-3 pb-1.5 text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--ink-3)' }}>
+                        Selecione o funil
+                      </p>
+                      {pipelines.map(p => (
+                        <button
+                          key={p.id}
+                          onClick={() => setSelectedPipelineId(p.id)}
+                          className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left transition-colors hover:bg-[var(--surface-hover)]"
+                          style={{ color: selectedPipelineId === p.id ? 'var(--brand-500)' : 'var(--ink-1)', fontWeight: selectedPipelineId === p.id ? 600 : 400 }}
+                        >
+                          <span
+                            className="w-2 h-2 rounded-full flex-shrink-0"
+                            style={{ background: selectedPipelineId === p.id ? 'var(--brand-500)' : 'var(--edge-strong)' }}
+                          />
+                          {p.name}
+                          {p.id === lead.pipelineId && (
+                            <span className="ml-auto text-[10px]" style={{ color: 'var(--ink-3)' }}>atual</span>
+                          )}
+                        </button>
+                      ))}
+                      <div className="px-3 pt-2 mt-1" style={{ borderTop: '1px solid var(--edge)' }}>
+                        <button
+                          onClick={() => {
+                            if (selectedPipelineId && selectedPipelineId !== lead.pipelineId) {
+                              pipelineMut.mutate(selectedPipelineId);
+                            } else {
+                              setPipelinePickerOpen(false);
+                            }
+                          }}
+                          disabled={!selectedPipelineId || pipelineMut.isPending}
+                          className="w-full h-8 rounded-lg text-xs font-semibold text-white disabled:opacity-40"
+                          style={{ background: 'var(--brand-500)' }}
+                        >
+                          {pipelineMut.isPending ? 'Salvando...' : 'Salvar'}
+                        </button>
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                {/* Stage bar */}
+                <div className="flex-1 relative flex items-stretch overflow-hidden" style={{ minHeight: 36 }}>
+                  {/* Liquid fill layer */}
+                  <div
+                    className="absolute inset-y-0 left-0 overflow-hidden pointer-events-none transition-all duration-500"
+                    style={{
+                      width: `${fillPct}%`,
+                      background: 'linear-gradient(90deg, #15803d 0%, #22c55e 100%)',
+                      clipPath: isLast
+                        ? 'none'
+                        : 'polygon(0 0, calc(100% - 10px) 0, 100% 50%, calc(100% - 10px) 100%, 0 100%)',
+                      zIndex: 1,
+                    }}
+                  >
+                    {/* Shimmer wave */}
+                    <div
+                      className="stage-shimmer absolute inset-y-0"
+                      style={{
+                        width: '35%',
+                        background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.28) 50%, transparent 100%)',
+                      }}
+                    />
+                  </div>
+
+                  {/* Clickable stage labels (above fill) */}
+                  {stages.map((s, idx) => {
+                    const isCurrent = idx === currentStageIdx;
+                    const isPast = idx < currentStageIdx;
+                    const isDone = isPast || isCurrent;
+                    return (
+                      <button
+                        key={s.id}
+                        onClick={() => !isCurrent && stageMut.mutate(s.id)}
+                        className="flex-1 flex items-center justify-center gap-1.5 px-2 py-2 text-xs font-medium relative"
                         style={{
-                          background: isPast ? '#16a34a' : isCurrent ? '#22c55e' : 'transparent',
-                          clipPath: 'polygon(0 0, 70% 0, 100% 50%, 70% 100%, 0 100%, 30% 50%)',
+                          zIndex: 2,
+                          color: isDone ? '#fff' : 'var(--ink-3)',
+                          cursor: isCurrent ? 'default' : 'pointer',
+                          background: 'transparent',
+                          textShadow: isDone ? '0 1px 2px rgba(0,0,0,0.2)' : 'none',
                         }}
                       >
-                        <ChevronRight
-                          className="w-3 h-3"
-                          style={{ color: isDone ? 'rgba(255,255,255,0.7)' : 'var(--ink-3)', marginLeft: 4 }}
-                        />
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
+                        {isPast && <Check className="w-3 h-3 flex-shrink-0 opacity-80" strokeWidth={3} />}
+                        <span className="truncate">{s.name}</span>
+                        {isCurrent && (
+                          <span className="flex items-center gap-0.5 text-[10px] opacity-80 flex-shrink-0">
+                            <Clock className="w-3 h-3" />
+                            {timeInStage(lead.stageEnteredAt)}
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
 
         {/* Two column body */}
         <div
