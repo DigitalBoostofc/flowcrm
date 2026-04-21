@@ -3,6 +3,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { ClsModule } from 'nestjs-cls';
+import { ThrottlerModule } from '@nestjs/throttler';
 import { TenantModule } from './common/tenant/tenant.module';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
@@ -45,6 +46,7 @@ import { BillingModule } from './billing/billing.module';
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
+    ThrottlerModule.forRoot([{ ttl: 60000, limit: 60 }]),
     EventEmitterModule.forRoot(),
     ClsModule.forRoot({
       global: true,

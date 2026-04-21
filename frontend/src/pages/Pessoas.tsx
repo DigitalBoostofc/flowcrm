@@ -18,6 +18,7 @@ import {
   useColumnPrefs,
   type ColumnDef,
 } from '@/components/data-list';
+import { maskCep, fetchViaCep } from '@/lib/cep';
 
 /* ── Form helpers ────────────────────────────────────── */
 
@@ -189,9 +190,13 @@ function AddPessoaModal({
   const [cepLoading, setCepLoading] = useState(false);
   const [cepError, setCepError] = useState('');
   const lastLookedUpCep = useRef('');
+  const cepAbortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     if (!open) {
+      cepAbortRef.current?.abort();
+      cepAbortRef.current = null;
+      lastLookedUpCep.current = '';
       setForm(emptyForm());
       setError('');
       return;
@@ -203,22 +208,22 @@ function AddPessoaModal({
   const set = <K extends keyof ReturnType<typeof emptyForm>>(key: K, value: ReturnType<typeof emptyForm>[K]) =>
     setForm((f) => ({ ...f, [key]: value }));
 
-  const maskCep = (raw: string) => {
-    const digits = raw.replace(/\D/g, '').slice(0, 8);
-    return digits.length > 5 ? `${digits.slice(0, 5)}-${digits.slice(5)}` : digits;
-  };
-
   const lookupCep = async (raw: string) => {
     const digits = raw.replace(/\D/g, '');
     if (digits.length !== 8) return;
     if (lastLookedUpCep.current === digits) return;
     lastLookedUpCep.current = digits;
+
+    cepAbortRef.current?.abort();
+    const controller = new AbortController();
+    cepAbortRef.current = controller;
+
     setCepLoading(true);
     setCepError('');
     try {
-      const res = await fetch(`https://viacep.com.br/ws/${digits}/json/`);
-      const data = await res.json();
-      if (data?.erro) {
+      const data = await fetchViaCep(digits, controller.signal);
+      if (!data) {
+        lastLookedUpCep.current = '';
         setCepError('CEP não encontrado');
         return;
       }
@@ -231,8 +236,8 @@ function AddPessoaModal({
         complemento: data.complemento || f.complemento,
         pais: f.pais || 'Brasil',
       }));
-    } catch {
-      setCepError('Falha ao buscar CEP');
+    } catch (err) {
+      if ((err as Error).name !== 'AbortError') setCepError('Falha ao buscar CEP');
     } finally {
       setCepLoading(false);
     }

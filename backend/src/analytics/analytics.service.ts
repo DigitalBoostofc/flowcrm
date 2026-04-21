@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Not } from 'typeorm';
+import { Repository } from 'typeorm';
 import { Lead, LeadStatus } from '../leads/entities/lead.entity';
 import { Pipeline } from '../pipelines/entities/pipeline.entity';
 import { TenantContext } from '../common/tenant/tenant-context.service';
@@ -17,104 +17,131 @@ export class AnalyticsService {
 
   async getSummary(pipelineId?: string) {
     const workspaceId = this.tenant.requireWorkspaceId();
-    const where: any = { workspaceId };
+
+    const qb = this.leads.createQueryBuilder('l')
+      .leftJoin('l.stage', 's')
+      .leftJoin('l.assignedTo', 'u')
+      .leftJoin('l.pipeline', 'p')
+      .where('l.workspaceId = :workspaceId', { workspaceId })
+      .andWhere('l.archivedAt IS NULL');
+
     if (pipelineId) {
-      where.pipelineId = pipelineId;
+      qb.andWhere('l.pipelineId = :pipelineId', { pipelineId });
     } else {
-      // Exclui pipelines de gestão do Analytics
-      const salePipelines = await this.pipelines.find({
-        where: { workspaceId, kind: 'sale' },
-        select: ['id'],
-      });
-      const saleIds = salePipelines.map(p => p.id);
-      if (saleIds.length > 0) {
-        where.pipelineId = saleIds.length === 1
-          ? saleIds[0]
-          : Not('') as any; // fallback — raw filter below
-      }
+      qb.andWhere("p.kind = 'sale'");
     }
 
-    const all = await this.leads.find({
-      where,
-      relations: ['stage', 'assignedTo', 'pipeline'],
-    });
+    // Run all aggregations in parallel with a single shared query each
+    const [totalsRows, byStageRows, byAgentRows, lossRows, leadsByDayRows, avgWinRow] =
+      await Promise.all([
+        // totals + values per status
+        qb.clone()
+          .select('l.status', 'status')
+          .addSelect('COUNT(*)', 'count')
+          .addSelect('COALESCE(SUM(l.value), 0)', 'total_value')
+          .groupBy('l.status')
+          .getRawMany(),
 
-    // Filtra fora pipelines de gestão quando não há pipelineId específico
-    const filtered = pipelineId
-      ? all
-      : all.filter(l => !l.pipeline || (l.pipeline as any).kind !== 'management');
+        // byStage (active only)
+        qb.clone()
+          .select('l.stageId', 'stageId')
+          .addSelect('s.name', 'stageName')
+          .addSelect('COUNT(*)', 'count')
+          .addSelect('COALESCE(SUM(l.value), 0)', 'value')
+          .where('l.workspaceId = :workspaceId', { workspaceId })
+          .andWhere('l.archivedAt IS NULL')
+          .andWhere('l.status = :status', { status: LeadStatus.ACTIVE })
+          .andWhere(pipelineId ? 'l.pipelineId = :pipelineId' : "p.kind = 'sale'", pipelineId ? { pipelineId } : {})
+          .groupBy('l.stageId')
+          .addGroupBy('s.name')
+          .getRawMany(),
 
-    const active = filtered.filter((l) => l.status === LeadStatus.ACTIVE);
-    const won = filtered.filter((l) => l.status === LeadStatus.WON);
-    const lost = filtered.filter((l) => l.status === LeadStatus.LOST);
+        // byAgent
+        qb.clone()
+          .select("COALESCE(l.assignedToId, '__unassigned__')", 'agentId')
+          .addSelect("COALESCE(u.name, 'Sem responsável')", 'name')
+          .addSelect('l.status', 'status')
+          .addSelect('COUNT(*)', 'count')
+          .addSelect('COALESCE(SUM(l.value), 0)', 'value')
+          .groupBy('l.assignedToId')
+          .addGroupBy('u.name')
+          .addGroupBy('l.status')
+          .getRawMany(),
 
-    const sum = (arr: Lead[]) =>
-      arr.reduce((acc, l) => acc + (Number(l.value) || 0), 0);
+        // loss reasons (top 5)
+        qb.clone()
+          .select("COALESCE(l.lossReason, 'Sem motivo')", 'reason')
+          .addSelect('COUNT(*)', 'count')
+          .where('l.workspaceId = :workspaceId', { workspaceId })
+          .andWhere('l.archivedAt IS NULL')
+          .andWhere('l.status = :status', { status: LeadStatus.LOST })
+          .andWhere(pipelineId ? 'l.pipelineId = :pipelineId' : "p.kind = 'sale'", pipelineId ? { pipelineId } : {})
+          .groupBy('l.lossReason')
+          .orderBy('count', 'DESC')
+          .limit(5)
+          .getRawMany(),
 
-    const conversionRate =
-      won.length + lost.length > 0
-        ? Math.round((won.length / (won.length + lost.length)) * 100)
-        : 0;
+        // leads created per day (last 30 days)
+        qb.clone()
+          .select("TO_CHAR(l.createdAt, 'YYYY-MM-DD')", 'day')
+          .addSelect('COUNT(*)', 'count')
+          .where('l.workspaceId = :workspaceId', { workspaceId })
+          .andWhere('l.archivedAt IS NULL')
+          .andWhere('l.createdAt >= NOW() - INTERVAL \'30 days\'')
+          .andWhere(pipelineId ? 'l.pipelineId = :pipelineId' : "p.kind = 'sale'", pipelineId ? { pipelineId } : {})
+          .groupBy("TO_CHAR(l.createdAt, 'YYYY-MM-DD')")
+          .getRawMany(),
 
-    const avgDaysToWin =
-      won.length > 0
-        ? Math.round(
-            won.reduce((acc, l) => {
-              const days =
-                (new Date(l.updatedAt).getTime() - new Date(l.createdAt).getTime()) /
-                86400000;
-              return acc + days;
-            }, 0) / won.length,
-          )
-        : 0;
+        // avg days to win
+        qb.clone()
+          .select('AVG(EXTRACT(EPOCH FROM (l.updatedAt - l.createdAt)) / 86400)', 'avgDays')
+          .where('l.workspaceId = :workspaceId', { workspaceId })
+          .andWhere('l.archivedAt IS NULL')
+          .andWhere('l.status = :status', { status: LeadStatus.WON })
+          .andWhere(pipelineId ? 'l.pipelineId = :pipelineId' : "p.kind = 'sale'", pipelineId ? { pipelineId } : {})
+          .getRawOne(),
+      ]);
 
-    const byStage: Record<string, { count: number; value: number; stageName: string }> = {};
-    for (const l of active) {
-      if (!byStage[l.stageId]) {
-        byStage[l.stageId] = { count: 0, value: 0, stageName: l.stage?.name ?? '' };
-      }
-      byStage[l.stageId].count++;
-      byStage[l.stageId].value += Number(l.value) || 0;
+    // Totals
+    const totals = { active: 0, won: 0, lost: 0, total: 0 };
+    const values = { active: 0, won: 0, lost: 0, forecast: 0 };
+    for (const r of totalsRows) {
+      const c = parseInt(r.count, 10);
+      const v = parseFloat(r.total_value);
+      if (r.status === LeadStatus.ACTIVE) { totals.active = c; values.active = v; values.forecast = v; }
+      else if (r.status === LeadStatus.WON) { totals.won = c; values.won = v; }
+      else if (r.status === LeadStatus.LOST) { totals.lost = c; }
     }
+    totals.total = totals.active + totals.won + totals.lost;
 
-    const byAgent: Record<string, { name: string; active: number; won: number; lost: number; value: number }> = {};
-    for (const l of filtered) {
-      const key = l.assignedToId ?? '__unassigned__';
-      if (!byAgent[key]) {
-        byAgent[key] = { name: l.assignedTo?.name ?? 'Sem responsável', active: 0, won: 0, lost: 0, value: 0 };
-      }
-      byAgent[key][l.status as 'active' | 'won' | 'lost']++;
-      byAgent[key].value += Number(l.value) || 0;
+    const conversionRate = totals.won + totals.lost > 0
+      ? Math.round((totals.won / (totals.won + totals.lost)) * 100)
+      : 0;
+    const avgDaysToWin = Math.round(parseFloat(avgWinRow?.avgDays ?? '0') || 0);
+
+    // byStage
+    const byStage = byStageRows.map((r) => ({
+      stageId: r.stageId,
+      stageName: r.stageName ?? '',
+      count: parseInt(r.count, 10),
+      value: parseFloat(r.value),
+    }));
+
+    // byAgent
+    const agentMap: Record<string, { name: string; active: number; won: number; lost: number; value: number }> = {};
+    for (const r of byAgentRows) {
+      const key = r.agentId;
+      if (!agentMap[key]) agentMap[key] = { name: r.name, active: 0, won: 0, lost: 0, value: 0 };
+      agentMap[key][r.status as 'active' | 'won' | 'lost'] += parseInt(r.count, 10);
+      agentMap[key].value += parseFloat(r.value);
     }
+    const byAgent = Object.entries(agentMap).map(([agentId, data]) => ({ agentId, ...data }));
 
-    const lossReasonCount: Record<string, number> = {};
-    for (const l of lost) {
-      const reason = l.lossReason ?? 'Sem motivo';
-      lossReasonCount[reason] = (lossReasonCount[reason] ?? 0) + 1;
-    }
-    const topLossReasons = Object.entries(lossReasonCount)
-      .map(([reason, count]) => ({ reason, count }))
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 5);
+    const topLossReasons = lossRows.map((r) => ({ reason: r.reason, count: parseInt(r.count, 10) }));
 
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    const recentLeads = filtered.filter((l) => new Date(l.createdAt) >= thirtyDaysAgo);
     const leadsByDay: Record<string, number> = {};
-    for (const l of recentLeads) {
-      const day = new Date(l.createdAt).toISOString().split('T')[0];
-      leadsByDay[day] = (leadsByDay[day] ?? 0) + 1;
-    }
+    for (const r of leadsByDayRows) leadsByDay[r.day] = parseInt(r.count, 10);
 
-    return {
-      totals: { active: active.length, won: won.length, lost: lost.length, total: filtered.length },
-      values: { active: sum(active), won: sum(won), lost: sum(lost), forecast: sum(active) },
-      conversionRate,
-      avgDaysToWin,
-      byStage: Object.entries(byStage).map(([stageId, data]) => ({ stageId, ...data })),
-      byAgent: Object.entries(byAgent).map(([agentId, data]) => ({ agentId, ...data })),
-      topLossReasons,
-      leadsByDay,
-    };
+    return { totals, values, conversionRate, avgDaysToWin, byStage, byAgent, topLossReasons, leadsByDay };
   }
 }

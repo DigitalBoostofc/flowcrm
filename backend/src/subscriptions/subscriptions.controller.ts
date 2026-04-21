@@ -11,7 +11,7 @@ import { SubscriptionsService } from './subscriptions.service';
 
 class SubscribeDto {
   @IsString()
-  planId: string;
+  planSlug: string;
 }
 
 class CreatePlanDto {
@@ -73,7 +73,7 @@ export class SubscriptionsController {
   @UseGuards(RolesGuard)
   @Roles(UserRole.OWNER)
   subscribe(@Body() dto: SubscribeDto) {
-    return this.service.subscribe(dto.planId);
+    return this.service.subscribe(dto.planSlug);
   }
 
   @Post('cancel')

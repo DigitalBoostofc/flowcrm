@@ -1,4 +1,5 @@
 import { Controller, Post, Body, Get, UseGuards } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { IsEmail, IsString, MinLength, Length } from 'class-validator';
@@ -24,6 +25,7 @@ export class AuthController {
   constructor(private authService: AuthService) {}
 
   @Post('login')
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
   login(@Body() dto: LoginDto) {
     return this.authService.login(dto.email, dto.password);
   }
@@ -35,11 +37,13 @@ export class AuthController {
   }
 
   @Post('forgot-password')
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   forgotPassword(@Body() dto: ForgotPasswordDto) {
     return this.authService.forgotPassword(dto.email);
   }
 
   @Post('verify-reset-code')
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
   verifyResetCode(@Body() dto: VerifyCodeDto) {
     return this.authService.verifyResetCode(dto.email, dto.code);
   }

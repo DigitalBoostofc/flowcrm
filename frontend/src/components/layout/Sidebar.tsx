@@ -1,11 +1,11 @@
-import { NavLink, useNavigate } from 'react-router-dom';
-import { useQueryClient } from '@tanstack/react-query';
+import { NavLink } from 'react-router-dom';
 import {
   Home, Users, Settings as SettingsIcon, LogOut,
   BarChart2, Zap, CheckSquare, Building2, Briefcase, MessageCircle, Shield,
 } from 'lucide-react';
 import { useAuthStore } from '@/store/auth.store';
 import { useSidebarStore } from '@/store/sidebar.store';
+import { useLogout } from '@/hooks/useLogout';
 import { useFeatures } from '@/hooks/useFeatures';
 import { Lock } from 'lucide-react';
 import GlobalSearch from './GlobalSearch';
@@ -26,19 +26,12 @@ const NAV_ITEMS: NavItem[] = [
 ];
 
 export default function Sidebar() {
-  const navigate = useNavigate();
-  const qc = useQueryClient();
-  const { user, logout } = useAuthStore();
+  const handleLogout = useLogout();
+  const { user } = useAuthStore();
   const { collapsed, toggle } = useSidebarStore();
   const { has } = useFeatures();
   const isOwner = user?.role === 'owner';
   const isPlatformAdmin = !!user?.isPlatformAdmin;
-
-  const handleLogout = () => {
-    qc.clear();
-    logout();
-    navigate('/login');
-  };
 
   return (
     <aside

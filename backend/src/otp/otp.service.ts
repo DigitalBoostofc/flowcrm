@@ -1,9 +1,12 @@
+import { randomInt } from 'crypto';
 import { Injectable, UnauthorizedException, BadRequestException, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import Redis from 'ioredis';
 import { ChannelsService } from '../channels/channels.service';
 import { PlatformChannelService } from './platform-channel.service';
+
+const MAX_ATTEMPTS = 5;
 
 export type OtpPurpose = 'pwd_reset' | 'email_change' | 'password_change' | 'signup_verify';
 
@@ -25,8 +28,12 @@ export class OtpService {
     return `otp:${purpose}:${subject.toLowerCase()}`;
   }
 
+  private attemptsKey(purpose: OtpPurpose, subject: string): string {
+    return `otp_attempts:${purpose}:${subject.toLowerCase()}`;
+  }
+
   private generateCode(): string {
-    return String(Math.floor(100000 + Math.random() * 900000));
+    return String(randomInt(100000, 1000000));
   }
 
   private buildBody(purpose: OtpPurpose, code: string, name?: string): string {
@@ -60,11 +67,24 @@ export class OtpService {
   }
 
   async verify(params: { purpose: OtpPurpose; subject: string; code: string; payload?: Record<string, unknown> }): Promise<string> {
+    const attKey = this.attemptsKey(params.purpose, params.subject);
+    const attempts = parseInt(await this.redis.get(attKey) ?? '0', 10);
+    if (attempts >= MAX_ATTEMPTS) {
+      throw new UnauthorizedException('Muitas tentativas. Solicite um novo código.');
+    }
+
     const stored = await this.redis.get(this.key(params.purpose, params.subject));
     if (!stored || stored !== params.code.trim()) {
+      await this.redis.incr(attKey);
+      await this.redis.expire(attKey, 600);
       throw new UnauthorizedException('Código inválido ou expirado.');
     }
-    await this.redis.del(this.key(params.purpose, params.subject));
+
+    await Promise.all([
+      this.redis.del(this.key(params.purpose, params.subject)),
+      this.redis.del(attKey),
+    ]);
+
     const token = this.jwt.sign(
       { type: params.purpose, subject: params.subject, ...params.payload },
       { expiresIn: '5m' },

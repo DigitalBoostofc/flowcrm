@@ -1,4 +1,4 @@
-import { CanActivate, ExecutionContext, HttpException, HttpStatus, Injectable } from '@nestjs/common';
+import { CanActivate, ExecutionContext, ForbiddenException, HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { REQUIRED_FEATURE_KEY } from './require-feature.decorator';
 import { FeatureAccessService } from './feature-access.service';
@@ -19,7 +19,7 @@ export class FeatureGuard implements CanActivate {
 
     const req = ctx.switchToHttp().getRequest<{ user?: { workspaceId?: string } }>();
     const workspaceId = req.user?.workspaceId;
-    if (!workspaceId) return true;
+    if (!workspaceId) throw new ForbiddenException('Workspace não identificado');
 
     const ok = await this.featureAccess.workspaceHasFeature(workspaceId, feature);
     if (!ok) {

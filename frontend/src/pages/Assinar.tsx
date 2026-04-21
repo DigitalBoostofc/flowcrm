@@ -6,19 +6,14 @@ import { listPlans, subscribePlan, getFeatureCatalog, type Plan, type FeatureDef
 import { createCheckoutSession } from '@/api/billing';
 import { useWorkspace } from '@/hooks/useWorkspace';
 import { useAuthStore } from '@/store/auth.store';
+import { useLogout } from '@/hooks/useLogout';
 
 export default function Assinar() {
+  const handleLogout = useLogout();
   const navigate = useNavigate();
   const qc = useQueryClient();
   const user = useAuthStore((s) => s.user);
-  const logout = useAuthStore((s) => s.logout);
   const isOwner = user?.role === 'owner';
-
-  const handleLogout = () => {
-    logout();
-    qc.clear();
-    navigate('/login', { replace: true });
-  };
 
   const { data: workspace } = useWorkspace();
   const { data: plans, isLoading } = useQuery({ queryKey: ['plans'], queryFn: listPlans });

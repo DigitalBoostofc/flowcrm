@@ -64,7 +64,7 @@ export async function getFeatureCatalog(): Promise<FeatureDef[]> {
 }
 
 export async function subscribePlan(planSlug: string): Promise<WorkspaceMe> {
-  const res = await api.post<WorkspaceMe>('/subscriptions/subscribe', { planId: planSlug });
+  const res = await api.post<WorkspaceMe>('/subscriptions/subscribe', { planSlug });
   return res.data;
 }
 

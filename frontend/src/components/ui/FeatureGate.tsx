@@ -70,12 +70,28 @@ function LockedWrapper({
           <Lock className="w-2.5 h-2.5" />
         </div>
       )}
-      {open && <UpgradePopover feature={feature} onClose={() => setOpen(false)} />}
+      {open && <UpgradePopover feature={feature} />}
     </div>
   );
 }
 
-function UpgradePopover({ feature, onClose: _onClose }: { feature: string; onClose: () => void }) {
+function ComingSoonButton({ size = 'sm' }: { size?: 'sm' | 'md' }) {
+  return (
+    <button
+      disabled
+      className={`w-full font-medium rounded-lg cursor-not-allowed ${size === 'md' ? 'py-2.5 text-sm' : 'py-2 text-xs'}`}
+      style={{
+        background: 'var(--surface-hover)',
+        color: 'var(--ink-3)',
+        border: '1px solid var(--edge)',
+      }}
+    >
+      Em breve
+    </button>
+  );
+}
+
+function UpgradePopover({ feature }: { feature: string }) {
   const label = FEATURE_LABELS[feature] ?? 'Essa função';
 
   return (
@@ -104,18 +120,7 @@ function UpgradePopover({ feature, onClose: _onClose }: { feature: string; onClo
       <p className="text-xs mb-3" style={{ color: 'var(--ink-2)' }}>
         <strong>{label}</strong> será liberada em breve para todos os planos. Fique de olho nas próximas atualizações.
       </p>
-      <button
-        disabled
-        aria-disabled
-        className="w-full py-2 text-xs font-medium rounded-lg cursor-not-allowed"
-        style={{
-          background: 'var(--surface-hover)',
-          color: 'var(--ink-3)',
-          border: '1px solid var(--edge)',
-        }}
-      >
-        Em breve
-      </button>
+      <ComingSoonButton size="sm" />
     </div>
   );
 }
@@ -158,18 +163,7 @@ export function FeatureLockedScreen({ feature }: { feature: string }) {
         <p className="text-sm mb-6" style={{ color: 'var(--ink-2)' }}>
           <strong>{label}</strong> ainda está em desenvolvimento e será liberada em breve para todos os planos.
         </p>
-        <button
-          disabled
-          aria-disabled
-          className="w-full py-2.5 text-sm font-medium rounded-lg cursor-not-allowed"
-          style={{
-            background: 'var(--surface-hover)',
-            color: 'var(--ink-3)',
-            border: '1px solid var(--edge)',
-          }}
-        >
-          Em breve
-        </button>
+        <ComingSoonButton size="md" />
       </div>
       <style>{`
         @keyframes feature-locked-glow {

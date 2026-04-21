@@ -68,6 +68,9 @@ export class AutomationProcessor extends WorkerHost {
     let pos = stepPosition;
     let accumulatedDelayMs = 0;
 
+    // Fetch lead once — shared across filter and send_whatsapp steps
+    const lead = await this.leads.findOne(leadId);
+
     while (pos < steps.length) {
       const step = steps[pos];
 
@@ -88,7 +91,7 @@ export class AutomationProcessor extends WorkerHost {
       }
 
       if (step.type === 'filter') {
-        const pass = await this.evalFilter(step.config as FilterStepConfig, leadId);
+        const pass = this.evalFilter(step.config as FilterStepConfig, lead);
         if (!pass) {
           await this.exec.update(
             { automationId, leadId },
@@ -98,7 +101,7 @@ export class AutomationProcessor extends WorkerHost {
           return;
         }
       } else if (step.type === 'send_whatsapp') {
-        await this.sendWhatsapp(step.config as SendWhatsappStepConfig, leadId, automationId);
+        await this.sendWhatsapp(step.config as SendWhatsappStepConfig, lead, automationId);
       }
 
       pos++;
@@ -120,11 +123,9 @@ export class AutomationProcessor extends WorkerHost {
     return amount * unitMs;
   }
 
-  private async evalFilter(cfg: FilterStepConfig, leadId: string): Promise<boolean> {
-    const lead = await this.leads.findOne(leadId);
+  private evalFilter(cfg: FilterStepConfig, lead: any): boolean {
     const conditions = cfg?.conditions ?? [];
     if (conditions.length === 0) return true;
-
     const results = conditions.map((c) => this.evalCondition(c, lead));
     return cfg?.logic === 'or' ? results.some(Boolean) : results.every(Boolean);
   }
@@ -154,7 +155,7 @@ export class AutomationProcessor extends WorkerHost {
 
   private async sendWhatsapp(
     cfg: SendWhatsappStepConfig,
-    leadId: string,
+    lead: any,
     automationId: string,
   ): Promise<void> {
     if (!cfg?.channelId || !cfg?.templateId) {
@@ -162,7 +163,6 @@ export class AutomationProcessor extends WorkerHost {
       return;
     }
 
-    const lead = await this.leads.findOne(leadId);
     const template = await this.templates.findOne(cfg.templateId);
 
     const vars = {
