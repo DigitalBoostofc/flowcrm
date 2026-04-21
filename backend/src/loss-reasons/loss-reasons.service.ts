@@ -14,9 +14,23 @@ export class LossReasonsService {
     private readonly tenant: TenantContext,
   ) {}
 
-  findAll(): Promise<LossReason[]> {
+  async findAll(): Promise<LossReason[]> {
     const workspaceId = this.tenant.requireWorkspaceId();
-    return this.repo.find({ where: { workspaceId }, order: { label: 'ASC' } });
+    const existing = await this.repo.find({ where: { workspaceId }, order: { label: 'ASC' } });
+    if (existing.length === 0) {
+      const defaults = [
+        'Preço alto',
+        'Escolheu concorrente',
+        'Sem interesse',
+        'Sem resposta',
+        'Timing ruim',
+        'Produto não atende',
+        'Processo demorou',
+      ];
+      await Promise.all(defaults.map(label => this.repo.save(this.repo.create({ label, workspaceId }))));
+      return this.repo.find({ where: { workspaceId }, order: { label: 'ASC' } });
+    }
+    return existing;
   }
 
   async create(dto: CreateLossReasonDto): Promise<LossReason> {

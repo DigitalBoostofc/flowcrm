@@ -1,6 +1,6 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { AlertTriangle, CheckCircle2, X } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Plus, X } from 'lucide-react';
 import OptionsListTab from './OptionsListTab';
 import {
   listLossReasons,
@@ -180,12 +180,27 @@ function JustifyModal({
   onClose: () => void;
   onSaved: () => void;
 }) {
+  const qc = useQueryClient();
   const [reason, setReason] = useState(lead.lossReason ?? '');
+  const [addingNew, setAddingNew] = useState(false);
+  const [newLabel, setNewLabel] = useState('');
+  const newInputRef = useRef<HTMLInputElement>(null);
+
   const { data: reasons = [] } = useQuery({ queryKey: ['loss-reasons'], queryFn: listLossReasons });
 
   const mutation = useMutation({
     mutationFn: (r: string) => updateLeadStatus(lead.id, 'lost', { lossReason: r }),
     onSuccess: () => onSaved(),
+  });
+
+  const createMut = useMutation({
+    mutationFn: (label: string) => createLossReason(label),
+    onSuccess: (created) => {
+      qc.invalidateQueries({ queryKey: ['loss-reasons'] });
+      setReason(created.label);
+      setAddingNew(false);
+      setNewLabel('');
+    },
   });
 
   const title = lead.title || lead.contact?.name || lead.externalName || 'Sem título';
@@ -208,11 +223,7 @@ function JustifyModal({
           <h3 className="text-base font-bold" style={{ color: 'var(--ink-1)' }}>
             Justificar perda
           </h3>
-          <button
-            onClick={onClose}
-            className="p-1 rounded hover:bg-[var(--surface-hover)]"
-            style={{ color: 'var(--ink-3)' }}
-          >
+          <button onClick={onClose} className="p-1 rounded hover:bg-[var(--surface-hover)]" style={{ color: 'var(--ink-3)' }}>
             <X className="w-4 h-4" />
           </button>
         </div>
@@ -226,52 +237,87 @@ function JustifyModal({
             {lead.pipeline?.name && <div className="mt-0.5">{lead.pipeline.name}</div>}
           </div>
 
-          {reasons.length > 0 && (
-            <div>
-              <div className="text-xs font-medium mb-2" style={{ color: 'var(--ink-2)' }}>
-                Selecione um motivo cadastrado
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {reasons.map((r) => {
-                  const active = reason === r.label;
-                  return (
-                    <button
-                      key={r.id}
-                      onClick={() => setReason(r.label)}
-                      className="px-2.5 py-1 rounded-full text-xs border transition-colors"
-                      style={{
-                        background: active ? '#fee2e2' : 'var(--surface)',
-                        borderColor: active ? '#dc2626' : 'var(--edge)',
-                        color: active ? '#991b1b' : 'var(--ink-2)',
-                      }}
-                    >
-                      {r.label}
-                    </button>
-                  );
-                })}
-              </div>
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-medium" style={{ color: 'var(--ink-2)' }}>
+                Selecione ou escreva o motivo
+              </span>
+              {!addingNew && (
+                <button
+                  onClick={() => { setAddingNew(true); setTimeout(() => newInputRef.current?.focus(), 50); }}
+                  className="flex items-center gap-1 text-xs hover:opacity-80 transition-opacity"
+                  style={{ color: 'var(--brand-500, #6366f1)' }}
+                >
+                  <Plus className="w-3 h-3" /> Novo motivo
+                </button>
+              )}
             </div>
-          )}
+
+            <div className="flex flex-wrap gap-2">
+              {reasons.map((r) => {
+                const active = reason === r.label;
+                return (
+                  <button
+                    key={r.id}
+                    onClick={() => setReason(active ? '' : r.label)}
+                    className="px-2.5 py-1 rounded-full text-xs border transition-colors"
+                    style={{
+                      background: active ? '#fee2e2' : 'var(--surface)',
+                      borderColor: active ? '#dc2626' : 'var(--edge)',
+                      color: active ? '#991b1b' : 'var(--ink-2)',
+                    }}
+                  >
+                    {r.label}
+                  </button>
+                );
+              })}
+            </div>
+
+            {addingNew && (
+              <div className="flex items-center gap-1.5 mt-2">
+                <input
+                  ref={newInputRef}
+                  value={newLabel}
+                  onChange={e => setNewLabel(e.target.value)}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter' && newLabel.trim()) createMut.mutate(newLabel.trim());
+                    if (e.key === 'Escape') { setAddingNew(false); setNewLabel(''); }
+                  }}
+                  placeholder="Nome do novo motivo..."
+                  className="flex-1 px-2.5 py-1.5 rounded-lg text-xs outline-none"
+                  style={{ background: 'var(--surface)', border: '1px solid var(--edge)', color: 'var(--ink-1)' }}
+                />
+                <button
+                  onClick={() => newLabel.trim() && createMut.mutate(newLabel.trim())}
+                  disabled={!newLabel.trim() || createMut.isPending}
+                  className="px-3 py-1.5 rounded-lg text-xs font-semibold text-white disabled:opacity-40"
+                  style={{ background: 'var(--brand-500, #6366f1)' }}
+                >
+                  {createMut.isPending ? '...' : 'Salvar'}
+                </button>
+                <button
+                  onClick={() => { setAddingNew(false); setNewLabel(''); }}
+                  className="p-1.5 rounded-lg hover:bg-[var(--surface-hover)]"
+                  style={{ color: 'var(--ink-3)' }}
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            )}
+          </div>
 
           <div>
             <div className="text-xs font-medium mb-1.5" style={{ color: 'var(--ink-2)' }}>
-              Ou descreva o motivo
+              Ou descreva livremente
             </div>
             <input
-              autoFocus
               type="text"
               value={reason}
               onChange={(e) => setReason(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && canSave) mutation.mutate(reason.trim());
-              }}
+              onKeyDown={(e) => { if (e.key === 'Enter' && canSave) mutation.mutate(reason.trim()); }}
               placeholder="Digite o motivo da perda..."
               className="w-full px-3 py-2 rounded-lg outline-none text-sm"
-              style={{
-                background: 'var(--surface)',
-                border: '1px solid var(--edge)',
-                color: 'var(--ink-1)',
-              }}
+              style={{ background: 'var(--surface)', border: '1px solid var(--edge)', color: 'var(--ink-1)' }}
             />
           </div>
 
