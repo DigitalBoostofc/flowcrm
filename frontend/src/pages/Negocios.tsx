@@ -1459,6 +1459,9 @@ export default function Negocios() {
       label: 'Valor',
       defaultWidth: 140,
       hiddenByDefault: true,
+      align: 'right',
+      getNumericValue: (lead) => lead.value ? Number(lead.value) : null,
+      formatAggregate: formatBRL,
       render: (lead) => (
         <span className="truncate block" style={{ color: lead.value ? 'var(--ink-1)' : 'var(--ink-3)' }}>
           {lead.value ? formatBRL(Number(lead.value)) : 'Indefinido'}

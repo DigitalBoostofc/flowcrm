@@ -1,5 +1,7 @@
 import type { ReactNode } from 'react';
 
+export type AggregateMode = 'sum' | 'avg' | 'min' | 'max';
+
 export interface ColumnDef<T> {
   key: string;
   label: string;
@@ -11,6 +13,8 @@ export interface ColumnDef<T> {
   render: (row: T, index: number) => ReactNode;
   headerClassName?: string;
   cellClassName?: string;
+  getNumericValue?: (row: T) => number | null | undefined;
+  formatAggregate?: (value: number) => string;
 }
 
 export interface ColumnPrefs {

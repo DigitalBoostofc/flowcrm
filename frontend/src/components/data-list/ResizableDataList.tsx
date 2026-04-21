@@ -1,5 +1,16 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { ColumnDef } from './types';
+import type { AggregateMode, ColumnDef } from './types';
+
+const AGG_LABELS: Record<AggregateMode, string> = { sum: 'Soma', avg: 'Média', min: 'Mín', max: 'Máx' };
+const AGG_CYCLE: AggregateMode[] = ['sum', 'avg', 'min', 'max'];
+
+function computeAggregate(values: number[], mode: AggregateMode): number {
+  if (values.length === 0) return 0;
+  if (mode === 'sum') return values.reduce((a, b) => a + b, 0);
+  if (mode === 'avg') return values.reduce((a, b) => a + b, 0) / values.length;
+  if (mode === 'min') return Math.min(...values);
+  return Math.max(...values);
+}
 
 function Checkbox({
   checked,
@@ -77,6 +88,7 @@ export default function ResizableDataList<T>({
   selectedIds,
   onSelectionChange,
 }: Props<T>) {
+  const [aggModes, setAggModes] = useState<Record<string, AggregateMode>>({});
   const selectable = selectedIds !== undefined && onSelectionChange !== undefined;
   const allSelected = selectable && rows.length > 0 && rows.every((r, i) => selectedIds!.has(rowKey(r, i)));
   const someSelected = selectable && !allSelected && rows.some((r, i) => selectedIds!.has(rowKey(r, i)));
@@ -187,6 +199,40 @@ export default function ResizableDataList<T>({
                   </div>
                 );
               })}
+
+              {columns.some(c => c.getNumericValue) && (
+                <div
+                  className="grid px-6 py-2 text-xs font-medium"
+                  style={{
+                    gridTemplateColumns: gridTemplate,
+                    borderTop: '2px solid var(--edge)',
+                    background: 'var(--surface-hover, rgba(0,0,0,0.02))',
+                    color: 'var(--ink-2)',
+                  }}
+                >
+                  {selectable && <div />}
+                  {columns.map((col) => {
+                    if (!col.getNumericValue) return <div key={col.key} style={{ paddingRight: 12 }} />;
+                    const mode = aggModes[col.key] ?? 'sum';
+                    const vals = rows.map(r => col.getNumericValue!(r)).filter((v): v is number => v != null && !isNaN(v));
+                    const result = computeAggregate(vals, mode);
+                    const formatted = col.formatAggregate ? col.formatAggregate(result) : result.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                    return (
+                      <button
+                        key={col.key}
+                        onClick={() => setAggModes(prev => ({ ...prev, [col.key]: AGG_CYCLE[(AGG_CYCLE.indexOf(mode) + 1) % 4] }))}
+                        title="Clique para alternar: Soma → Média → Mín → Máx"
+                        className="text-left min-w-0 flex flex-col gap-0.5 hover:text-[var(--ink-1)] transition-colors"
+                        style={{ paddingRight: 12, textAlign: col.align }}
+                      >
+                        <span className="text-[10px] uppercase tracking-wide opacity-60">{AGG_LABELS[mode]}</span>
+                        <span className="font-semibold">{formatted}</span>
+                      </button>
+                    );
+                  })}
+                  {trailing && <div />}
+                </div>
+              )}
             </div>
           )}
         </div>
