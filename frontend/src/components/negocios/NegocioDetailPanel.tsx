@@ -565,34 +565,47 @@ export default function NegocioDetailPanel({ lead, currentUser, users, pipelines
               {stages.map((s, idx) => {
                 const isCurrent = idx === currentStageIdx;
                 const isPast = idx < currentStageIdx;
+                const isDone = isPast || isCurrent;
                 return (
-                  <button
-                    key={s.id}
-                    onClick={() => !isCurrent && stageMut.mutate(s.id)}
-                    className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-xs font-medium transition-all relative"
-                    style={{
-                      background: isCurrent
-                        ? 'var(--brand-500, #6366f1)'
-                        : isPast
-                          ? 'rgba(99,102,241,0.1)'
-                          : 'transparent',
-                      color: isCurrent ? '#fff' : isPast ? 'var(--brand-500, #6366f1)' : 'var(--ink-2)',
-                    }}
-                  >
-                    <span className="truncate">{s.name}</span>
-                    {isCurrent && (
-                      <span className="flex items-center gap-1 text-[10px] opacity-90">
-                        <Clock className="w-3 h-3" />
-                        {timeInStage(lead.stageEnteredAt)}
-                      </span>
-                    )}
+                  <div key={s.id} className="flex-1 flex items-stretch min-w-0">
+                    <button
+                      onClick={() => !isCurrent && stageMut.mutate(s.id)}
+                      className="flex-1 flex items-center justify-center gap-1.5 px-2 py-2 text-xs font-medium transition-all min-w-0"
+                      style={{
+                        background: isCurrent
+                          ? '#22c55e'
+                          : isPast
+                            ? '#16a34a'
+                            : 'transparent',
+                        color: isDone ? '#fff' : 'var(--ink-3)',
+                        boxShadow: isCurrent ? '0 0 12px rgba(34,197,94,0.55), inset 0 1px 0 rgba(255,255,255,0.15)' : 'none',
+                        cursor: isCurrent ? 'default' : 'pointer',
+                      }}
+                    >
+                      {isPast && <Check className="w-3 h-3 flex-shrink-0 opacity-80" strokeWidth={3} />}
+                      <span className="truncate">{s.name}</span>
+                      {isCurrent && (
+                        <span className="flex items-center gap-0.5 text-[10px] opacity-80 flex-shrink-0">
+                          <Clock className="w-3 h-3" />
+                          {timeInStage(lead.stageEnteredAt)}
+                        </span>
+                      )}
+                    </button>
                     {idx < stages.length - 1 && (
-                      <ChevronRight
-                        className="w-3 h-3 absolute -right-1.5 top-1/2 -translate-y-1/2 z-10"
-                        style={{ color: isCurrent ? '#fff' : 'var(--ink-3)' }}
-                      />
+                      <div
+                        className="flex items-center justify-center flex-shrink-0 w-5"
+                        style={{
+                          background: isPast ? '#16a34a' : isCurrent ? '#22c55e' : 'transparent',
+                          clipPath: 'polygon(0 0, 70% 0, 100% 50%, 70% 100%, 0 100%, 30% 50%)',
+                        }}
+                      >
+                        <ChevronRight
+                          className="w-3 h-3"
+                          style={{ color: isDone ? 'rgba(255,255,255,0.7)' : 'var(--ink-3)', marginLeft: 4 }}
+                        />
+                      </div>
                     )}
-                  </button>
+                  </div>
                 );
               })}
             </div>
