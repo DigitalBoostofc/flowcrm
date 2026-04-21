@@ -1,7 +1,7 @@
 import { useRef, useState, useEffect, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
-  Search, Filter, Plus, X, Users, Pencil, Camera, Trash2, Columns3,
+  Search, Filter, Plus, X, Users, Pencil, Camera, Trash2, Columns3, Loader2,
 } from 'lucide-react';
 import {
   listContacts, createContact, updateContact, deleteContact,
@@ -186,6 +186,9 @@ function AddPessoaModal({
 
   const [form, setForm] = useState(emptyForm);
   const [error, setError] = useState('');
+  const [cepLoading, setCepLoading] = useState(false);
+  const [cepError, setCepError] = useState('');
+  const lastLookedUpCep = useRef('');
 
   useEffect(() => {
     if (!open) {
@@ -199,6 +202,41 @@ function AddPessoaModal({
 
   const set = <K extends keyof ReturnType<typeof emptyForm>>(key: K, value: ReturnType<typeof emptyForm>[K]) =>
     setForm((f) => ({ ...f, [key]: value }));
+
+  const maskCep = (raw: string) => {
+    const digits = raw.replace(/\D/g, '').slice(0, 8);
+    return digits.length > 5 ? `${digits.slice(0, 5)}-${digits.slice(5)}` : digits;
+  };
+
+  const lookupCep = async (raw: string) => {
+    const digits = raw.replace(/\D/g, '');
+    if (digits.length !== 8) return;
+    if (lastLookedUpCep.current === digits) return;
+    lastLookedUpCep.current = digits;
+    setCepLoading(true);
+    setCepError('');
+    try {
+      const res = await fetch(`https://viacep.com.br/ws/${digits}/json/`);
+      const data = await res.json();
+      if (data?.erro) {
+        setCepError('CEP não encontrado');
+        return;
+      }
+      setForm((f) => ({
+        ...f,
+        estado: data.uf || f.estado,
+        cidade: data.localidade || f.cidade,
+        bairro: data.bairro || f.bairro,
+        rua: data.logradouro || f.rua,
+        complemento: data.complemento || f.complemento,
+        pais: f.pais || 'Brasil',
+      }));
+    } catch {
+      setCepError('Falha ao buscar CEP');
+    } finally {
+      setCepLoading(false);
+    }
+  };
 
   const toggleAccessUser = (id: string) => {
     set(
@@ -521,7 +559,32 @@ function AddPessoaModal({
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <Label>CEP</Label>
-                <Input value={form.zipCode} onChange={(e) => set('zipCode', e.target.value)} placeholder="00000-000" />
+                <div className="relative">
+                  <Input
+                    value={form.zipCode}
+                    onChange={(e) => {
+                      const masked = maskCep(e.target.value);
+                      set('zipCode', masked);
+                      if (masked.replace(/\D/g, '').length === 8) lookupCep(masked);
+                      else {
+                        lastLookedUpCep.current = '';
+                        setCepError('');
+                      }
+                    }}
+                    onBlur={(e) => lookupCep(e.target.value)}
+                    placeholder="00000-000"
+                    maxLength={9}
+                  />
+                  {cepLoading && (
+                    <Loader2
+                      className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin"
+                      style={{ color: 'var(--ink-3)' }}
+                    />
+                  )}
+                </div>
+                {cepError && (
+                  <p className="text-xs mt-1" style={{ color: 'var(--danger, #dc2626)' }}>{cepError}</p>
+                )}
               </div>
               <div>
                 <Label>País</Label>
