@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Search, Filter, Columns3, Plus,
-  List, GitBranch, TrendingUp, Star, Pencil, Trash2,
+  List, GitBranch, Star, Pencil, Trash2,
   ChevronDown, Briefcase, Building2, X, Settings as SettingsIcon, Lock, Users as UsersIcon,
 } from 'lucide-react';
 import { listAllLeads, createLead, updateLead, updateLeadStatus, moveLead, deleteLead } from '@/api/leads';
@@ -573,7 +573,7 @@ function ProductNameField({
   );
 }
 
-function AddNegocioModal({
+export function AddNegocioModal({
   open, onClose, pipelines, users, currentUser,
 }: {
   open: boolean;
@@ -1377,13 +1377,6 @@ export default function Negocios() {
             </button>
           </div>
 
-          <button
-            className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium"
-            style={{ color: 'var(--brand-500, #6366f1)' }}
-          >
-            <TrendingUp className="w-4 h-4" />
-            Conversão do funil
-          </button>
         </div>
       </div>
 

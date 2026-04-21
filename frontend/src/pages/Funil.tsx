@@ -1,10 +1,11 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Search, Filter, ArrowUpDown, Plus, List, GitBranch,
   X, Pencil, Trash2, GripVertical, Link as LinkIcon, Info,
   ListChecks, Trophy, ChevronLeft, ChevronRight, Settings as SettingsIcon, Tag,
+  Briefcase, ClipboardList,
 } from 'lucide-react';
 import { listAllLeads } from '@/api/leads';
 import LabelsManager from '@/components/labels/LabelsManager';
@@ -13,7 +14,8 @@ import { createStage, updateStage, deleteStage } from '@/api/stages';
 import { listUsers } from '@/api/users';
 import { useAuthStore } from '@/store/auth.store';
 import { useSidebarStore } from '@/store/sidebar.store';
-import type { Pipeline, Stage } from '@/types/api';
+import type { Pipeline, PipelineKind, Stage } from '@/types/api';
+import { AddNegocioModal } from '@/pages/Negocios';
 import NegocioKanban from '@/components/negocios/NegocioKanban';
 import NegocioDetailPanel from '@/components/negocios/NegocioDetailPanel';
 import RequiredFieldsDrawer from '@/components/settings/RequiredFieldsDrawer';
@@ -503,16 +505,30 @@ function EtapasFunilModal({
 /* ── Pipeline sidebar ────────────────────────────────── */
 
 function PipelineSidebar({
-  pipelines, selectedId, onSelect, onAddClick, onToggleMainNav, mainNavExpanded, onSettings,
+  pipelines, selectedId, onSelect, onCreate, onToggleMainNav, mainNavExpanded, onSettings,
 }: {
   pipelines: Pipeline[];
   selectedId: string;
   onSelect: (id: string) => void;
-  onAddClick: () => void;
+  onCreate: (kind: PipelineKind) => void;
   onToggleMainNav: () => void;
   mainNavExpanded: boolean;
   onSettings: () => void;
 }) {
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const pickerRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!pickerOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (pickerRef.current && !pickerRef.current.contains(e.target as Node)) {
+        setPickerOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [pickerOpen]);
+
   return (
     <aside
       className="relative flex-shrink-0 flex flex-col items-center justify-between py-3"
@@ -544,18 +560,76 @@ function PipelineSidebar({
           );
         })}
 
-        <button
-          onClick={onAddClick}
-          title="Personalizar funis"
-          className="w-10 h-10 rounded-lg flex items-center justify-center transition-all hover:bg-[var(--surface-hover)]"
-          style={{
-            background: 'transparent',
-            color: 'var(--brand-500, #6366f1)',
-            border: '1px dashed var(--edge-strong, var(--edge))',
-          }}
-        >
-          <Plus className="w-4 h-4" />
-        </button>
+        <div ref={pickerRef} className="relative">
+          <button
+            onClick={() => setPickerOpen((v) => !v)}
+            title="Criar novo funil"
+            className="w-10 h-10 rounded-lg flex items-center justify-center transition-all hover:bg-[var(--surface-hover)]"
+            style={{
+              background: 'transparent',
+              color: 'var(--brand-500, #6366f1)',
+              border: '1px dashed var(--edge-strong, var(--edge))',
+            }}
+          >
+            <Plus className="w-4 h-4" />
+          </button>
+
+          {pickerOpen && (
+            <div
+              className="absolute left-full top-0 ml-2 z-30 w-52 rounded-xl p-1.5 shadow-lg"
+              style={{
+                background: 'var(--surface-raised)',
+                border: '1px solid var(--edge)',
+                boxShadow: '0 12px 40px rgba(0,0,0,0.2)',
+              }}
+            >
+              <div
+                className="px-2 pt-1 pb-1 text-[10px] font-semibold uppercase tracking-widest"
+                style={{ color: 'var(--ink-3)' }}
+              >
+                Novo funil
+              </div>
+              <button
+                onClick={() => { setPickerOpen(false); onCreate('sale'); }}
+                className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-md text-left transition-colors hover:bg-[var(--surface-hover)]"
+              >
+                <div
+                  className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
+                  style={{ background: 'rgba(99,91,255,0.12)', color: 'var(--brand-500, #6366f1)' }}
+                >
+                  <Briefcase className="w-3.5 h-3.5" />
+                </div>
+                <div className="min-w-0">
+                  <div className="text-[13px] font-medium truncate" style={{ color: 'var(--ink-1)' }}>
+                    Funil de vendas
+                  </div>
+                  <div className="text-[11px] truncate" style={{ color: 'var(--ink-3)' }}>
+                    Para acompanhar negócios
+                  </div>
+                </div>
+              </button>
+              <button
+                onClick={() => { setPickerOpen(false); onCreate('management'); }}
+                className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-md text-left transition-colors hover:bg-[var(--surface-hover)]"
+              >
+                <div
+                  className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
+                  style={{ background: 'rgba(16,185,129,0.12)', color: '#10B981' }}
+                >
+                  <ClipboardList className="w-3.5 h-3.5" />
+                </div>
+                <div className="min-w-0">
+                  <div className="text-[13px] font-medium truncate" style={{ color: 'var(--ink-1)' }}>
+                    Funil de gestão
+                  </div>
+                  <div className="text-[11px] truncate" style={{ color: 'var(--ink-3)' }}>
+                    Para processos internos
+                  </div>
+                </div>
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
       <button
@@ -614,8 +688,11 @@ export default function Funil() {
   const [personalizarOpen, setPersonalizarOpen] = useState(false);
   const [editingStagesPipelineId, setEditingStagesPipelineId] = useState<string | null>(null);
 
+  const [addNegocioOpen, setAddNegocioOpen] = useState(false);
+
   const createPipelineMut = useMutation({
-    mutationFn: (name: string) => createPipeline({ name }),
+    mutationFn: ({ name, kind }: { name: string; kind?: PipelineKind }) =>
+      createPipeline({ name, kind }),
     onSuccess: (created) => {
       qc.invalidateQueries({ queryKey: ['pipelines'] });
       setEditingStagesPipelineId(created.id);
@@ -685,7 +762,14 @@ export default function Funil() {
         pipelines={pipelines}
         selectedId={selectedPipelineId}
         onSelect={setSelectedPipelineId}
-        onAddClick={() => setPersonalizarOpen(true)}
+        onCreate={(kind) => {
+          const saleCount = pipelines.filter((p) => (p as any).kind !== 'management').length;
+          const managementCount = pipelines.filter((p) => (p as any).kind === 'management').length;
+          const name = kind === 'management'
+            ? `Funil de gestão ${managementCount + 1}`
+            : `Funil de vendas ${saleCount + 1}`;
+          createPipelineMut.mutate({ name, kind });
+        }}
         onToggleMainNav={toggleSidebar}
         mainNavExpanded={!sidebarCollapsed}
         onSettings={() => navigate('/settings')}
@@ -794,7 +878,7 @@ export default function Funil() {
 
         <div className="flex items-center gap-2">
           <button
-            onClick={() => navigate('/negocios')}
+            onClick={() => setAddNegocioOpen(true)}
             className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-white shadow-sm transition-all hover:opacity-90"
             style={{ background: 'var(--brand-500, #6366f1)' }}
           >
@@ -862,7 +946,7 @@ export default function Funil() {
         }}
         onAddFunil={() => {
           setPersonalizarOpen(false);
-          createPipelineMut.mutate(`Novo funil ${pipelines.length + 1}`);
+          createPipelineMut.mutate({ name: `Novo funil ${pipelines.length + 1}` });
         }}
       />
 
@@ -892,6 +976,14 @@ export default function Funil() {
           />
         );
       })()}
+
+      <AddNegocioModal
+        open={addNegocioOpen}
+        onClose={() => setAddNegocioOpen(false)}
+        pipelines={pipelines}
+        users={users}
+        currentUser={currentUser}
+      />
     </div>
   );
 }
