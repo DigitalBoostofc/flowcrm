@@ -8,6 +8,7 @@ import {
 import type { Lead, LeadStatus, LeadActivity, ActivityType, Pipeline, User, Stage } from '@/types/api';
 import { updateLead, updateLeadStatus, moveLead } from '@/api/leads';
 import { updateContact } from '@/api/contacts';
+import { updateCompany } from '@/api/companies';
 import { getLeadActivities, createLeadActivity, updateLeadActivity, completeLeadActivity, deleteLeadActivity } from '@/api/lead-activities';
 import { listCustomerOrigins } from '@/api/customer-origins';
 import { listLossReasons } from '@/api/loss-reasons';
@@ -305,6 +306,17 @@ export default function NegocioDetailPanel({ lead, currentUser, users, pipelines
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['negocios'] });
       qc.invalidateQueries({ queryKey: ['pessoas'] });
+    },
+  });
+
+  const companyMut = useMutation({
+    mutationFn: ({ field, value }: { field: string; value: string | null }) => {
+      if (!lead.companyId) throw new Error('Negócio sem empresa vinculada');
+      return updateCompany(lead.companyId, { [field]: value ?? undefined } as any);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['negocios'] });
+      qc.invalidateQueries({ queryKey: ['empresas'] });
     },
   });
 
@@ -720,20 +732,65 @@ export default function NegocioDetailPanel({ lead, currentUser, users, pipelines
                   multiline
                   onSave={(v) => leadMut.mutateAsync({ notes: v })}
                 />
-                {customerOrigins.length > 0 && (
-                  <InlineSelect
-                    label="Origem"
-                    value={lead.customerOriginId}
-                    options={customerOrigins}
-                    onChange={(id) => leadMut.mutate({ customerOriginId: id })}
-                  />
-                )}
+                <InlineSelect
+                  label="Origem"
+                  value={lead.customerOriginId}
+                  options={customerOrigins}
+                  onChange={(id) => leadMut.mutate({ customerOriginId: id })}
+                  placeholder={customerOrigins.length === 0 ? 'Cadastre origens nas configurações' : 'Selecionar'}
+                />
               </div>
             </SidebarCard>
 
-            {/* Dados do contato */}
+            {/* Dados da empresa vinculada */}
+            {lead.company && (
+              <SidebarCard title="Dados da empresa">
+                <div
+                  className="flex items-center gap-2 p-2 rounded-md mb-2"
+                  style={{ background: 'var(--surface)', border: '1px solid var(--edge)' }}
+                >
+                  <Avatar name={lead.company.name} url={(lead.company as any).avatarUrl} size={28} />
+                  <span className="text-sm font-medium truncate" style={{ color: 'var(--ink-1)' }}>
+                    {lead.company.name}
+                  </span>
+                </div>
+                <div className="space-y-0">
+                  <InlineField
+                    label="Email"
+                    type="email"
+                    value={(lead.company as any).email ?? ''}
+                    onSave={(v) => companyMut.mutateAsync({ field: 'email', value: v || null })}
+                  />
+                  <InlineField
+                    label="WhatsApp"
+                    type="tel"
+                    value={(lead.company as any).whatsapp ?? ''}
+                    onSave={(v) => companyMut.mutateAsync({ field: 'whatsapp', value: v || null })}
+                  />
+                  <InlineField
+                    label="Celular"
+                    type="tel"
+                    value={(lead.company as any).celular ?? ''}
+                    onSave={(v) => companyMut.mutateAsync({ field: 'celular', value: v || null })}
+                  />
+                  <InlineField
+                    label="Telefone"
+                    type="tel"
+                    value={(lead.company as any).telefone ?? ''}
+                    onSave={(v) => companyMut.mutateAsync({ field: 'telefone', value: v || null })}
+                  />
+                  <InlineField
+                    label="Site"
+                    value={(lead.company as any).website ?? ''}
+                    onSave={(v) => companyMut.mutateAsync({ field: 'website', value: v || null })}
+                  />
+                </div>
+              </SidebarCard>
+            )}
+
+            {/* Dados da pessoa vinculada */}
             {lead.contact && (
-              <SidebarCard title="Dados do contato">
+              <SidebarCard title="Dados da pessoa">
                 <div
                   className="flex items-center gap-2 p-2 rounded-md mb-2"
                   style={{ background: 'var(--surface)', border: '1px solid var(--edge)' }}
