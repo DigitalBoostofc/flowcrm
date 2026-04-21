@@ -11,7 +11,14 @@ export default function Assinar() {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const user = useAuthStore((s) => s.user);
+  const logout = useAuthStore((s) => s.logout);
   const isOwner = user?.role === 'owner';
+
+  const handleLogout = () => {
+    logout();
+    qc.clear();
+    navigate('/login', { replace: true });
+  };
 
   const { data: workspace } = useWorkspace();
   const { data: plans, isLoading } = useQuery({ queryKey: ['plans'], queryFn: listPlans });
@@ -54,6 +61,17 @@ export default function Assinar() {
 
   return (
     <div className="min-h-screen" style={{ background: 'var(--canvas)' }}>
+      {blocked && (
+        <button
+          onClick={handleLogout}
+          title="Sair e voltar para o login"
+          aria-label="Sair"
+          className="fixed top-5 right-5 w-9 h-9 rounded-full flex items-center justify-center transition-colors z-10"
+          style={{ background: 'var(--surface)', border: '1px solid var(--edge)', color: 'var(--ink-3)' }}
+        >
+          <X className="w-4 h-4" />
+        </button>
+      )}
       <div className="max-w-5xl mx-auto px-6 py-10">
         {!blocked && (
           <button
