@@ -114,6 +114,8 @@ export interface Lead {
   title?: string | null;
   status: LeadStatus;
   lossReason?: string | null;
+  customerOriginId?: string | null;
+  customerOrigin?: { id: string; name: string } | null;
   startDate?: string | null;
   conclusionDate?: string | null;
   stageEnteredAt: string;

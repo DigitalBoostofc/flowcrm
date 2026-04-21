@@ -68,4 +68,8 @@ export class CreateLeadDto {
   @IsOptional()
   @IsArray()
   items?: LeadItem[];
+
+  @IsOptional()
+  @IsUUID()
+  customerOriginId?: string | null;
 }

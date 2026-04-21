@@ -5,6 +5,7 @@ import { Stage } from '../../stages/entities/stage.entity';
 import { Pipeline } from '../../pipelines/entities/pipeline.entity';
 import { User } from '../../users/entities/user.entity';
 import { Label } from '../../labels/entities/label.entity';
+import { CustomerOrigin } from '../../customer-origins/entities/customer-origin.entity';
 
 export enum LeadStatus {
   ACTIVE = 'active',
@@ -80,6 +81,13 @@ export class Lead {
 
   @Column({ type: 'uuid', nullable: true })
   createdById: string;
+
+  @ManyToOne(() => CustomerOrigin, { nullable: true, onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'customerOriginId' })
+  customerOrigin: CustomerOrigin | null;
+
+  @Column({ type: 'uuid', nullable: true })
+  customerOriginId: string | null;
 
   @Column({ type: 'int', nullable: true })
   ranking: number;

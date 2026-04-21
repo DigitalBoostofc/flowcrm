@@ -35,4 +35,8 @@ export class UpdateLeadDto {
   @IsOptional()
   @IsString()
   notes?: string;
+
+  @IsOptional()
+  @IsUUID()
+  customerOriginId?: string | null;
 }

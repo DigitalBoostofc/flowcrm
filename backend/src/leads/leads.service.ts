@@ -64,7 +64,7 @@ export class LeadsService {
     const workspaceId = this.tenant.requireWorkspaceId();
     const lead = await this.repo.findOne({
       where: { id, workspaceId },
-      relations: ['contact', 'company', 'stage', 'pipeline', 'assignedTo', 'labels'],
+      relations: ['contact', 'company', 'stage', 'pipeline', 'assignedTo', 'labels', 'customerOrigin'],
     });
     if (!lead) throw new NotFoundException('Lead não encontrado');
     return lead;

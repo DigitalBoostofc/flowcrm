@@ -9,6 +9,7 @@ import type { Lead, LeadStatus, LeadActivity, ActivityType, Pipeline, User, Stag
 import { updateLead, updateLeadStatus, moveLead } from '@/api/leads';
 import { updateContact } from '@/api/contacts';
 import { getLeadActivities, createLeadActivity } from '@/api/lead-activities';
+import { listCustomerOrigins } from '@/api/customer-origins';
 import Avatar from '@/components/ui/Avatar';
 import LabelPicker from '@/components/labels/LabelPicker';
 
@@ -132,6 +133,35 @@ function InlineField({
   );
 }
 
+/* ── Inline select field ─────────────────────────────── */
+
+function InlineSelect<T extends string>({
+  label, value, options, placeholder = 'Sem origem', onChange,
+}: {
+  label: string;
+  value: T | null | undefined;
+  options: { id: T; name: string }[];
+  placeholder?: string;
+  onChange: (id: T | null) => void;
+}) {
+  return (
+    <div className="grid items-center gap-3 py-1.5" style={{ gridTemplateColumns: '110px 1fr' }}>
+      <div className="text-xs" style={{ color: 'var(--ink-3)' }}>{label}</div>
+      <select
+        className="text-sm bg-transparent outline-none cursor-pointer"
+        style={{ color: value ? 'var(--ink-1)' : 'var(--brand-500, #6366f1)' }}
+        value={value ?? ''}
+        onChange={(e) => onChange((e.target.value as T) || null)}
+      >
+        <option value="">{placeholder}</option>
+        {options.map((o) => (
+          <option key={o.id} value={o.id}>{o.name}</option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
 /* ── Activity type config ────────────────────────────── */
 
 type ComposerType = ActivityType | 'note';
@@ -216,6 +246,11 @@ export default function NegocioDetailPanel({ lead, currentUser, users, pipelines
   const { data: activities = [] } = useQuery({
     queryKey: ['lead-activities', lead.id],
     queryFn: () => getLeadActivities(lead.id),
+  });
+
+  const { data: customerOrigins = [] } = useQuery({
+    queryKey: ['customer-origins'],
+    queryFn: listCustomerOrigins,
   });
 
   /* Mutations */
@@ -671,6 +706,14 @@ export default function NegocioDetailPanel({ lead, currentUser, users, pipelines
                   multiline
                   onSave={(v) => leadMut.mutateAsync({ notes: v })}
                 />
+                {customerOrigins.length > 0 && (
+                  <InlineSelect
+                    label="Origem"
+                    value={lead.customerOriginId}
+                    options={customerOrigins}
+                    onChange={(id) => leadMut.mutate({ customerOriginId: id })}
+                  />
+                )}
               </div>
             </SidebarCard>
 
