@@ -1,6 +1,8 @@
-import { useState, useRef, useEffect } from 'react';
-import { CircleDot, CheckCircle2, XCircle, ChevronDown, Check, Snowflake } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { CircleDot, CheckCircle2, XCircle, ChevronDown, Check, Snowflake, Plus, X } from 'lucide-react';
 import type { LeadStatus } from '@/types/api';
+import { createLossReason } from '@/api/loss-reasons';
 
 export const STATUS_CONFIG: Record<LeadStatus, { label: string; color: string; bg: string; Icon: typeof CircleDot }> = {
   active:  { label: 'Em andamento', color: '#635BFF', bg: 'rgba(99,91,255,0.1)',   Icon: CircleDot    },
@@ -20,11 +22,24 @@ export function StatusDropdown({
   lossReasons: { id: string; label: string }[];
   onUpdate: (id: string, status: LeadStatus, extra?: { lossReason?: string; freezeReason?: string; frozenReturnDate?: string }) => void;
 }) {
+  const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState<Step>('menu');
   const [freezeReason, setFreezeReason] = useState('');
   const [frozenReturnDate, setFrozenReturnDate] = useState('');
+  const [addingReason, setAddingReason] = useState(false);
+  const [newReasonLabel, setNewReasonLabel] = useState('');
+  const newReasonRef = useRef<HTMLInputElement>(null);
   const ref = useRef<HTMLDivElement>(null);
+
+  const createReasonMut = useMutation({
+    mutationFn: (label: string) => createLossReason(label),
+    onSuccess: (created) => {
+      qc.invalidateQueries({ queryKey: ['loss-reasons'] });
+      onUpdate(lead.id, 'lost', { lossReason: created.label });
+      close();
+    },
+  });
 
   useEffect(() => {
     if (!open) return;
@@ -38,7 +53,7 @@ export function StatusDropdown({
     return () => document.removeEventListener('mousedown', handler);
   }, [open]);
 
-  const close = () => { setOpen(false); setStep('menu'); setFreezeReason(''); setFrozenReturnDate(''); };
+  const close = () => { setOpen(false); setStep('menu'); setFreezeReason(''); setFrozenReturnDate(''); setAddingReason(false); setNewReasonLabel(''); };
 
   const choose = (status: LeadStatus) => {
     if (status === 'lost') { setStep('lost'); return; }
@@ -91,8 +106,17 @@ export function StatusDropdown({
 
           {step === 'lost' && (
             <>
-              <div className="px-3 py-2 text-xs font-semibold" style={{ color: 'var(--ink-2)', borderBottom: '1px solid var(--edge)' }}>
-                Motivo da perda
+              <div className="flex items-center justify-between px-3 py-2" style={{ borderBottom: '1px solid var(--edge)' }}>
+                <span className="text-xs font-semibold" style={{ color: 'var(--ink-2)' }}>Motivo da perda</span>
+                {!addingReason && (
+                  <button
+                    onClick={() => { setAddingReason(true); setTimeout(() => newReasonRef.current?.focus(), 50); }}
+                    className="flex items-center gap-1 text-xs hover:opacity-80"
+                    style={{ color: 'var(--brand-500, #6366f1)' }}
+                  >
+                    <Plus className="w-3 h-3" /> Novo
+                  </button>
+                )}
               </div>
               <button
                 onClick={() => { onUpdate(lead.id, 'lost'); close(); }}
@@ -111,6 +135,37 @@ export function StatusDropdown({
                   {r.label}
                 </button>
               ))}
+              {addingReason && (
+                <div className="flex items-center gap-1.5 px-2 py-2" style={{ borderTop: '1px solid var(--edge)' }}>
+                  <input
+                    ref={newReasonRef}
+                    value={newReasonLabel}
+                    onChange={e => setNewReasonLabel(e.target.value)}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter' && newReasonLabel.trim()) createReasonMut.mutate(newReasonLabel.trim());
+                      if (e.key === 'Escape') { setAddingReason(false); setNewReasonLabel(''); }
+                    }}
+                    placeholder="Nome do motivo..."
+                    className="flex-1 px-2 py-1 rounded-md text-xs outline-none"
+                    style={{ background: 'var(--surface)', border: '1px solid var(--edge)', color: 'var(--ink-1)' }}
+                  />
+                  <button
+                    onClick={() => newReasonLabel.trim() && createReasonMut.mutate(newReasonLabel.trim())}
+                    disabled={!newReasonLabel.trim() || createReasonMut.isPending}
+                    className="px-2 py-1 rounded-md text-xs font-semibold text-white disabled:opacity-40"
+                    style={{ background: 'var(--brand-500, #6366f1)' }}
+                  >
+                    {createReasonMut.isPending ? '...' : 'Ok'}
+                  </button>
+                  <button
+                    onClick={() => { setAddingReason(false); setNewReasonLabel(''); }}
+                    className="p-1 rounded hover:bg-[var(--surface-hover)]"
+                    style={{ color: 'var(--ink-3)' }}
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </div>
+              )}
             </>
           )}
 
