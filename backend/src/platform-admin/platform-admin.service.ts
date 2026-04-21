@@ -16,6 +16,7 @@ export interface WorkspaceSummary {
   ownerName: string | null;
   ownerEmail: string | null;
   subscriptionStatus: SubscriptionStatus;
+  planSlug: string | null;
   trialStartedAt: Date;
   trialEndsAt: Date;
   usersCount: number;
@@ -79,6 +80,7 @@ export class PlatformAdminService {
       ownerName: w.owner?.name ?? null,
       ownerEmail: w.owner?.email ?? null,
       subscriptionStatus: w.subscriptionStatus,
+      planSlug: w.planSlug ?? null,
       trialStartedAt: w.trialStartedAt,
       trialEndsAt: w.trialEndsAt,
       usersCount: usersMap[w.id] ?? 0,
@@ -98,7 +100,7 @@ export class PlatformAdminService {
 
   async updateWorkspace(
     id: string,
-    patch: { subscriptionStatus?: SubscriptionStatus; trialEndsAt?: string | Date; name?: string },
+    patch: { subscriptionStatus?: SubscriptionStatus; trialEndsAt?: string | Date; name?: string; planSlug?: string | null },
     actor: { email: string; userId: string },
   ) {
     const ws = await this.wsRepo.findOne({ where: { id } });
@@ -108,11 +110,13 @@ export class PlatformAdminService {
       subscriptionStatus: ws.subscriptionStatus,
       trialEndsAt: ws.trialEndsAt,
       name: ws.name,
+      planSlug: ws.planSlug,
     };
 
     if (patch.name !== undefined) ws.name = patch.name;
     if (patch.subscriptionStatus !== undefined) ws.subscriptionStatus = patch.subscriptionStatus;
     if (patch.trialEndsAt !== undefined) ws.trialEndsAt = new Date(patch.trialEndsAt);
+    if (patch.planSlug !== undefined) ws.planSlug = patch.planSlug && patch.planSlug.length > 0 ? patch.planSlug : null;
     await this.wsRepo.save(ws);
 
     await this.logAction(actor, 'workspace.update', { targetWorkspaceId: id, metadata: { before, after: patch } });

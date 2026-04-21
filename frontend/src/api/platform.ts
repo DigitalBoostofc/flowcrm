@@ -7,6 +7,7 @@ export interface WorkspaceSummary {
   ownerName: string | null;
   ownerEmail: string | null;
   subscriptionStatus: 'trial' | 'active' | 'expired' | 'canceled';
+  planSlug: string | null;
   trialStartedAt: string;
   trialEndsAt: string;
   usersCount: number;
@@ -111,7 +112,7 @@ export const listWorkspaces = (search?: string) =>
 export const getWorkspaceDetail = (id: string) =>
   api.get<WorkspaceDetail>(`/platform/workspaces/${id}`).then((r) => r.data);
 
-export const updateWorkspace = (id: string, patch: Partial<{ name: string; subscriptionStatus: string; trialEndsAt: string }>) =>
+export const updateWorkspace = (id: string, patch: Partial<{ name: string; subscriptionStatus: string; trialEndsAt: string; planSlug: string | null }>) =>
   api.patch(`/platform/workspaces/${id}`, patch).then((r) => r.data);
 
 export const impersonateWorkspace = (id: string) =>

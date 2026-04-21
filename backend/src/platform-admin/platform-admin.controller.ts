@@ -11,6 +11,7 @@ class UpdateWorkspaceDto {
   @IsOptional() @IsString() @Length(1, 120) name?: string;
   @IsOptional() @IsIn(['trial', 'active', 'expired', 'canceled']) subscriptionStatus?: SubscriptionStatus;
   @IsOptional() @IsDateString() trialEndsAt?: string;
+  @IsOptional() @IsString() @Length(0, 40) planSlug?: string | null;
 }
 
 class BroadcastDto {
