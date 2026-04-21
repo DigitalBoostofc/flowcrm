@@ -3,10 +3,10 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   X, Star, MoreHorizontal, Plus, Mail, Phone, MessageSquare, FileText,
   PhoneCall, Users as UsersIcon, MapPin, StickyNote, Clock, Check,
-  Copy, Pin, HelpCircle, ChevronRight, ChevronDown, Tag,
+  Copy, Pin, HelpCircle, ChevronRight, ChevronDown, Tag, Archive, Trash2,
 } from 'lucide-react';
 import type { Lead, LeadStatus, LeadActivity, ActivityType, Pipeline, User, Stage } from '@/types/api';
-import { updateLead, updateLeadStatus, moveLead } from '@/api/leads';
+import { updateLead, updateLeadStatus, moveLead, deleteLead, archiveLead, unarchiveLead } from '@/api/leads';
 import { updateContact } from '@/api/contacts';
 import { updateCompany } from '@/api/companies';
 import { getLeadActivities, createLeadActivity, updateLeadActivity, completeLeadActivity, deleteLeadActivity } from '@/api/lead-activities';
@@ -209,6 +209,8 @@ export default function NegocioDetailPanel({ lead, currentUser, users, pipelines
   const [selectedPipelineId, setSelectedPipelineId] = useState('');
   const pipelineBtnRef = useRef<HTMLButtonElement>(null);
   const [pickerPos, setPickerPos] = useState({ top: 0, left: 0 });
+  const [moreMenuOpen, setMoreMenuOpen] = useState(false);
+  const moreBtnRef = useRef<HTMLButtonElement>(null);
 
   /* ESC to close */
   useEffect(() => {
@@ -340,6 +342,22 @@ export default function NegocioDetailPanel({ lead, currentUser, users, pipelines
     onSuccess: () => qc.invalidateQueries({ queryKey: ['lead-activities', lead.id] }),
   });
 
+  const archiveMut = useMutation({
+    mutationFn: () => lead.archivedAt ? unarchiveLead(lead.id) : archiveLead(lead.id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['negocios'] });
+      onClose();
+    },
+  });
+
+  const deleteMut = useMutation({
+    mutationFn: () => deleteLead(lead.id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['negocios'] });
+      onClose();
+    },
+  });
+
   const sendActivity = () => {
     const body = activityText.trim();
     if (!body) return;
@@ -426,13 +444,52 @@ export default function NegocioDetailPanel({ lead, currentUser, users, pipelines
               lossReasons={lossReasons}
               onUpdate={(_id, status, extra) => statusMut.mutate({ status, extra })}
             />
-            <button
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-[var(--surface-hover)]"
-              style={{ color: 'var(--ink-2)' }}
-              title="Mais opções"
-            >
-              <MoreHorizontal className="w-4 h-4" /> Mais opções
-            </button>
+            <div className="relative">
+              <button
+                ref={moreBtnRef}
+                onClick={() => setMoreMenuOpen(o => !o)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-[var(--surface-hover)]"
+                style={{ color: 'var(--ink-2)' }}
+                title="Mais opções"
+              >
+                <MoreHorizontal className="w-4 h-4" /> Mais opções
+              </button>
+              {moreMenuOpen && (
+                <>
+                  <div className="fixed inset-0 z-[200]" onClick={() => setMoreMenuOpen(false)} />
+                  <div
+                    className="absolute right-0 mt-1 rounded-xl shadow-xl z-[201] py-1 min-w-[200px]"
+                    style={{ background: 'var(--surface-raised)', border: '1px solid var(--edge-strong)' }}
+                  >
+                    <button
+                      onClick={() => {
+                        setMoreMenuOpen(false);
+                        archiveMut.mutate();
+                      }}
+                      className="w-full flex items-center gap-2.5 px-3 py-2 text-sm hover:bg-[var(--surface-hover)] transition-colors"
+                      style={{ color: 'var(--ink-1)' }}
+                    >
+                      <Archive className="w-4 h-4 flex-shrink-0" style={{ color: 'var(--ink-3)' }} />
+                      {lead.archivedAt ? 'Desarquivar negócio' : 'Arquivar negócio'}
+                    </button>
+                    <div style={{ borderTop: '1px solid var(--edge)', margin: '4px 8px' }} />
+                    <button
+                      onClick={() => {
+                        setMoreMenuOpen(false);
+                        if (confirm('Excluir este negócio permanentemente? Esta ação não pode ser desfeita.')) {
+                          deleteMut.mutate();
+                        }
+                      }}
+                      className="w-full flex items-center gap-2.5 px-3 py-2 text-sm hover:bg-[var(--surface-hover)] transition-colors"
+                      style={{ color: 'var(--danger, #ef4444)' }}
+                    >
+                      <Trash2 className="w-4 h-4 flex-shrink-0" />
+                      Excluir negócio
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
             <button
               onClick={onClose}
               className="p-1.5 rounded hover:bg-[var(--surface-hover)]"
