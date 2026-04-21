@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { ColumnDef, ColumnPrefs } from './types';
 
-const STORAGE_VERSION = 'v1';
+const STORAGE_VERSION = 'v2';
 
 function storageKey(id: string) {
   return `flowcrm:cols:${STORAGE_VERSION}:${id}`;

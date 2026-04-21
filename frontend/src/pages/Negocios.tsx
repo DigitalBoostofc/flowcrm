@@ -1168,17 +1168,6 @@ export default function Negocios() {
 
   const negociosColumns = useMemo<ColumnDef<Lead>[]>(() => [
     {
-      key: 'index',
-      label: '#',
-      defaultWidth: 56,
-      minWidth: 40,
-      render: (_row, idx) => (
-        <span className="text-xs font-mono tabular-nums" style={{ color: 'var(--ink-3)' }}>
-          {String(idx + 1).padStart(2, '0')}
-        </span>
-      ),
-    },
-    {
       key: 'title',
       label: 'Nome',
       defaultWidth: 240,
@@ -1190,9 +1179,71 @@ export default function Negocios() {
       ),
     },
     {
+      key: 'categoria',
+      label: 'Categoria',
+      defaultWidth: 160,
+      render: (lead) => (
+        <span className="truncate block" style={{ color: lead.contact?.categoria ? 'var(--ink-2)' : 'var(--ink-3)' }}>
+          {lead.contact?.categoria ?? '—'}
+        </span>
+      ),
+    },
+    {
+      key: 'phone',
+      label: 'Telefone',
+      defaultWidth: 160,
+      render: (lead) => {
+        const phone = lead.contact?.phone ?? lead.externalPhone ?? '';
+        return (
+          <span className="truncate block" style={{ color: phone ? 'var(--ink-2)' : 'var(--ink-3)' }}>
+            {phone || '—'}
+          </span>
+        );
+      },
+    },
+    {
+      key: 'email',
+      label: 'E-mail',
+      defaultWidth: 220,
+      render: (lead) => (
+        <span className="truncate block" style={{ color: lead.contact?.email ? 'var(--ink-2)' : 'var(--ink-3)' }}>
+          {lead.contact?.email ?? '—'}
+        </span>
+      ),
+    },
+    {
+      key: 'assignedTo',
+      label: 'Responsável',
+      defaultWidth: 100,
+      minWidth: 72,
+      render: (lead) => {
+        const assignedTo = lead.assignedTo ?? (lead.assignedToId ? userById.get(lead.assignedToId) : null);
+        return assignedTo ? (
+          <div className="flex items-center justify-start" title={assignedTo.name}>
+            <Avatar name={assignedTo.name} url={assignedTo.avatarUrl} size={26} />
+          </div>
+        ) : (
+          <span style={{ color: 'var(--ink-3)' }}>—</span>
+        );
+      },
+    },
+    {
+      key: 'index',
+      label: '#',
+      defaultWidth: 56,
+      minWidth: 40,
+      hiddenByDefault: true,
+      render: (_row, idx) => (
+        <span className="text-xs font-mono tabular-nums" style={{ color: 'var(--ink-3)' }}>
+          {String(idx + 1).padStart(2, '0')}
+        </span>
+      ),
+    },
+    {
       key: 'contact',
       label: 'Contato',
       defaultWidth: 220,
+      hiddenByDefault: true,
       render: (lead) => {
         const contact = lead.contact;
         return contact ? (
@@ -1209,6 +1260,7 @@ export default function Negocios() {
       key: 'createdBy',
       label: 'Cadastrado por',
       defaultWidth: 180,
+      hiddenByDefault: true,
       render: (lead) => {
         const createdBy = lead.createdBy ?? (lead.createdById ? userById.get(lead.createdById) : null);
         return createdBy ? (
@@ -1222,37 +1274,24 @@ export default function Negocios() {
       },
     },
     {
-      key: 'assignedTo',
-      label: 'Responsável',
-      defaultWidth: 180,
-      render: (lead) => {
-        const assignedTo = lead.assignedTo ?? (lead.assignedToId ? userById.get(lead.assignedToId) : null);
-        return assignedTo ? (
-          <div className="flex items-center gap-2 min-w-0">
-            <Avatar name={assignedTo.name} url={assignedTo.avatarUrl} size={24} />
-            <span className="truncate text-xs" style={{ color: 'var(--ink-2)' }}>{assignedTo.name}</span>
-          </div>
-        ) : (
-          <span style={{ color: 'var(--ink-3)' }}>—</span>
-        );
-      },
-    },
-    {
       key: 'status',
       label: 'Status',
       defaultWidth: 160,
+      hiddenByDefault: true,
       render: (lead) => <StatusCell lead={lead} />,
     },
     {
       key: 'stage',
       label: 'Etapa',
       defaultWidth: 200,
+      hiddenByDefault: true,
       render: (lead) => <StageCell lead={lead} />,
     },
     {
       key: 'value',
       label: 'Valor',
       defaultWidth: 140,
+      hiddenByDefault: true,
       render: (lead) => (
         <span className="truncate block" style={{ color: lead.value ? 'var(--ink-1)' : 'var(--ink-3)' }}>
           {lead.value ? formatBRL(Number(lead.value)) : 'Indefinido'}
@@ -1263,6 +1302,7 @@ export default function Negocios() {
       key: 'ranking',
       label: 'Ranking',
       defaultWidth: 150,
+      hiddenByDefault: true,
       render: (lead) => <RankingCell lead={lead} />,
     },
     {
