@@ -135,9 +135,6 @@ function AddPessoaModal({
     email: '',
     whatsapp: '',
     phone: '',
-    celular: '',
-    fax: '',
-    ramal: '',
     zipCode: '',
     pais: 'Brasil',
     estado: '',
@@ -171,9 +168,6 @@ function AddPessoaModal({
     email: c.email ?? '',
     whatsapp: c.whatsapp ?? '',
     phone: c.phone ?? '',
-    celular: c.celular ?? '',
-    fax: c.fax ?? '',
-    ramal: c.ramal ?? '',
     zipCode: c.zipCode ?? '',
     pais: c.pais ?? 'Brasil',
     estado: c.estado ?? '',
@@ -233,9 +227,6 @@ function AddPessoaModal({
         email: form.email.trim() || undefined,
         whatsapp: form.whatsapp.trim() || undefined,
         phone: form.phone.trim() || undefined,
-        celular: form.celular.trim() || undefined,
-        fax: form.fax.trim() || undefined,
-        ramal: form.ramal.trim() || undefined,
         zipCode: form.zipCode.trim() || undefined,
         pais: form.pais.trim() || undefined,
         estado: form.estado || undefined,
@@ -520,18 +511,6 @@ function AddPessoaModal({
               <div>
                 <Label>Telefone</Label>
                 <Input value={form.phone} onChange={(e) => set('phone', e.target.value)} placeholder="(00) 0000-0000" />
-              </div>
-              <div>
-                <Label>Celular</Label>
-                <Input value={form.celular} onChange={(e) => set('celular', e.target.value)} placeholder="(00) 00000-0000" />
-              </div>
-              <div>
-                <Label>Fax</Label>
-                <Input value={form.fax} onChange={(e) => set('fax', e.target.value)} placeholder="(00) 0000-0000" />
-              </div>
-              <div>
-                <Label>Ramal</Label>
-                <Input value={form.ramal} onChange={(e) => set('ramal', e.target.value)} placeholder="00" />
               </div>
             </div>
           </section>
@@ -910,13 +889,6 @@ export default function Pessoas() {
       defaultWidth: 160,
       hiddenByDefault: true,
       render: (c) => <span className="truncate block" style={{ color: 'var(--ink-2)' }}>{c.whatsapp ?? '—'}</span>,
-    },
-    {
-      key: 'celular',
-      label: 'Celular',
-      defaultWidth: 160,
-      hiddenByDefault: true,
-      render: (c) => <span className="truncate block" style={{ color: 'var(--ink-2)' }}>{c.celular ?? '—'}</span>,
     },
     {
       key: 'phone',
