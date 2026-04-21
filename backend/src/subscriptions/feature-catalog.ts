@@ -10,6 +10,16 @@ export const FEATURE_CATALOG: Record<string, FeatureDef> = {
     label: 'Inbox',
     description: 'Caixa de entrada unificada para atendimento via canais conectados.',
   },
+  analytics: {
+    key: 'analytics',
+    label: 'Analytics',
+    description: 'Painel de análise de desempenho, conversão e métricas do CRM.',
+  },
+  tasks: {
+    key: 'tasks',
+    label: 'Tarefas',
+    description: 'Módulo de tarefas com agenda, lembretes e integração Google Calendar.',
+  },
   automations: {
     key: 'automations',
     label: 'Automações',

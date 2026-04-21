@@ -500,25 +500,43 @@ function ProductNameField({
 
   return (
     <div ref={rootRef} className="relative">
-      <input
-        placeholder="Nome do produto"
-        value={productName}
-        onFocus={() => setOpen(true)}
-        onChange={(e) => {
-          onUpdate({ productName: e.target.value });
-          setOpen(true);
-        }}
-        className="w-full px-2 py-1.5 rounded-md outline-none text-sm"
-        style={{ background: 'var(--surface-raised)', border: '1px solid var(--edge)', color: 'var(--ink-1)' }}
-      />
+      <div className="relative">
+        <input
+          placeholder="Selecione ou digite para buscar"
+          value={productName}
+          onFocus={() => setOpen(true)}
+          onChange={(e) => {
+            onUpdate({ productName: e.target.value });
+            setOpen(true);
+          }}
+          className="w-full pl-2 pr-8 py-1.5 rounded-md outline-none text-sm"
+          style={{ background: 'var(--surface-raised)', border: '1px solid var(--edge)', color: 'var(--ink-1)' }}
+        />
+        <button
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          tabIndex={-1}
+          className="absolute right-1 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-[var(--surface-hover)]"
+          style={{ color: 'var(--ink-3)' }}
+          aria-label="Abrir lista de produtos"
+        >
+          <ChevronDown className="w-4 h-4" style={{ transform: open ? 'rotate(180deg)' : undefined, transition: 'transform 0.15s' }} />
+        </button>
+      </div>
       {open && (
         <div
           className="absolute left-0 right-0 top-[calc(100%+4px)] z-30 rounded-lg shadow-lg max-h-72 overflow-y-auto"
           style={{ background: 'var(--surface-raised)', border: '1px solid var(--edge)' }}
         >
-          {filtered.length === 0 && !q && (
+          <div
+            className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-widest"
+            style={{ color: 'var(--ink-3)', background: 'var(--surface)' }}
+          >
+            Cadastrados em configurações
+          </div>
+          {filtered.length === 0 && (
             <div className="px-3 py-3 text-xs" style={{ color: 'var(--ink-3)' }}>
-              Nenhum produto cadastrado.
+              {q ? 'Nenhum produto encontrado.' : 'Nenhum produto cadastrado ainda.'}
             </div>
           )}
           {filtered.map((p) => (
@@ -549,14 +567,14 @@ function ProductNameField({
               setAddOpen(true);
               setOpen(false);
             }}
-            className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left hover:bg-[var(--surface-hover)]"
+            className="w-full flex items-center gap-2 px-3 py-2.5 text-sm text-left hover:bg-[var(--surface-hover)] font-medium"
             style={{
               color: 'var(--brand-500, #6366f1)',
-              borderTop: filtered.length ? '1px solid var(--edge)' : undefined,
+              borderTop: '1px solid var(--edge)',
             }}
           >
             <Plus className="w-4 h-4" />
-            {q && !exact ? `Criar "${productName.trim()}"` : 'Novo produto/serviço'}
+            {q && !exact ? `Criar novo: "${productName.trim()}"` : 'Cadastrar novo produto/serviço'}
           </button>
         </div>
       )}

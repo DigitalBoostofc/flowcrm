@@ -140,12 +140,24 @@ export default function Settings() {
                   return (
                     <button
                       key={id}
-                      onClick={() => changeTab(id)}
+                      onClick={(e) => {
+                        if (locked) { e.preventDefault(); return; }
+                        changeTab(id);
+                      }}
+                      disabled={locked}
+                      aria-disabled={locked || undefined}
+                      title={locked ? 'Disponível no plano Performance' : undefined}
                       className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-md text-[13px] transition-colors"
                       style={{
                         background: active ? (danger ? 'var(--danger-bg)' : 'var(--brand-50)') : 'transparent',
-                        color: danger ? 'var(--danger)' : active ? 'var(--brand-500)' : 'var(--ink-2)',
+                        color: danger
+                          ? 'var(--danger)'
+                          : active
+                            ? 'var(--brand-500)'
+                            : locked ? 'var(--ink-3)' : 'var(--ink-2)',
                         fontWeight: active ? 500 : 400,
+                        cursor: locked ? 'not-allowed' : 'pointer',
+                        opacity: locked ? 0.75 : 1,
                       }}
                     >
                       <Icon className="w-4 h-4 flex-shrink-0" strokeWidth={active ? 2 : 1.75} />
@@ -153,10 +165,16 @@ export default function Settings() {
                       {locked && (
                         <span
                           className="inline-flex items-center justify-center rounded-full flex-shrink-0"
-                          style={{ width: 16, height: 16, background: 'var(--surface-hover)', color: 'var(--ink-3)' }}
+                          style={{
+                            width: 18,
+                            height: 18,
+                            background: 'var(--brand-50)',
+                            color: 'var(--brand-500)',
+                            border: '1px solid var(--brand-500)',
+                          }}
                           title="Disponível no plano Performance"
                         >
-                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: 9, height: 9 }}><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: 10, height: 10 }}><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
                         </span>
                       )}
                     </button>

@@ -16,8 +16,8 @@ type NavItem = { to: string; icon: typeof Home; label: string; feature?: string 
 
 const NAV_ITEMS: NavItem[] = [
   { to: '/inicio',                  icon: Home,           label: 'Início' },
-  { to: '/analytics',              icon: BarChart2,      label: 'Analytics' },
-  { to: '/tasks',                  icon: CheckSquare,    label: 'Tarefas' },
+  { to: '/analytics',              icon: BarChart2,      label: 'Analytics', feature: 'analytics' },
+  { to: '/tasks',                  icon: CheckSquare,    label: 'Tarefas', feature: 'tasks' },
   { to: '/inbox',                  icon: MessageCircle,  label: 'Inbox', feature: 'inbox' },
   { to: '/pessoas',                icon: Users,          label: 'Pessoas' },
   { to: '/companies',              icon: Building2,      label: 'Empresas' },

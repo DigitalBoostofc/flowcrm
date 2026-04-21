@@ -62,10 +62,10 @@ function AuthedLayout() {
         <Route path="pessoas" element={<Pessoas />} />
         <Route path="negocios" element={<Negocios />} />
         <Route path="funil" element={<Funil />} />
-        <Route path="tasks" element={<Tasks />} />
+        <Route path="tasks" element={<GatedTasks />} />
         <Route path="inbox" element={<GatedInbox />} />
         <Route path="companies" element={<Companies />} />
-        <Route path="analytics" element={<Analytics />} />
+        <Route path="analytics" element={<GatedAnalytics />} />
         <Route path="settings" element={<Settings />} />
         <Route path="perfil" element={<Perfil />} />
         <Route path="admin" element={<Admin />} />
@@ -81,6 +81,20 @@ function GatedInbox() {
   if (isLoading) return null;
   if (!has('inbox')) return <FeatureLockedScreen feature="inbox" />;
   return <Inbox />;
+}
+
+function GatedAnalytics() {
+  const { has, isLoading } = useFeatures();
+  if (isLoading) return null;
+  if (!has('analytics')) return <FeatureLockedScreen feature="analytics" />;
+  return <Analytics />;
+}
+
+function GatedTasks() {
+  const { has, isLoading } = useFeatures();
+  if (isLoading) return null;
+  if (!has('tasks')) return <FeatureLockedScreen feature="tasks" />;
+  return <Tasks />;
 }
 
 export default function App() {
