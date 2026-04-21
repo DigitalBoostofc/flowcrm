@@ -1,11 +1,12 @@
-import { Controller, Get, Post, Patch, Delete, Body, Param, HttpCode, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Delete, Body, Param, Query, HttpCode, UseGuards } from '@nestjs/common';
 import { LabelsService } from './labels.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { IsString, IsOptional, MaxLength } from 'class-validator';
+import { IsString, IsOptional, MaxLength, IsUUID } from 'class-validator';
 
 class CreateLabelDto {
   @IsString() @MaxLength(100) name: string;
   @IsString() @MaxLength(20) color: string;
+  @IsOptional() @IsUUID() pipelineId?: string;
 }
 
 class UpdateLabelDto {
@@ -19,7 +20,9 @@ export class LabelsController {
   constructor(private service: LabelsService) {}
 
   @Get()
-  findAll() { return this.service.findAll(); }
+  findAll(@Query('pipelineId') pipelineId?: string) {
+    return this.service.findAll(pipelineId);
+  }
 
   @Post()
   create(@Body() dto: CreateLabelDto) { return this.service.create(dto); }

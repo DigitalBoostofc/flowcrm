@@ -13,6 +13,10 @@ export class Label {
   @Index()
   workspaceId: string;
 
+  @Column({ type: 'uuid', nullable: true })
+  @Index()
+  pipelineId: string | null;
+
   @Column({ type: 'varchar', length: 100, default: '' })
   name: string;
 

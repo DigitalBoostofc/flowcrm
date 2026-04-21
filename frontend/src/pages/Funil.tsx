@@ -495,10 +495,7 @@ function EtapasFunilModal({
 
           {tab === 'etiquetas' && (
             <div className="max-w-md">
-              <p className="text-xs mb-4" style={{ color: 'var(--ink-3)' }}>
-                Etiquetas são globais ao workspace e podem ser aplicadas a qualquer negócio neste ou em outros funis.
-              </p>
-              <LabelsManager />
+              <LabelsManager pipelineId={pipeline.id} />
             </div>
           )}
 

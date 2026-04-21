@@ -13,14 +13,17 @@ export class LabelsService {
     private readonly tenant: TenantContext,
   ) {}
 
-  findAll(): Promise<Label[]> {
+  findAll(pipelineId?: string): Promise<Label[]> {
     const workspaceId = this.tenant.requireWorkspaceId();
-    return this.labelRepo.find({ where: { workspaceId }, order: { createdAt: 'ASC' } });
+    const where: any = { workspaceId };
+    if (pipelineId) where.pipelineId = pipelineId;
+    else where.pipelineId = null;
+    return this.labelRepo.find({ where, order: { createdAt: 'ASC' } });
   }
 
-  create(data: { name: string; color: string }): Promise<Label> {
+  create(data: { name: string; color: string; pipelineId?: string | null }): Promise<Label> {
     const workspaceId = this.tenant.requireWorkspaceId();
-    const label = this.labelRepo.create({ ...data, workspaceId });
+    const label = this.labelRepo.create({ ...data, workspaceId, pipelineId: data.pipelineId ?? null });
     return this.labelRepo.save(label);
   }
 

@@ -7,12 +7,12 @@ export interface Label {
   createdAt: string;
 }
 
-export async function listLabels(): Promise<Label[]> {
-  const res = await api.get<Label[]>('/labels');
+export async function listLabels(pipelineId?: string): Promise<Label[]> {
+  const res = await api.get<Label[]>('/labels', { params: pipelineId ? { pipelineId } : {} });
   return res.data;
 }
 
-export async function createLabel(data: { name: string; color: string }): Promise<Label> {
+export async function createLabel(data: { name: string; color: string; pipelineId?: string }): Promise<Label> {
   const res = await api.post<Label>('/labels', data);
   return res.data;
 }

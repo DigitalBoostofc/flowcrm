@@ -94,26 +94,31 @@ function LabelForm({ label, onSave, onCancel }: {
   );
 }
 
-export default function LabelsManager() {
+export default function LabelsManager({ pipelineId }: { pipelineId?: string }) {
   const qc = useQueryClient();
-  const { data: labels = [] } = useQuery({ queryKey: ['labels'], queryFn: listLabels });
+  const queryKey = ['labels', pipelineId ?? 'workspace'];
+  const { data: labels = [] } = useQuery({
+    queryKey,
+    queryFn: () => listLabels(pipelineId),
+  });
   const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState<Label | null>(null);
 
   const createMut = useMutation({
-    mutationFn: createLabel,
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['labels'] }); setCreating(false); },
+    mutationFn: (data: { name: string; color: string }) =>
+      createLabel({ ...data, pipelineId }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey }); setCreating(false); },
   });
 
   const updateMut = useMutation({
     mutationFn: ({ id, ...data }: { id: string; name: string; color: string }) =>
       updateLabel(id, data),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['labels'] }); setEditing(null); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey }); setEditing(null); },
   });
 
   const deleteMut = useMutation({
     mutationFn: deleteLabel,
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['labels'] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey }),
   });
 
   return (
@@ -140,14 +145,14 @@ export default function LabelsManager() {
             key={label.id}
             label={label}
             onEdit={setEditing}
-            onDelete={l => confirm(`Excluir etiqueta "${l.name}"?`) && deleteMut.mutate(l.id)}
+            onDelete={l => { if (confirm(`Excluir etiqueta "${l.name}"?`)) deleteMut.mutate(l.id); }}
           />
         )
       ))}
 
       {labels.length === 0 && !creating && (
         <p className="text-xs text-center py-4" style={{ color: 'var(--ink-3)' }}>
-          Nenhuma etiqueta ainda. Crie sua primeira etiqueta.
+          Nenhuma etiqueta ainda. Crie a primeira etiqueta deste funil.
         </p>
       )}
 

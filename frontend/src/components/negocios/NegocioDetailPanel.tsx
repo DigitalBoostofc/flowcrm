@@ -884,6 +884,7 @@ function LeadLabelsRow({ lead }: { lead: Lead }) {
         <LabelPicker
           leadId={lead.id}
           leadLabels={labels}
+          pipelineId={lead.pipelineId ?? undefined}
           onClose={() => setPickerOpen(false)}
           anchorRef={btnRef}
         />
