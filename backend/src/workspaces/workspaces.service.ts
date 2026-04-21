@@ -61,6 +61,11 @@ export class WorkspacesService {
     await this.repo.update(id, { ownerUserId });
   }
 
+  async updateSettings(id: string, data: { defaultLeadPrivacy?: 'all' | 'restricted' }): Promise<Workspace> {
+    await this.repo.update(id, data as any);
+    return this.findOne(id);
+  }
+
   async updateSubscription(
     id: string,
     status: Workspace['subscriptionStatus'],

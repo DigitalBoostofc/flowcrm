@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
   GitBranch, XCircle, Users2, Tags, Building2, Radio, FileText,
-  Zap, User as UserIcon, Puzzle, Server, AlertTriangle, Package,
+  Zap, User as UserIcon, Puzzle, Server, AlertTriangle, Package, Lock,
 } from 'lucide-react';
 import { useAuthStore } from '@/store/auth.store';
 import { useWorkspace } from '@/hooks/useWorkspace';
@@ -19,13 +19,15 @@ import IntegrationsTab from '@/components/settings/IntegrationsTab';
 import SistemaTab from '@/components/settings/SistemaTab';
 import DangerZoneTab from '@/components/settings/DangerZoneTab';
 import ProdutosServicosTab from '@/components/settings/ProdutosServicosTab';
+import PrivacidadeTab from '@/components/settings/PrivacidadeTab';
 import { FeatureLockedScreen } from '@/components/ui/FeatureGate';
 import { useFeatures } from '@/hooks/useFeatures';
 
 type Tab =
   | 'funis-etapas' | 'motivos-perda' | 'origens-clientes'
   | 'categorias-clientes' | 'setores' | 'produtos-servicos' | 'channels'
-  | 'templates' | 'automations' | 'agents' | 'integrations' | 'sistema' | 'danger';
+  | 'templates' | 'automations' | 'agents' | 'integrations' | 'sistema' | 'danger'
+  | 'privacidade';
 
 interface NavItem { id: Tab; label: string; icon: typeof GitBranch; ownerOnly?: boolean; platformAdminOnly?: boolean; danger?: boolean; feature?: string }
 interface NavGroup { title: string; items: NavItem[] }
@@ -70,6 +72,12 @@ const GROUPS: NavGroup[] = [
     title: 'Integrações',
     items: [
       { id: 'integrations',         label: 'Google Calendar',       icon: Puzzle },
+    ],
+  },
+  {
+    title: 'Segurança',
+    items: [
+      { id: 'privacidade',          label: 'Privacidade',           icon: Lock,          ownerOnly: true },
     ],
   },
   {
@@ -200,6 +208,7 @@ export default function Settings() {
           {tab === 'automations'         && (has('automations') ? <AutomationsTab /> : <FeatureLockedScreen feature="automations" />)}
           {tab === 'agents'              && <AgentsTab />}
           {tab === 'integrations'        && <IntegrationsTab />}
+          {tab === 'privacidade'         && <PrivacidadeTab />}
           {tab === 'sistema'             && <SistemaTab />}
           {tab === 'danger'              && <DangerZoneTab />}
         </div>

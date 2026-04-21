@@ -753,6 +753,8 @@ export function AddNegocioModal({
     [pipelines],
   );
 
+  const { data: workspaceData } = useQuery({ queryKey: ['workspace-me'], queryFn: () => import('@/api/workspace').then(m => m.getMyWorkspace()) });
+
   const [contact, setContact] = useState<Contact | null>(null);
   const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
   const [title, setTitle] = useState('');
@@ -778,7 +780,7 @@ export function AddNegocioModal({
     setStartDate('');
     setConclusionDate('');
     setNotes('');
-    setPrivacy('all');
+    setPrivacy(workspaceData?.defaultLeadPrivacy ?? 'all');
     setAdditionalAccess([]);
     setProducts([]);
     setError('');

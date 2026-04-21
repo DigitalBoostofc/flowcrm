@@ -45,6 +45,9 @@ export class Workspace {
   @Column({ type: 'boolean', default: false })
   cancelAtPeriodEnd: boolean;
 
+  @Column({ type: 'varchar', length: 20, default: 'all' })
+  defaultLeadPrivacy: 'all' | 'restricted';
+
   @CreateDateColumn()
   createdAt: Date;
 

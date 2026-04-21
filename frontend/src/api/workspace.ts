@@ -12,12 +12,18 @@ export interface WorkspaceMe {
   trialDaysLeft: number;
   isBlocked: boolean;
   isPlatformAdmin?: boolean;
+  defaultLeadPrivacy: 'all' | 'restricted';
   createdAt: string;
   updatedAt: string;
 }
 
 export async function getMyWorkspace(): Promise<WorkspaceMe> {
   const res = await api.get<WorkspaceMe>('/workspace/me');
+  return res.data;
+}
+
+export async function updateWorkspaceSettings(data: { defaultLeadPrivacy?: 'all' | 'restricted' }): Promise<WorkspaceMe> {
+  const res = await api.patch<WorkspaceMe>('/workspace/me/settings', data);
   return res.data;
 }
 

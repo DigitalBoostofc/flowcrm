@@ -1,8 +1,9 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { IsNull, LessThan, Repository } from 'typeorm';
+import { Brackets, IsNull, Repository } from 'typeorm';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { Lead, LeadStatus } from './entities/lead.entity';
+import { UserRole } from '../users/entities/user.entity';
 import { Stage } from '../stages/entities/stage.entity';
 import { Contact } from '../contacts/entities/contact.entity';
 import { CreateLeadDto } from './dto/create-lead.dto';
@@ -35,29 +36,66 @@ export class LeadsService {
     return this.repo.save(lead) as Promise<any> as Promise<Lead>;
   }
 
-  findByPipeline(pipelineId: string, staleDays?: number): Promise<Lead[]> {
+  findByPipeline(pipelineId: string, staleDays?: number, currentUserId?: string, userRole?: string): Promise<Lead[]> {
     const workspaceId = this.tenant.requireWorkspaceId();
-    const where: any = { pipelineId, workspaceId, archivedAt: IsNull() };
+    const qb = this.repo.createQueryBuilder('lead')
+      .leftJoinAndSelect('lead.contact', 'contact')
+      .leftJoinAndSelect('lead.company', 'company')
+      .leftJoinAndSelect('lead.stage', 'stage')
+      .leftJoinAndSelect('lead.assignedTo', 'assignedTo')
+      .leftJoinAndSelect('lead.createdBy', 'createdBy')
+      .leftJoinAndSelect('lead.pipeline', 'pipeline')
+      .leftJoinAndSelect('lead.labels', 'labels')
+      .where('lead.pipelineId = :pipelineId', { pipelineId })
+      .andWhere('lead.workspaceId = :workspaceId', { workspaceId })
+      .andWhere('lead.archivedAt IS NULL')
+      .orderBy('lead.createdAt', 'ASC');
+
     if (staleDays) {
       const cutoff = new Date();
       cutoff.setDate(cutoff.getDate() - staleDays);
-      where.stageEnteredAt = LessThan(cutoff);
-      where.status = LeadStatus.ACTIVE;
+      qb.andWhere('lead.stageEnteredAt < :cutoff', { cutoff })
+        .andWhere('lead.status = :status', { status: LeadStatus.ACTIVE });
     }
-    return this.repo.find({
-      where,
-      relations: ['contact', 'company', 'stage', 'assignedTo', 'createdBy', 'pipeline', 'labels'],
-      order: { createdAt: 'ASC' },
-    });
+
+    const privileged = userRole === UserRole.OWNER || userRole === UserRole.MANAGER;
+    if (currentUserId && !privileged) {
+      qb.andWhere(new Brackets(qb2 => {
+        qb2.where('lead.privacy = :all', { all: 'all' })
+          .orWhere('lead.createdById = :uid', { uid: currentUserId })
+          .orWhere('lead.assignedToId = :uid2', { uid2: currentUserId })
+          .orWhere(`lead.additionalAccessUserIds @> :uidJson::jsonb`, { uidJson: JSON.stringify([currentUserId]) });
+      }));
+    }
+
+    return qb.getMany();
   }
 
-  findAll(): Promise<Lead[]> {
+  findAll(currentUserId?: string, userRole?: string): Promise<Lead[]> {
     const workspaceId = this.tenant.requireWorkspaceId();
-    return this.repo.find({
-      where: { workspaceId, archivedAt: IsNull() },
-      relations: ['contact', 'company', 'stage', 'assignedTo', 'createdBy', 'pipeline', 'labels'],
-      order: { createdAt: 'DESC' },
-    });
+    const qb = this.repo.createQueryBuilder('lead')
+      .leftJoinAndSelect('lead.contact', 'contact')
+      .leftJoinAndSelect('lead.company', 'company')
+      .leftJoinAndSelect('lead.stage', 'stage')
+      .leftJoinAndSelect('lead.assignedTo', 'assignedTo')
+      .leftJoinAndSelect('lead.createdBy', 'createdBy')
+      .leftJoinAndSelect('lead.pipeline', 'pipeline')
+      .leftJoinAndSelect('lead.labels', 'labels')
+      .where('lead.workspaceId = :workspaceId', { workspaceId })
+      .andWhere('lead.archivedAt IS NULL')
+      .orderBy('lead.createdAt', 'DESC');
+
+    const privileged = userRole === UserRole.OWNER || userRole === UserRole.MANAGER;
+    if (currentUserId && !privileged) {
+      qb.andWhere(new Brackets(qb2 => {
+        qb2.where('lead.privacy = :all', { all: 'all' })
+          .orWhere('lead.createdById = :uid', { uid: currentUserId })
+          .orWhere('lead.assignedToId = :uid2', { uid2: currentUserId })
+          .orWhere(`lead.additionalAccessUserIds @> :uidJson::jsonb`, { uidJson: JSON.stringify([currentUserId]) });
+      }));
+    }
+
+    return qb.getMany();
   }
 
   async findOne(id: string): Promise<Lead> {

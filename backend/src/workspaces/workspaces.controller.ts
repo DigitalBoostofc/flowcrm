@@ -1,4 +1,4 @@
-import { Controller, Get, Delete, UseGuards, Req } from '@nestjs/common';
+import { Controller, Get, Patch, Delete, Body, UseGuards, Req } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
@@ -21,6 +21,16 @@ export class WorkspacesController {
     return Object.assign(workspace, {
       isPlatformAdmin: isPlatformAdminEmail(req.user.email),
     });
+  }
+
+  @Patch('me/settings')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.OWNER)
+  async updateSettings(
+    @Req() req: AuthedRequest,
+    @Body() body: { defaultLeadPrivacy?: 'all' | 'restricted' },
+  ) {
+    return this.service.updateSettings(req.user.workspaceId, body);
   }
 
   @Delete('me')

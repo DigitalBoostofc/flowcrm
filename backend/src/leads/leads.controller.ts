@@ -22,11 +22,14 @@ export class LeadsController {
 
   @Get()
   list(
+    @Req() req: any,
     @Query('pipelineId') pipelineId?: string,
     @Query('staleDays') staleDays?: string,
   ) {
-    if (!pipelineId) return this.leadsService.findAll();
-    return this.leadsService.findByPipeline(pipelineId, staleDays ? parseInt(staleDays) : undefined);
+    const userId: string | undefined = req.user?.sub;
+    const role: string | undefined = req.user?.role;
+    if (!pipelineId) return this.leadsService.findAll(userId, role);
+    return this.leadsService.findByPipeline(pipelineId, staleDays ? parseInt(staleDays) : undefined, userId, role);
   }
 
   @Get(':id')
