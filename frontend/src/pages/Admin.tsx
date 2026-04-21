@@ -2,25 +2,23 @@ import { useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuthStore } from '@/store/auth.store';
 import {
-  Shield, Users, Radio, UserPlus, CreditCard, Megaphone, Flag, ScrollText, Gauge, Package,
+  Shield, Users, Radio, CreditCard, Megaphone, Flag, ScrollText, Gauge, Package,
 } from 'lucide-react';
 import OverviewTab from '@/components/admin/OverviewTab';
 import WorkspacesTab from '@/components/admin/WorkspacesTab';
 import ChannelsTab from '@/components/admin/ChannelsTab';
-import SignupsTab from '@/components/admin/SignupsTab';
 import SubscriptionsTab from '@/components/admin/SubscriptionsTab';
 import BroadcastsTab from '@/components/admin/BroadcastsTab';
 import FeatureFlagsTab from '@/components/admin/FeatureFlagsTab';
 import AuditTab from '@/components/admin/AuditTab';
 import PlansTab from '@/components/admin/PlansTab';
 
-type TabId = 'overview' | 'workspaces' | 'channels' | 'signups' | 'plans' | 'subscriptions' | 'broadcasts' | 'flags' | 'audit';
+type TabId = 'overview' | 'workspaces' | 'channels' | 'plans' | 'subscriptions' | 'broadcasts' | 'flags' | 'audit';
 
 const TABS: { id: TabId; label: string; icon: typeof Shield }[] = [
   { id: 'overview', label: 'Visão geral', icon: Gauge },
   { id: 'workspaces', label: 'Workspaces', icon: Users },
   { id: 'channels', label: 'Canais', icon: Radio },
-  { id: 'signups', label: 'Cadastros', icon: UserPlus },
   { id: 'plans', label: 'Planos', icon: Package },
   { id: 'subscriptions', label: 'Assinaturas', icon: CreditCard },
   { id: 'broadcasts', label: 'Broadcasts', icon: Megaphone },
@@ -82,7 +80,6 @@ export default function Admin() {
         {tab === 'overview' && <OverviewTab />}
         {tab === 'workspaces' && <WorkspacesTab />}
         {tab === 'channels' && <ChannelsTab />}
-        {tab === 'signups' && <SignupsTab />}
         {tab === 'plans' && <PlansTab />}
         {tab === 'subscriptions' && <SubscriptionsTab />}
         {tab === 'broadcasts' && <BroadcastsTab />}
