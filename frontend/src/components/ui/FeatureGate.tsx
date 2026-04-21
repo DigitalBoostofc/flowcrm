@@ -1,5 +1,4 @@
 import { ReactNode, useEffect, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { Lock, Zap } from 'lucide-react';
 import { useFeatures } from '@/hooks/useFeatures';
 
@@ -76,8 +75,7 @@ function LockedWrapper({
   );
 }
 
-function UpgradePopover({ feature, onClose }: { feature: string; onClose: () => void }) {
-  const navigate = useNavigate();
+function UpgradePopover({ feature, onClose: _onClose }: { feature: string; onClose: () => void }) {
   const label = FEATURE_LABELS[feature] ?? 'Essa função';
 
   return (
@@ -100,21 +98,23 @@ function UpgradePopover({ feature, onClose }: { feature: string; onClose: () => 
           <Zap className="w-3.5 h-3.5 text-white" fill="white" strokeWidth={2.5} />
         </div>
         <h4 className="text-sm font-semibold" style={{ color: 'var(--ink-1)' }}>
-          Turbine seu CRM
+          Em desenvolvimento
         </h4>
       </div>
       <p className="text-xs mb-3" style={{ color: 'var(--ink-2)' }}>
-        <strong>{label}</strong> está disponível no plano Performance. Desbloqueie Inbox, Automações, Templates e Canais WhatsApp fazendo upgrade.
+        <strong>{label}</strong> será liberada em breve para todos os planos. Fique de olho nas próximas atualizações.
       </p>
       <button
-        onClick={() => {
-          onClose();
-          navigate('/assinar?plan=performance');
+        disabled
+        aria-disabled
+        className="w-full py-2 text-xs font-medium rounded-lg cursor-not-allowed"
+        style={{
+          background: 'var(--surface-hover)',
+          color: 'var(--ink-3)',
+          border: '1px solid var(--edge)',
         }}
-        className="w-full py-2 text-xs font-medium rounded-lg text-white"
-        style={{ background: 'var(--brand-500)' }}
       >
-        Fazer upgrade
+        Em breve
       </button>
     </div>
   );
@@ -128,7 +128,6 @@ const FEATURE_LABELS: Record<string, string> = {
 };
 
 export function FeatureLockedScreen({ feature }: { feature: string }) {
-  const navigate = useNavigate();
   const label = FEATURE_LABELS[feature] ?? 'Esta função';
   return (
     <div
@@ -154,20 +153,22 @@ export function FeatureLockedScreen({ feature }: { feature: string }) {
           <Zap className="w-7 h-7 text-white" fill="white" strokeWidth={2.5} />
         </div>
         <h2 className="text-xl font-semibold mb-2" style={{ color: 'var(--ink-1)' }}>
-          Turbine seu CRM com Performance
+          Em breve
         </h2>
         <p className="text-sm mb-6" style={{ color: 'var(--ink-2)' }}>
-          <strong>{label}</strong> faz parte do plano Performance. Desbloqueie Inbox, Automações, Templates e Canais WhatsApp para acelerar seu time.
+          <strong>{label}</strong> ainda está em desenvolvimento e será liberada em breve para todos os planos.
         </p>
         <button
-          onClick={() => navigate('/assinar?plan=performance')}
-          className="w-full py-2.5 text-sm font-medium rounded-lg text-white transition-transform hover:scale-[1.02]"
+          disabled
+          aria-disabled
+          className="w-full py-2.5 text-sm font-medium rounded-lg cursor-not-allowed"
           style={{
-            background: 'linear-gradient(135deg, #635BFF 0%, #4B44E8 100%)',
-            boxShadow: '0 6px 20px rgba(99,91,255,0.45)',
+            background: 'var(--surface-hover)',
+            color: 'var(--ink-3)',
+            border: '1px solid var(--edge)',
           }}
         >
-          Fazer upgrade agora
+          Em breve
         </button>
       </div>
       <style>{`
