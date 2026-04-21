@@ -152,6 +152,12 @@ export default function LeadInfo({ leadId, stages = [] }: Props) {
         {lead.status === 'lost' && lead.lossReason && (
           <p className="text-xs mt-2 pl-1" style={{ color: '#f87171' }}>Motivo: {lead.lossReason}</p>
         )}
+        {lead.status === 'frozen' && (
+          <div className="mt-2 pl-1 space-y-0.5">
+            {lead.freezeReason && <p className="text-xs" style={{ color: '#0284c7' }}>❄ {lead.freezeReason}</p>}
+            {lead.frozenReturnDate && <p className="text-xs" style={{ color: '#0284c7' }}>↩ Retorno: {new Date(lead.frozenReturnDate + 'T12:00:00').toLocaleDateString('pt-BR')}</p>}
+          </div>
+        )}
       </div>
 
       {/* Archive */}

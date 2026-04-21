@@ -134,11 +134,9 @@ export class LeadsService {
   async updateStatus(id: string, dto: UpdateLeadStatusDto): Promise<Lead> {
     const lead = await this.findOne(id);
     lead.status = dto.status;
-    if (dto.status === LeadStatus.LOST) {
-      lead.lossReason = (dto.lossReason ?? null) as any;
-    } else {
-      lead.lossReason = null as any;
-    }
+    lead.lossReason = dto.status === LeadStatus.LOST ? (dto.lossReason ?? null) as any : null as any;
+    lead.freezeReason = dto.status === LeadStatus.FROZEN ? (dto.freezeReason ?? null) : null;
+    lead.frozenReturnDate = dto.status === LeadStatus.FROZEN ? (dto.frozenReturnDate ?? null) : null;
     return this.repo.save(lead);
   }
 

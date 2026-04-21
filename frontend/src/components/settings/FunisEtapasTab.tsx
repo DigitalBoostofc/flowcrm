@@ -116,8 +116,8 @@ export default function FunisEtapasTab() {
   });
 
   const updateStatusMut = useMutation({
-    mutationFn: ({ id, status, lossReason }: { id: string; status: LeadStatus; lossReason?: string }) =>
-      updateLeadStatus(id, status, lossReason),
+    mutationFn: ({ id, status, extra }: { id: string; status: LeadStatus; extra?: { lossReason?: string; freezeReason?: string; frozenReturnDate?: string } }) =>
+      updateLeadStatus(id, status, extra),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['leads', selectedId, 'all'] }),
   });
 
@@ -722,8 +722,8 @@ export default function FunisEtapasTab() {
                           <StatusDropdown
                             lead={lead}
                             lossReasons={lossReasons}
-                            onUpdate={(id, status, lossReason) =>
-                              updateStatusMut.mutate({ id, status, lossReason })
+                            onUpdate={(id, status, extra) =>
+                              updateStatusMut.mutate({ id, status, extra })
                             }
                           />
                         </div>

@@ -16,7 +16,7 @@ export interface LoginResponse {
   user: User;
 }
 
-export type LeadStatus = 'active' | 'won' | 'lost';
+export type LeadStatus = 'active' | 'won' | 'lost' | 'frozen';
 export type ActivityType = 'note' | 'call' | 'whatsapp' | 'meeting' | 'visit' | 'proposal';
 
 export type ContactPrivacy = 'all' | 'restricted';
@@ -114,6 +114,8 @@ export interface Lead {
   title?: string | null;
   status: LeadStatus;
   lossReason?: string | null;
+  freezeReason?: string | null;
+  frozenReturnDate?: string | null;
   customerOriginId?: string | null;
   customerOrigin?: { id: string; name: string } | null;
   startDate?: string | null;

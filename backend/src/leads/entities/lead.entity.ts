@@ -11,6 +11,7 @@ export enum LeadStatus {
   ACTIVE = 'active',
   WON = 'won',
   LOST = 'lost',
+  FROZEN = 'frozen',
 }
 
 export enum LeadPrivacy {
@@ -100,6 +101,12 @@ export class Lead {
 
   @Column({ nullable: true })
   lossReason: string;
+
+  @Column({ type: 'text', nullable: true })
+  freezeReason: string | null;
+
+  @Column({ type: 'date', nullable: true })
+  frozenReturnDate: string | null;
 
   @Column({ type: 'date', nullable: true })
   startDate: string;

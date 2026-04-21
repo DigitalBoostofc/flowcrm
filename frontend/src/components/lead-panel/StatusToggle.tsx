@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Trophy, CircleDot, XCircle } from 'lucide-react';
+import { Trophy, CircleDot, XCircle, Snowflake } from 'lucide-react';
 import { updateLeadStatus } from '@/api/leads';
 import { listLossReasons } from '@/api/loss-reasons';
 import type { Lead, LeadStatus } from '@/types/api';
@@ -12,14 +12,18 @@ interface Props {
 
 const STATUS_CONFIG = {
   active: { label: 'Em andamento', icon: CircleDot, color: 'text-slate-400 bg-slate-700' },
-  won: { label: 'Ganho', icon: Trophy, color: 'text-emerald-400 bg-emerald-400/10 border-emerald-400/30' },
-  lost: { label: 'Perdido', icon: XCircle, color: 'text-red-400 bg-red-400/10 border-red-400/30' },
+  won:    { label: 'Ganho',        icon: Trophy,    color: 'text-emerald-400 bg-emerald-400/10 border-emerald-400/30' },
+  lost:   { label: 'Perdido',      icon: XCircle,   color: 'text-red-400 bg-red-400/10 border-red-400/30' },
+  frozen: { label: 'Congelado',    icon: Snowflake, color: 'text-sky-400 bg-sky-400/10 border-sky-400/30' },
 } as const;
 
 export default function StatusToggle({ lead }: Props) {
   const qc = useQueryClient();
   const [showLossModal, setShowLossModal] = useState(false);
+  const [showFreezeModal, setShowFreezeModal] = useState(false);
   const [lossReason, setLossReason] = useState('');
+  const [freezeReason, setFreezeReason] = useState('');
+  const [frozenReturnDate, setFrozenReturnDate] = useState('');
 
   const { data: reasons = [] } = useQuery({
     queryKey: ['loss-reasons'],
@@ -28,8 +32,8 @@ export default function StatusToggle({ lead }: Props) {
   });
 
   const mutation = useMutation({
-    mutationFn: ({ status, reason }: { status: LeadStatus; reason?: string }) =>
-      updateLeadStatus(lead.id, status, reason),
+    mutationFn: ({ status, extra }: { status: LeadStatus; extra?: { lossReason?: string; freezeReason?: string; frozenReturnDate?: string } }) =>
+      updateLeadStatus(lead.id, status, extra),
     onSuccess: (updated) => {
       qc.setQueryData<Lead>(['lead', lead.id], updated);
       qc.invalidateQueries({ queryKey: ['leads'] });
@@ -38,23 +42,25 @@ export default function StatusToggle({ lead }: Props) {
 
   const handleClick = (status: LeadStatus) => {
     if (status === lead.status) return;
-    if (status === 'lost') {
-      setLossReason('');
-      setShowLossModal(true);
-      return;
-    }
+    if (status === 'lost') { setLossReason(''); setShowLossModal(true); return; }
+    if (status === 'frozen') { setFreezeReason(''); setFrozenReturnDate(''); setShowFreezeModal(true); return; }
     mutation.mutate({ status });
   };
 
   const confirmLoss = () => {
-    mutation.mutate({ status: 'lost', reason: lossReason || undefined });
+    mutation.mutate({ status: 'lost', extra: { lossReason: lossReason || undefined } });
     setShowLossModal(false);
+  };
+
+  const confirmFreeze = () => {
+    mutation.mutate({ status: 'frozen', extra: { freezeReason: freezeReason || undefined, frozenReturnDate: frozenReturnDate || undefined } });
+    setShowFreezeModal(false);
   };
 
   return (
     <>
       <div className="flex gap-1 p-1 bg-slate-900/50 rounded-lg border border-slate-700">
-        {(['active', 'won', 'lost'] as LeadStatus[]).map((s) => {
+        {(['active', 'won', 'lost', 'frozen'] as LeadStatus[]).map((s) => {
           const cfg = STATUS_CONFIG[s];
           const Icon = cfg.icon;
           const active = lead.status === s;
@@ -107,11 +113,39 @@ export default function StatusToggle({ lead }: Props) {
             <button onClick={() => setShowLossModal(false)} className="px-4 py-2 text-sm text-slate-400 hover:text-white">
               Cancelar
             </button>
-            <button
-              onClick={confirmLoss}
-              className="px-4 py-2 text-sm bg-red-500 hover:bg-red-600 text-white rounded-lg"
-            >
+            <button onClick={confirmLoss} className="px-4 py-2 text-sm bg-red-500 hover:bg-red-600 text-white rounded-lg">
               Confirmar perda
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal open={showFreezeModal} onClose={() => setShowFreezeModal(false)} title="Congelar negócio">
+        <div className="p-4 space-y-4">
+          <p className="text-sm text-slate-400">Informe opcionalmente o motivo e a data prevista de retorno.</p>
+          <input
+            autoFocus
+            type="text"
+            placeholder="Motivo (ex: Aguardando orçamento)"
+            value={freezeReason}
+            onChange={(e) => setFreezeReason(e.target.value)}
+            className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-sm text-slate-100 focus:outline-none focus:border-brand-500"
+          />
+          <div>
+            <label className="text-xs text-slate-400 block mb-1">Data de retorno prevista</label>
+            <input
+              type="date"
+              value={frozenReturnDate}
+              onChange={(e) => setFrozenReturnDate(e.target.value)}
+              className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-sm text-slate-100 focus:outline-none focus:border-brand-500"
+            />
+          </div>
+          <div className="flex gap-2 justify-end">
+            <button onClick={() => setShowFreezeModal(false)} className="px-4 py-2 text-sm text-slate-400 hover:text-white">
+              Cancelar
+            </button>
+            <button onClick={confirmFreeze} className="px-4 py-2 text-sm bg-sky-500 hover:bg-sky-600 text-white rounded-lg">
+              Congelar
             </button>
           </div>
         </div>

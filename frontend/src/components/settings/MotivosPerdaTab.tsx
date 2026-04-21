@@ -184,7 +184,7 @@ function JustifyModal({
   const { data: reasons = [] } = useQuery({ queryKey: ['loss-reasons'], queryFn: listLossReasons });
 
   const mutation = useMutation({
-    mutationFn: (r: string) => updateLeadStatus(lead.id, 'lost', r),
+    mutationFn: (r: string) => updateLeadStatus(lead.id, 'lost', { lossReason: r }),
     onSuccess: () => onSaved(),
   });
 

@@ -1,17 +1,18 @@
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { MessageSquare, User as UserIcon, Trophy, XCircle, Clock } from 'lucide-react';
+import { MessageSquare, User as UserIcon, Trophy, XCircle, Clock, Snowflake } from 'lucide-react';
 import type { Lead } from '@/types/api';
 import { formatBRL } from '@/lib/format';
 import { usePanelStore } from '@/store/panel.store';
 
 interface Props { lead: Lead; }
 
-const STATUS_BADGE = {
-  won: { icon: Trophy, color: '#10b981' },
-  lost: { icon: XCircle, color: '#ef4444' },
+const STATUS_BADGE: Record<string, { icon: typeof Trophy; color: string } | null> = {
+  won:    { icon: Trophy,    color: '#10b981' },
+  lost:   { icon: XCircle,  color: '#ef4444' },
+  frozen: { icon: Snowflake, color: '#0ea5e9' },
   active: null,
-} as const;
+};
 
 function daysSinceUpdate(dateStr: string): number {
   return Math.floor((Date.now() - new Date(dateStr).getTime()) / 86400000);
@@ -42,6 +43,8 @@ export default function LeadCard({ lead }: Props) {
     ? { background: 'rgba(16,185,129,0.07)', borderColor: 'rgba(16,185,129,0.22)' }
     : lead.status === 'lost'
     ? { background: 'rgba(239,68,68,0.05)', borderColor: 'rgba(239,68,68,0.14)', opacity: 0.5 }
+    : lead.status === 'frozen'
+    ? { background: 'rgba(14,165,233,0.05)', borderColor: 'rgba(14,165,233,0.18)' }
     : {};
 
   return (
@@ -57,7 +60,7 @@ export default function LeadCard({ lead }: Props) {
       }}
       className="cursor-grab active:cursor-grabbing rounded-xl p-3 group relative overflow-hidden glass"
       onMouseEnter={(e) => {
-        if (lead.status !== 'lost') {
+        if (lead.status !== 'lost' && lead.status !== 'frozen') {
           (e.currentTarget as HTMLDivElement).style.transform = isDragging ? '' : 'translateY(-1px)';
           (e.currentTarget as HTMLDivElement).style.boxShadow = 'var(--shadow-elevated)';
         }
@@ -70,6 +73,12 @@ export default function LeadCard({ lead }: Props) {
       {/* Top shimmer line on hover */}
       {lead.status === 'active' && (
         <span className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-brand-500/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+      )}
+      {lead.status === 'frozen' && (lead.freezeReason || lead.frozenReturnDate) && (
+        <div className="mb-2 flex flex-col gap-0.5 text-[10px] rounded-md px-2 py-1" style={{ background: 'rgba(14,165,233,0.08)', color: '#0284c7' }}>
+          {lead.freezeReason && <span>❄ {lead.freezeReason}</span>}
+          {lead.frozenReturnDate && <span>↩ {new Date(lead.frozenReturnDate + 'T12:00:00').toLocaleDateString('pt-BR')}</span>}
+        </div>
       )}
 
       <div className="flex items-start justify-between gap-2">

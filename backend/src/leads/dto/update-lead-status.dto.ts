@@ -1,4 +1,4 @@
-import { IsEnum, IsOptional, IsString, MaxLength } from 'class-validator';
+import { IsDateString, IsEnum, IsOptional, IsString, MaxLength } from 'class-validator';
 import { LeadStatus } from '../entities/lead.entity';
 
 export class UpdateLeadStatusDto {
@@ -9,4 +9,13 @@ export class UpdateLeadStatusDto {
   @IsString()
   @MaxLength(200)
   lossReason?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(300)
+  freezeReason?: string;
+
+  @IsOptional()
+  @IsDateString()
+  frozenReturnDate?: string;
 }

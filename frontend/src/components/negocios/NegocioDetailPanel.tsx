@@ -180,9 +180,10 @@ const COMPOSER_TABS: { key: ComposerType; label: string; icon: React.ComponentTy
 /* ── Status meta ─────────────────────────────────────── */
 
 const STATUS_LABELS: Record<LeadStatus, string> = {
-  active: 'Em andamento',
-  won: 'Ganho',
-  lost: 'Perdido',
+  active:  'Em andamento',
+  won:     'Ganho',
+  lost:    'Perdido',
+  frozen:  'Congelado',
 };
 
 /* ── Main panel ──────────────────────────────────────── */
@@ -271,8 +272,8 @@ export default function NegocioDetailPanel({ lead, currentUser, users, pipelines
   });
 
   const statusMut = useMutation({
-    mutationFn: ({ status, lossReason }: { status: LeadStatus; lossReason?: string }) =>
-      updateLeadStatus(lead.id, status, lossReason),
+    mutationFn: ({ status, extra }: { status: LeadStatus; extra?: { lossReason?: string; freezeReason?: string; frozenReturnDate?: string } }) =>
+      updateLeadStatus(lead.id, status, extra),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['negocios'] }),
   });
 
@@ -411,7 +412,7 @@ export default function NegocioDetailPanel({ lead, currentUser, users, pipelines
             <StatusDropdown
               lead={lead}
               lossReasons={lossReasons}
-              onUpdate={(_id, status, lossReason) => statusMut.mutate({ status, lossReason })}
+              onUpdate={(_id, status, extra) => statusMut.mutate({ status, extra })}
             />
             <button
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-[var(--surface-hover)]"

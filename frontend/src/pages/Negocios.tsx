@@ -32,9 +32,10 @@ function formatBRL(value: number) {
 }
 
 const STATUS_META: Record<LeadStatus, { label: string; fg: string; bg: string; dot: string }> = {
-  active: { label: 'Em andamento', fg: '#a16207', bg: '#fef3c7', dot: '#f59e0b' },
-  won: { label: 'Ganho', fg: '#166534', bg: '#dcfce7', dot: '#22c55e' },
-  lost: { label: 'Perdido', fg: '#991b1b', bg: '#fee2e2', dot: '#ef4444' },
+  active:  { label: 'Em andamento', fg: '#a16207', bg: '#fef3c7',   dot: '#f59e0b' },
+  won:     { label: 'Ganho',        fg: '#166534', bg: '#dcfce7',   dot: '#22c55e' },
+  lost:    { label: 'Perdido',      fg: '#991b1b', bg: '#fee2e2',   dot: '#ef4444' },
+  frozen:  { label: 'Congelado',    fg: '#075985', bg: '#e0f2fe',   dot: '#0ea5e9' },
 };
 
 /* ── Status dropdown ─────────────────────────────────── */
@@ -1625,6 +1626,7 @@ export default function Negocios() {
             <option value="active">Em andamento</option>
             <option value="won">Ganho</option>
             <option value="lost">Perdido</option>
+            <option value="frozen">Congelado</option>
           </select>
           <select value={filterPipeline} onChange={e => setFilterPipeline(e.target.value)}
             className="px-3 py-1.5 rounded-lg text-sm outline-none"

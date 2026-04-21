@@ -79,9 +79,9 @@ export async function deleteLead(id: string): Promise<void> {
 export async function updateLeadStatus(
   id: string,
   status: LeadStatus,
-  lossReason?: string,
+  extra?: { lossReason?: string; freezeReason?: string; frozenReturnDate?: string },
 ): Promise<Lead> {
-  const res = await api.patch<Lead>(`/leads/${id}/status`, { status, lossReason });
+  const res = await api.patch<Lead>(`/leads/${id}/status`, { status, ...extra });
   return res.data;
 }
 
