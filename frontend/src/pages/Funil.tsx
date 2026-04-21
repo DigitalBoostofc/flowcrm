@@ -225,7 +225,7 @@ function PersonalizarFunisModal({
 
 /* ── Etapas do Funil modal ───────────────────────────── */
 
-type EtapasTab = 'etapas' | 'status';
+type EtapasTab = 'etapas' | 'etiquetas' | 'status';
 
 function EtapasFunilModal({
   open, onClose, pipeline, onBack,
@@ -345,33 +345,40 @@ function EtapasFunilModal({
         </div>
 
         {/* Tabs */}
-        <div className="flex items-center gap-6 px-6" style={{ borderBottom: '1px solid var(--edge)' }}>
-          <button
-            onClick={() => setTab('etapas')}
-            className="flex items-center gap-2 py-3 text-sm font-medium transition-colors"
-            style={{
-              color: tab === 'etapas' ? 'var(--brand-500, #6366f1)' : 'var(--ink-2)',
-              borderBottom: tab === 'etapas' ? '2px solid var(--brand-500, #6366f1)' : '2px solid transparent',
-            }}
-          >
-            <ListChecks className="w-4 h-4" />
-            Etapas do funil
-          </button>
+        <div className="flex items-center gap-1 px-6" style={{ borderBottom: '1px solid var(--edge)' }}>
+          {([
+            { id: 'etapas',    icon: ListChecks, label: 'Etapas' },
+            { id: 'etiquetas', icon: Tag,        label: 'Etiquetas' },
+          ] as { id: EtapasTab; icon: typeof Tag; label: string }[]).map(({ id, icon: Icon, label }) => (
+            <button
+              key={id}
+              onClick={() => setTab(id)}
+              className="flex items-center gap-2 py-3 px-1 mr-4 text-sm font-medium transition-colors"
+              style={{
+                color: tab === id ? 'var(--brand-500, #6366f1)' : 'var(--ink-2)',
+                borderBottom: tab === id ? '2px solid var(--brand-500, #6366f1)' : '2px solid transparent',
+              }}
+            >
+              <Icon className="w-4 h-4" />
+              {label}
+            </button>
+          ))}
+          {/* Status do negócio — aba discreta no final */}
           <button
             onClick={() => setTab('status')}
-            className="flex items-center gap-2 py-3 text-sm font-medium transition-colors"
+            className="flex items-center gap-1.5 py-3 px-1 ml-auto text-xs font-medium transition-colors"
             style={{
-              color: tab === 'status' ? 'var(--brand-500, #6366f1)' : 'var(--ink-2)',
+              color: tab === 'status' ? 'var(--brand-500, #6366f1)' : 'var(--ink-3)',
               borderBottom: tab === 'status' ? '2px solid var(--brand-500, #6366f1)' : '2px solid transparent',
             }}
           >
-            <Trophy className="w-4 h-4" />
-            Status do negócio neste funil
+            <Trophy className="w-3.5 h-3.5" />
+            Status do negócio
           </button>
         </div>
 
         <div className="px-6 py-5">
-          {tab === 'etapas' ? (
+          {tab === 'etapas' && (
             <>
               {/* Column headers */}
               <div
@@ -381,8 +388,7 @@ function EtapasFunilModal({
                   color: 'var(--ink-2)',
                 }}
               >
-                <div />
-                <div />
+                <div /><div />
                 <div>Nome</div>
                 <div className="flex items-center gap-1 relative">
                   Tempo limite na etapa
@@ -396,19 +402,13 @@ function EtapasFunilModal({
                   {showTooltip && (
                     <div
                       className="absolute left-8 top-6 z-10 rounded-lg p-3 text-xs font-normal normal-case shadow-lg"
-                      style={{
-                        background: '#1e1b4b',
-                        color: '#fff',
-                        maxWidth: 220,
-                        lineHeight: 1.5,
-                      }}
+                      style={{ background: '#1e1b4b', color: '#fff', maxWidth: 220, lineHeight: 1.5 }}
                     >
                       Defina qual é o Tempo Limite que um negócio deve passar nesta etapa. Após isso, ele será destacado no funil para facilitar o acompanhamento.
                     </div>
                   )}
                 </div>
-                <div />
-                <div />
+                <div /><div />
               </div>
 
               {stages.length === 0 ? (
@@ -472,17 +472,37 @@ function EtapasFunilModal({
                 </div>
               )}
 
-              <button
-                onClick={() => addStageMut.mutate()}
-                disabled={addStageMut.isPending}
-                className="mt-4 flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold text-white shadow-sm transition-all hover:opacity-90 disabled:opacity-50"
-                style={{ background: 'var(--brand-500, #6366f1)' }}
-              >
-                <Plus className="w-4 h-4" />
-                Adicionar etapa
-              </button>
+              <div className="flex items-center justify-between mt-4">
+                <button
+                  onClick={() => addStageMut.mutate()}
+                  disabled={addStageMut.isPending}
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold text-white shadow-sm transition-all hover:opacity-90 disabled:opacity-50"
+                  style={{ background: 'var(--brand-500, #6366f1)' }}
+                >
+                  <Plus className="w-4 h-4" />
+                  Adicionar etapa
+                </button>
+                <button
+                  onClick={onClose}
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold transition-all hover:opacity-90"
+                  style={{ background: 'var(--surface-hover)', color: 'var(--ink-1)', border: '1px solid var(--edge)' }}
+                >
+                  Concluir
+                </button>
+              </div>
             </>
-          ) : (
+          )}
+
+          {tab === 'etiquetas' && (
+            <div className="max-w-md">
+              <p className="text-xs mb-4" style={{ color: 'var(--ink-3)' }}>
+                Etiquetas são globais ao workspace e podem ser aplicadas a qualquer negócio neste ou em outros funis.
+              </p>
+              <LabelsManager />
+            </div>
+          )}
+
+          {tab === 'status' && (
             <div
               className="text-sm p-6 text-center rounded-lg"
               style={{ background: 'var(--surface-hover)', color: 'var(--ink-3)' }}
