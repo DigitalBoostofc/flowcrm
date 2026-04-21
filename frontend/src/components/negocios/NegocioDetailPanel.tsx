@@ -3,15 +3,17 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   X, Star, MoreHorizontal, Plus, Mail, Phone, MessageSquare, FileText,
   PhoneCall, Users as UsersIcon, MapPin, StickyNote, Clock, Check,
-  Trophy, Ban, TrendingDown, Copy, Pin, HelpCircle, ChevronRight, ChevronDown, Tag,
+  Copy, Pin, HelpCircle, ChevronRight, ChevronDown, Tag,
 } from 'lucide-react';
 import type { Lead, LeadStatus, LeadActivity, ActivityType, Pipeline, User, Stage } from '@/types/api';
 import { updateLead, updateLeadStatus, moveLead } from '@/api/leads';
 import { updateContact } from '@/api/contacts';
 import { getLeadActivities, createLeadActivity } from '@/api/lead-activities';
 import { listCustomerOrigins } from '@/api/customer-origins';
+import { listLossReasons } from '@/api/loss-reasons';
 import Avatar from '@/components/ui/Avatar';
 import LabelPicker from '@/components/labels/LabelPicker';
+import { StatusDropdown } from '@/components/negocios/StatusDropdown';
 
 /* ── Formatters ──────────────────────────────────────── */
 
@@ -253,6 +255,11 @@ export default function NegocioDetailPanel({ lead, currentUser, users, pipelines
     queryFn: listCustomerOrigins,
   });
 
+  const { data: lossReasons = [] } = useQuery({
+    queryKey: ['loss-reasons'],
+    queryFn: listLossReasons,
+  });
+
   /* Mutations */
   const leadMut = useMutation({
     mutationFn: (patch: Record<string, any>) => updateLead(lead.id, patch),
@@ -263,7 +270,8 @@ export default function NegocioDetailPanel({ lead, currentUser, users, pipelines
   });
 
   const statusMut = useMutation({
-    mutationFn: (status: LeadStatus) => updateLeadStatus(lead.id, status),
+    mutationFn: ({ status, lossReason }: { status: LeadStatus; lossReason?: string }) =>
+      updateLeadStatus(lead.id, status, lossReason),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['negocios'] }),
   });
 
@@ -387,30 +395,10 @@ export default function NegocioDetailPanel({ lead, currentUser, users, pipelines
           </div>
 
           <div className="flex items-center gap-2 flex-shrink-0">
-            {/* Status buttons */}
-            <StatusButton
-              active={lead.status === 'lost'}
-              onClick={() => statusMut.mutate('lost')}
-              icon={Ban}
-              label="Perdido"
-              activeBg="#fee2e2"
-              activeFg="#991b1b"
-            />
-            <StatusButton
-              active={lead.status === 'active'}
-              onClick={() => statusMut.mutate('active')}
-              icon={TrendingDown}
-              label="Em andamento"
-              activeBg="#fef3c7"
-              activeFg="#a16207"
-            />
-            <StatusButton
-              active={lead.status === 'won'}
-              onClick={() => statusMut.mutate('won')}
-              icon={Trophy}
-              label="Ganho"
-              activeBg="#dcfce7"
-              activeFg="#166534"
+            <StatusDropdown
+              lead={lead}
+              lossReasons={lossReasons}
+              onUpdate={(_id, status, lossReason) => statusMut.mutate({ status, lossReason })}
             />
             <button
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-[var(--surface-hover)]"
@@ -903,30 +891,6 @@ function Stars({ value, onChange }: { value: number; onChange: (v: number) => vo
   );
 }
 
-function StatusButton({
-  active, onClick, icon: Icon, label, activeBg, activeFg,
-}: {
-  active: boolean;
-  onClick: () => void;
-  icon: React.ComponentType<{ className?: string }>;
-  label: string;
-  activeBg: string;
-  activeFg: string;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors"
-      style={{
-        background: active ? activeBg : 'transparent',
-        color: active ? activeFg : 'var(--ink-2)',
-        border: `1px solid ${active ? activeBg : 'var(--edge)'}`,
-      }}
-    >
-      <Icon className="w-3.5 h-3.5" /> {label}
-    </button>
-  );
-}
 
 function SidebarCard({ title, children }: { title: React.ReactNode; children: React.ReactNode }) {
   return (
