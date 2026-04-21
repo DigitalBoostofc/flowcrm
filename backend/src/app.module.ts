@@ -43,10 +43,14 @@ import { StorageModule } from './storage/storage.module';
 import { OtpModule } from './otp/otp.module';
 import { ProductsModule } from './products/products.module';
 import { BillingModule } from './billing/billing.module';
+import { ScheduleModule } from '@nestjs/schedule';
+import { MailModule } from './mail/mail.module';
+import { SummaryModule } from './summary/summary.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
+    ScheduleModule.forRoot(),
     ThrottlerModule.forRoot([{ ttl: 60000, limit: 60 }]),
     EventEmitterModule.forRoot(),
     ClsModule.forRoot({
@@ -105,6 +109,8 @@ import { BillingModule } from './billing/billing.module';
     OtpModule,
     ProductsModule,
     BillingModule,
+    MailModule,
+    SummaryModule,
   ],
 })
 export class AppModule {}
