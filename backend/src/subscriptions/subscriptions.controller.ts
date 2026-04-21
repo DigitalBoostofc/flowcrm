@@ -29,7 +29,7 @@ class CreatePlanDto {
 
   @IsOptional() @IsBoolean() highlight?: boolean;
   @IsOptional() @IsBoolean() active?: boolean;
-  @IsOptional() @IsInt() @Min(0) sortOrder?: number;
+  @IsOptional() @IsInt() sortOrder?: number;
 
   @IsOptional() @IsString() @Length(0, 120) stripePriceId?: string | null;
   @IsOptional() @IsString() @Length(0, 120) stripeProductId?: string | null;
@@ -43,7 +43,7 @@ class UpdatePlanDto {
   @IsOptional() @IsArray() @ArrayUnique() @IsString({ each: true }) features?: string[];
   @IsOptional() @IsBoolean() highlight?: boolean;
   @IsOptional() @IsBoolean() active?: boolean;
-  @IsOptional() @IsInt() @Min(0) sortOrder?: number;
+  @IsOptional() @IsInt() sortOrder?: number;
 
   @IsOptional() @IsString() @Length(0, 120) stripePriceId?: string | null;
   @IsOptional() @IsString() @Length(0, 120) stripeProductId?: string | null;
