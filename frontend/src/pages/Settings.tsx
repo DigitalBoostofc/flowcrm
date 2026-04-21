@@ -63,7 +63,7 @@ const GROUPS: NavGroup[] = [
   {
     title: 'Equipe',
     items: [
-      { id: 'agents',               label: 'Agentes',               icon: UserIcon,   ownerOnly: true },
+      { id: 'agents',               label: 'Colaboradores',         icon: UserIcon,   ownerOnly: true },
     ],
   },
   {

@@ -4,6 +4,8 @@ import { Lead } from '../../leads/entities/lead.entity';
 
 export enum UserRole {
   OWNER = 'owner',
+  MANAGER = 'manager',
+  SELLER = 'seller',
   AGENT = 'agent',
 }
 

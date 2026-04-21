@@ -1,8 +1,8 @@
-import { Injectable, ConflictException, NotFoundException } from '@nestjs/common';
+import { Injectable, ConflictException, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Not, Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
-import { User } from './entities/user.entity';
+import { User, UserRole } from './entities/user.entity';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { TenantContext } from '../common/tenant/tenant-context.service';
@@ -21,6 +21,20 @@ export class UsersService {
     const workspaceId = this.tenant.requireWorkspaceId();
     const existing = await this.repo.findOne({ where: { workspaceId, email: dto.email } });
     if (existing) throw new ConflictException('Email já cadastrado');
+
+    if (dto.role === UserRole.OWNER) {
+      throw new BadRequestException('Não é possível criar outro proprietário.');
+    }
+
+    if (dto.role === UserRole.MANAGER) {
+      const count = await this.repo.count({ where: { workspaceId, role: UserRole.MANAGER, active: true } });
+      if (count >= 1) throw new BadRequestException('Limite de 1 gerente atingido.');
+    }
+    if (dto.role === UserRole.SELLER) {
+      const count = await this.repo.count({ where: { workspaceId, role: UserRole.SELLER, active: true } });
+      if (count >= 3) throw new BadRequestException('Limite de 3 vendedores atingido.');
+    }
+
     const passwordHash = await bcrypt.hash(dto.password, 10);
     const user = this.repo.create({
       name: dto.name,
