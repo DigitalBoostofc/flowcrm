@@ -40,9 +40,9 @@ function IconButton({
       title={title}
       className="w-10 h-10 rounded-lg flex items-center justify-center transition-all duration-150"
       style={{
-        background: active ? 'var(--surface-hover)' : 'var(--surface)',
-        border: `1px solid ${active ? 'var(--edge-strong)' : 'var(--edge)'}`,
-        color: active ? 'var(--ink-1)' : 'var(--ink-2)',
+        background: active ? 'var(--brand-50, rgba(99,91,255,0.12))' : 'var(--surface)',
+        border: `1px solid ${active ? 'var(--brand-500, #6366f1)' : 'var(--edge)'}`,
+        color: active ? 'var(--brand-500, #6366f1)' : 'var(--ink-2)',
       }}
     >
       {children}
@@ -499,7 +499,7 @@ function TaskRow({ task, users }: { task: Task; users: User[] }) {
 
 export default function Tasks() {
   const user = useAuthStore((s) => s.user);
-  const [typeFilter, setTypeFilter] = useState<TaskType | null>(null);
+  const [typeFilters, setTypeFilters] = useState<Set<TaskType>>(new Set());
   const [statusFilter, setStatusFilter] = useState<TaskStatus>('pending');
   const [rangeFilter, setRangeFilter] = useState<RangeFilter>('all');
   const [assigneeFilter, setAssigneeFilter] = useState<string>('');
@@ -508,17 +508,30 @@ export default function Tasks() {
 
   const { data: users = [] } = useQuery({ queryKey: ['users'], queryFn: listUsers });
 
-  const queryKey = ['tasks', { type: typeFilter, status: statusFilter, range: rangeFilter, assigneeId: assigneeFilter }];
+  const queryKey = ['tasks', { status: statusFilter, range: rangeFilter, assigneeId: assigneeFilter }];
 
-  const { data: tasks = [], isLoading } = useQuery({
+  const { data: allTasks = [], isLoading } = useQuery({
     queryKey,
     queryFn: () => listTasks({
       status: statusFilter,
-      type: typeFilter ?? undefined,
       assigneeId: assigneeFilter || undefined,
       range: rangeFilter === 'custom' ? 'all' : rangeFilter,
     }),
   });
+
+  const tasks = useMemo(
+    () => (typeFilters.size === 0 ? allTasks : allTasks.filter((t) => typeFilters.has(t.type))),
+    [allTasks, typeFilters],
+  );
+
+  const toggleType = (key: TaskType) => {
+    setTypeFilters((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
 
   const selectedAssignee = users.find((u) => u.id === assigneeFilter);
 
@@ -543,16 +556,16 @@ export default function Tasks() {
           {TASK_TYPES.map(({ key, label, icon: Icon }) => (
             <IconButton
               key={key}
-              active={typeFilter === key}
-              onClick={() => setTypeFilter((t) => (t === key ? null : key))}
+              active={typeFilters.has(key)}
+              onClick={() => toggleType(key)}
               title={label}
             >
               <Icon className="w-4 h-4" />
             </IconButton>
           ))}
           <IconButton
-            active={typeFilter === null}
-            onClick={() => setTypeFilter(null)}
+            active={typeFilters.size === 0}
+            onClick={() => setTypeFilters(new Set())}
             title="Todas"
           >
             <CheckCircle2 className="w-4 h-4" />
