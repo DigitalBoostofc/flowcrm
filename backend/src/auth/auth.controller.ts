@@ -1,9 +1,11 @@
-import { Controller, Post, Body, Get, UseGuards } from '@nestjs/common';
+import { Controller, Post, Body, Get, Param, UseGuards, ForbiddenException } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { IsEmail, IsString, MinLength, Length } from 'class-validator';
 import { JwtAuthGuard } from './jwt-auth.guard';
+import { RolesGuard } from './roles.guard';
+import { Roles } from './roles.decorator';
 import { CurrentUser } from './current-user.decorator';
 
 class ForgotPasswordDto {
@@ -51,5 +53,15 @@ export class AuthController {
   @Post('reset-password')
   resetPassword(@Body() dto: ResetPasswordDto) {
     return this.authService.resetPassword(dto.resetToken, dto.newPassword);
+  }
+
+  @Post('impersonate/:userId')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('owner')
+  impersonate(
+    @Param('userId') userId: string,
+    @CurrentUser() admin: { id: string; workspaceId: string; role: string },
+  ) {
+    return this.authService.impersonate(admin, userId);
   }
 }

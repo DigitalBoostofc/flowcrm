@@ -27,6 +27,7 @@ import ProtectedRoute from '@/components/layout/ProtectedRoute';
 import AppShell from '@/components/layout/AppShell';
 import ConnectionBanner from '@/components/layout/ConnectionBanner';
 import BroadcastBanner from '@/components/layout/BroadcastBanner';
+import ImpersonationBanner from '@/components/layout/ImpersonationBanner';
 import { WsProvider } from '@/hooks/useWebSocket';
 import { useInvalidateOnEvent } from '@/hooks/useInvalidateOnEvent';
 import { useNotifications } from '@/hooks/useNotifications';
@@ -61,6 +62,7 @@ function AuthedLayout() {
 
   return (
     <AppShell>
+      <ImpersonationBanner />
       <ConnectionBanner />
       <BroadcastBanner />
       <Routes>

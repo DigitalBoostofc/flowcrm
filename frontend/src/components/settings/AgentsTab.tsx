@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Trash2, User as UserIcon, Crown, Briefcase, ShoppingBag, RotateCcw, ShieldCheck, Eye, EyeOff, Pencil, X } from 'lucide-react';
-import { listUsers, createUser, deleteUser, updateUserRole, setUserActive } from '@/api/users';
+import { Plus, Trash2, User as UserIcon, Crown, Briefcase, ShoppingBag, RotateCcw, ShieldCheck, Eye, EyeOff, Pencil, X, LogIn } from 'lucide-react';
+import { listUsers, createUser, deleteUser, updateUserRole, setUserActive, impersonateUser } from '@/api/users';
+import { useAuthStore } from '@/store/auth.store';
 import Modal from '@/components/ui/Modal';
 
 type CollaboratorRole = 'manager' | 'seller' | 'agent';
@@ -44,6 +45,8 @@ function Check({ ok }: { ok: boolean }) {
 export default function AgentsTab() {
   const queryClient = useQueryClient();
   const { data: users = [] } = useQuery({ queryKey: ['users'], queryFn: listUsers });
+  const { startImpersonation, user: currentUser } = useAuthStore();
+  const isOwner = currentUser?.role === 'owner';
   const [open, setOpen] = useState(false);
   const [showInactive, setShowInactive] = useState(false);
   const [showPermissions, setShowPermissions] = useState(false);
@@ -97,10 +100,15 @@ export default function AgentsTab() {
   const roleAvailable = (r: Exclude<CollaboratorRole, 'agent'>) => counts[r] < ROLE_LIMITS[r];
 
   function UserRow({ u, canEdit }: { u: any; canEdit: boolean }) {
-    const isOwner = u.role === 'owner';
+    const isUserOwner = u.role === 'owner';
     const isActive = (u as any).active !== false;
-    const Icon = isOwner ? Crown : u.role === 'manager' ? Briefcase : u.role === 'seller' ? ShoppingBag : UserIcon;
-    const label = isOwner ? 'Proprietário' : ROLE_LABEL[u.role as CollaboratorRole] ?? u.role;
+    const impersonateMut = useMutation({
+      mutationFn: () => impersonateUser(u.id),
+      onSuccess: ({ accessToken, user: targetUser }) => startImpersonation(accessToken, targetUser),
+      onError: (err: any) => alert(err?.response?.data?.message ?? 'Erro ao acessar conta'),
+    });
+    const Icon = isUserOwner ? Crown : u.role === 'manager' ? Briefcase : u.role === 'seller' ? ShoppingBag : UserIcon;
+    const label = isUserOwner ? 'Proprietário' : ROLE_LABEL[u.role as CollaboratorRole] ?? u.role;
     const isEditingThis = editingRole === u.id;
 
     return (
@@ -116,11 +124,11 @@ export default function AgentsTab() {
         <div
           className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
           style={{
-            background: isOwner ? 'var(--accent-bg, rgba(99,91,255,0.1))' : 'var(--surface-hover)',
+            background: isUserOwner ? 'var(--accent-bg, rgba(99,91,255,0.1))' : 'var(--surface-hover)',
             border: '1px solid var(--edge)',
           }}
         >
-          <Icon className="w-4 h-4" style={{ color: isOwner ? 'var(--accent)' : 'var(--ink-3)' }} strokeWidth={isOwner ? 2 : 1.75} />
+          <Icon className="w-4 h-4" style={{ color: isUserOwner ? 'var(--accent)' : 'var(--ink-3)' }} strokeWidth={isUserOwner ? 2 : 1.75} />
         </div>
 
         <div className="flex-1 min-w-0">
@@ -131,7 +139,7 @@ export default function AgentsTab() {
           <div className="flex items-center gap-1.5 mt-0.5">
             <span className="text-xs" style={{ color: 'var(--ink-3)' }}>{u.email}</span>
             <span style={{ color: 'var(--edge-strong)' }}>·</span>
-            {isEditingThis && canEdit && !isOwner ? (
+            {isEditingThis && canEdit && !isUserOwner ? (
               <div className="flex items-center gap-1">
                 <select
                   className="text-xs rounded px-1.5 py-0.5"
@@ -148,13 +156,25 @@ export default function AgentsTab() {
                 </button>
               </div>
             ) : (
-              <span className="text-xs font-medium" style={{ color: isOwner ? 'var(--accent)' : 'var(--ink-3)' }}>{label}</span>
+              <span className="text-xs font-medium" style={{ color: isUserOwner ? 'var(--accent)' : 'var(--ink-3)' }}>{label}</span>
             )}
           </div>
         </div>
 
-        {!isOwner && canEdit && (
+        {!isUserOwner && canEdit && (
           <div className="flex items-center gap-1 flex-shrink-0">
+            {isOwner && isActive && (
+              <button
+                onClick={() => impersonateMut.mutate()}
+                disabled={impersonateMut.isPending}
+                title="Entrar como este usuário"
+                className="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-colors hover:bg-[var(--surface-hover)] disabled:opacity-50"
+                style={{ color: 'var(--brand-500, #6366f1)', border: '1px solid var(--edge)' }}
+              >
+                <LogIn className="w-3.5 h-3.5" strokeWidth={1.75} />
+                {impersonateMut.isPending ? '...' : 'Entrar como'}
+              </button>
+            )}
             {isActive ? (
               <>
                 <button

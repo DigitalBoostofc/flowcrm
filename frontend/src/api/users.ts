@@ -66,3 +66,8 @@ export async function changeMyEmail(dto: { email: string; otpToken: string }): P
 export async function changeMyPassword(dto: { newPassword: string; otpToken: string }): Promise<void> {
   await api.patch('/users/me/password', dto);
 }
+
+export async function impersonateUser(userId: string): Promise<{ accessToken: string; user: User }> {
+  const res = await api.post<{ accessToken: string; user: User }>(`/auth/impersonate/${userId}`);
+  return res.data;
+}

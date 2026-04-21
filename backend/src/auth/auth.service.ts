@@ -37,6 +37,23 @@ export class AuthService {
     return this.projectUser(user);
   }
 
+  async impersonate(adminUser: { id: string; workspaceId: string }, targetUserId: string) {
+    const target = await this.userRepo.findOne({ where: { id: targetUserId, workspaceId: adminUser.workspaceId } });
+    if (!target) throw new UnauthorizedException('Usuário não encontrado');
+    if (target.role === 'owner') throw new UnauthorizedException('Não é possível acessar a conta do proprietário');
+    const payload = {
+      sub: target.id,
+      email: target.email,
+      role: target.role,
+      workspaceId: target.workspaceId,
+      impersonatedBy: adminUser.id,
+    };
+    return {
+      accessToken: this.jwtService.sign(payload, { expiresIn: '8h' }),
+      user: this.projectUser(target),
+    };
+  }
+
   async forgotPassword(email: string): Promise<{ maskedPhone: string }> {
     const user = await this.usersService.findByEmail(email);
     if (!user?.phone) {
