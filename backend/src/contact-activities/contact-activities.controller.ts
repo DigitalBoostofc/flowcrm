@@ -6,6 +6,7 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { User } from '../users/entities/user.entity';
 
+@Controller()
 @UseGuards(JwtAuthGuard)
 export class ContactActivitiesController {
   constructor(private service: ContactActivitiesService) {}
