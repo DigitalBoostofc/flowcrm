@@ -123,6 +123,35 @@ async function lookupViaCep(cep: string): Promise<ViaCepResponse | null> {
   }
 }
 
+type BrasilApiCnpjResponse = {
+  cnpj?: string;
+  razao_social?: string;
+  nome_fantasia?: string;
+  cnae_fiscal_descricao?: string;
+  descricao_situacao_cadastral?: string;
+  logradouro?: string;
+  numero?: string;
+  complemento?: string;
+  bairro?: string;
+  cep?: string;
+  municipio?: string;
+  uf?: string;
+  ddd_telefone_1?: string;
+  email?: string;
+};
+
+async function lookupCnpj(cnpj: string): Promise<BrasilApiCnpjResponse | null> {
+  const clean = cnpj.replace(/\D/g, '');
+  if (clean.length !== 14) return null;
+  try {
+    const res = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${clean}`);
+    if (!res.ok) return null;
+    return await res.json();
+  } catch {
+    return null;
+  }
+}
+
 const CATEGORIAS = ['Cliente', 'Prospect', 'Parceiro', 'Fornecedor', 'Lead'];
 const ORIGENS = ['Site', 'Indicação', 'Redes sociais', 'E-mail', 'Evento', 'Outro'];
 const SETORES = [
@@ -215,6 +244,7 @@ function AddCompanyModal({ open, onClose, currentUser, users, company }: AddComp
   const [error, setError] = useState('');
   const [peopleSearch, setPeopleSearch] = useState('');
   const [cepLoading, setCepLoading] = useState(false);
+  const [cnpjLoading, setCnpjLoading] = useState(false);
   const [pendingAvatar, setPendingAvatar] = useState<{ file: File; previewUrl: string } | null>(null);
 
   useEffect(() => () => {
@@ -266,6 +296,34 @@ function AddCompanyModal({ open, onClose, currentUser, users, company }: AddComp
     });
     return () => { cancelled = true; };
   }, [form.cep]);
+
+  // CNPJ autofill via BrasilAPI — dispara quando chegar a 14 dígitos
+  useEffect(() => {
+    const clean = form.cnpj.replace(/\D/g, '');
+    if (clean.length !== 14) return;
+    let cancelled = false;
+    setCnpjLoading(true);
+    lookupCnpj(clean).then((data) => {
+      if (cancelled || !data) { setCnpjLoading(false); return; }
+      setForm((f) => ({
+        ...f,
+        name: f.name || data.nome_fantasia || data.razao_social || f.name,
+        razaoSocial: f.razaoSocial || data.razao_social || f.razaoSocial,
+        descricao: f.descricao || data.cnae_fiscal_descricao || f.descricao,
+        email: f.email || data.email || f.email,
+        telefone: f.telefone || data.ddd_telefone_1 || f.telefone,
+        cep: f.cep || data.cep || f.cep,
+        estado: f.estado || (data.uf ? data.uf.toUpperCase() : f.estado),
+        cidade: f.cidade || data.municipio || f.cidade,
+        bairro: f.bairro || data.bairro || f.bairro,
+        rua: f.rua || data.logradouro || f.rua,
+        numero: f.numero || data.numero || f.numero,
+        complemento: f.complemento || data.complemento || f.complemento,
+      }));
+      setCnpjLoading(false);
+    });
+    return () => { cancelled = true; };
+  }, [form.cnpj]);
 
   const set = <K extends keyof typeof form>(key: K, value: (typeof form)[K]) =>
     setForm((f) => ({ ...f, [key]: value }));
@@ -390,7 +448,17 @@ function AddCompanyModal({ open, onClose, currentUser, users, company }: AddComp
               </div>
               <div>
                 <Label>CNPJ</Label>
-                <Input value={form.cnpj} onChange={(e) => set('cnpj', e.target.value)} placeholder="00.000.000/0000-00" />
+                <div className="relative">
+                  <Input value={form.cnpj} onChange={(e) => set('cnpj', e.target.value)} placeholder="00.000.000/0000-00" />
+                  {cnpjLoading && (
+                    <span
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-[11px]"
+                      style={{ color: 'var(--ink-3)' }}
+                    >
+                      buscando…
+                    </span>
+                  )}
+                </div>
               </div>
               <div>
                 <Label>Razão social</Label>
