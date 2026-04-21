@@ -1,10 +1,15 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { ColumnDef, ColumnPrefs } from './types';
+import { usePrefsStore } from '@/store/prefs.store';
 
 const STORAGE_VERSION = 'v2';
 
 function storageKey(id: string) {
   return `flowcrm:cols:${STORAGE_VERSION}:${id}`;
+}
+
+function prefKey(id: string) {
+  return `cols:${STORAGE_VERSION}:${id}`;
 }
 
 function buildDefaults<T>(columns: ColumnDef<T>[]): ColumnPrefs {
@@ -61,15 +66,34 @@ export interface UseColumnPrefsResult<T> {
 }
 
 export function useColumnPrefs<T>(id: string, columns: ColumnDef<T>[]): UseColumnPrefsResult<T> {
+  const prefsLoaded = usePrefsStore((s) => s.loaded);
+  const remoteValue = usePrefsStore((s) => s.values[prefKey(id)] as Partial<ColumnPrefs> | undefined);
+  const setRemote = usePrefsStore((s) => s.set);
+
   const [prefs, setPrefs] = useState<ColumnPrefs>(() => mergePrefs(columns, readStored(id)));
 
+  // Quando prefs vêm do backend, aplica (backend vence localStorage)
+  useEffect(() => {
+    if (!prefsLoaded) return;
+    if (remoteValue) {
+      setPrefs(mergePrefs(columns, remoteValue));
+    }
+    // Se remoteValue é undefined, mantém o que já está (vindo do localStorage ou defaults)
+    // e a primeira gravação vai sincronizar pro backend.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [prefsLoaded, id]);
+
+  // Persiste em localStorage (cache offline) e backend (fonte da verdade)
   useEffect(() => {
     try {
       localStorage.setItem(storageKey(id), JSON.stringify(prefs));
     } catch {
       // storage quota or disabled; ignore
     }
-  }, [id, prefs]);
+    if (prefsLoaded) {
+      setRemote(prefKey(id), prefs);
+    }
+  }, [id, prefs, prefsLoaded, setRemote]);
 
   const byKey = useMemo(() => new Map(columns.map((c) => [c.key, c])), [columns]);
 

@@ -25,14 +25,20 @@ import { useInvalidateOnEvent } from '@/hooks/useInvalidateOnEvent';
 import { useNotifications } from '@/hooks/useNotifications';
 import { useRefreshUser } from '@/hooks/useRefreshUser';
 import { useAuthStore } from '@/store/auth.store';
+import { usePrefsStore } from '@/store/prefs.store';
 import { useWorkspace } from '@/hooks/useWorkspace';
 import { Loader2 } from 'lucide-react';
+import { useEffect } from 'react';
 
 function AuthedLayout() {
   useInvalidateOnEvent();
   useNotifications();
   useRefreshUser();
   const { data: workspace, isLoading } = useWorkspace();
+
+  useEffect(() => {
+    usePrefsStore.getState().load();
+  }, []);
 
   if (isLoading && !workspace) {
     return (
