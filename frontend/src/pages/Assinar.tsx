@@ -143,8 +143,16 @@ export default function Assinar() {
         )}
 
         <p className="text-center text-xs mt-10" style={{ color: 'var(--ink-3)' }}>
-          Em breve: pagamento via PIX, cartão e boleto integrados.
+          Pagamento seguro processado pela Stripe.
         </p>
+        <div
+          className="mt-6 flex flex-wrap justify-center gap-x-5 gap-y-2 text-xs"
+          style={{ color: 'var(--ink-3)' }}
+        >
+          <a href="/termos" style={{ color: 'var(--ink-3)' }}>Termos de Uso</a>
+          <a href="/privacidade" style={{ color: 'var(--ink-3)' }}>Política de Privacidade</a>
+          <a href="/reembolso" style={{ color: 'var(--ink-3)' }}>Política de Reembolso</a>
+        </div>
       </div>
     </div>
   );

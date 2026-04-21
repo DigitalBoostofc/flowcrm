@@ -18,6 +18,9 @@ import { FeatureLockedScreen } from '@/components/ui/FeatureGate';
 import { useFeatures } from '@/hooks/useFeatures';
 import Perfil from '@/pages/Perfil';
 import NotFound from '@/pages/NotFound';
+import Termos from '@/pages/legal/Termos';
+import Privacidade from '@/pages/legal/Privacidade';
+import Reembolso from '@/pages/legal/Reembolso';
 import ProtectedRoute from '@/components/layout/ProtectedRoute';
 import AppShell from '@/components/layout/AppShell';
 import ConnectionBanner from '@/components/layout/ConnectionBanner';
@@ -109,6 +112,9 @@ export default function App() {
       <Routes>
         <Route path="/login" element={token ? <Navigate to="/" /> : <Login />} />
         <Route path="/signup" element={token ? <Navigate to="/" /> : <Signup />} />
+        <Route path="/termos" element={<Termos />} />
+        <Route path="/privacidade" element={<Privacidade />} />
+        <Route path="/reembolso" element={<Reembolso />} />
         <Route
           path="/*"
           element={
