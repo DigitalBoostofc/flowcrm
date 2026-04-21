@@ -736,13 +736,15 @@ function ProductNameField({
 }
 
 export function AddNegocioModal({
-  open, onClose, pipelines, users, currentUser,
+  open, onClose, pipelines, users, currentUser, initialPipelineId, initialStageId,
 }: {
   open: boolean;
   onClose: () => void;
   pipelines: Pipeline[];
   users: User[];
   currentUser: User | null;
+  initialPipelineId?: string | null;
+  initialStageId?: string | null;
 }) {
   const qc = useQueryClient();
 
@@ -772,7 +774,7 @@ export function AddNegocioModal({
     setTitle('');
     setResponsibleId(currentUser?.id ?? '');
     setValue('');
-    setPipelineId(defaultPipeline?.id ?? '');
+    setPipelineId(initialPipelineId || defaultPipeline?.id || '');
     setStartDate('');
     setConclusionDate('');
     setNotes('');
@@ -780,7 +782,7 @@ export function AddNegocioModal({
     setAdditionalAccess([]);
     setProducts([]);
     setError('');
-  }, [open, currentUser, defaultPipeline]);
+  }, [open, currentUser, defaultPipeline, initialPipelineId]);
 
   const selectedPipeline = pipelines.find((p) => p.id === pipelineId) ?? null;
 
@@ -789,8 +791,9 @@ export function AddNegocioModal({
       if (!contact && !selectedCompany) throw new Error('contact');
       if (!title.trim()) throw new Error('title');
       if (!selectedPipeline) throw new Error('pipeline');
-      const firstStage = (selectedPipeline.stages ?? []).slice().sort((a, b) => a.position - b.position)[0];
-      if (!firstStage) throw new Error('stage');
+      const sortedStages = (selectedPipeline.stages ?? []).slice().sort((a, b) => a.position - b.position);
+      const targetStage = (initialStageId && sortedStages.find((s) => s.id === initialStageId)) || sortedStages[0];
+      if (!targetStage) throw new Error('stage');
 
       const items: LeadItemInput[] = products
         .filter((p) => p.productName.trim())
@@ -806,7 +809,7 @@ export function AddNegocioModal({
         contactId: contact?.id,
         companyId: selectedCompany?.id,
         pipelineId: selectedPipeline.id,
-        stageId: firstStage.id,
+        stageId: targetStage.id,
         title: title.trim(),
         value: value ? Number(value) : undefined,
         assignedToId: responsibleId || undefined,

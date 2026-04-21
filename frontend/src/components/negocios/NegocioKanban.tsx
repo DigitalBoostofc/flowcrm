@@ -10,7 +10,7 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useMemo, useRef, useState } from 'react';
-import { AlertTriangle, Tag } from 'lucide-react';
+import { AlertTriangle, Tag, Plus } from 'lucide-react';
 import type { Lead, Pipeline, Stage } from '@/types/api';
 import { moveLead } from '@/api/leads';
 import { formatBRL } from '@/lib/format';
@@ -22,6 +22,7 @@ interface Props {
   pipeline: Pipeline | null;
   leads: Lead[];
   onCardClick: (leadId: string) => void;
+  onAddToStage?: (stageId: string) => void;
 }
 
 // Cores por tipo de funil
@@ -34,7 +35,7 @@ function daysSinceUpdate(dateStr: string): number {
   return Math.floor((Date.now() - new Date(dateStr).getTime()) / 86400000);
 }
 
-export default function NegocioKanban({ pipeline, leads, onCardClick }: Props) {
+export default function NegocioKanban({ pipeline, leads, onCardClick, onAddToStage }: Props) {
   const qc = useQueryClient();
   const pushToast = useToastStore((s) => s.push);
   const [activeLeadId, setActiveLeadId] = useState<string | null>(null);
@@ -184,6 +185,7 @@ export default function NegocioKanban({ pipeline, leads, onCardClick }: Props) {
             stage={s}
             leads={leadsByStage[s.id] ?? []}
             onCardClick={onCardClick}
+            onAddToStage={onAddToStage}
             isDragging={!!activeLeadId}
             pipelineKind={(pipeline as any)?.kind ?? 'sale'}
           />
@@ -196,11 +198,12 @@ export default function NegocioKanban({ pipeline, leads, onCardClick }: Props) {
 /* ── Column ──────────────────────────────────────────── */
 
 function NegocioColumn({
-  stage, leads, onCardClick, isDragging, pipelineKind,
+  stage, leads, onCardClick, onAddToStage, isDragging, pipelineKind,
 }: {
   stage: Stage;
   leads: Lead[];
   onCardClick: (leadId: string) => void;
+  onAddToStage?: (stageId: string) => void;
   isDragging: boolean;
   pipelineKind: 'sale' | 'management';
 }) {
@@ -242,13 +245,40 @@ function NegocioColumn({
           ))}
         </SortableContext>
 
-        {leads.length === 0 && (
+        {leads.length === 0 && isDragging && (
           <div
             className="flex items-center justify-center text-center text-[11px] px-3"
             style={{ color: 'var(--ink-3)', minHeight: 80 }}
           >
-            {isDragging ? 'Solte aqui' : 'Vazio'}
+            Solte aqui
           </div>
+        )}
+
+        {onAddToStage && !isDragging && (
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); onAddToStage(stage.id); }}
+            className="w-full flex items-center justify-center gap-1 rounded-md py-1.5 text-[11px] font-medium transition-colors"
+            style={{
+              color: 'var(--ink-3)',
+              border: '1px dashed var(--edge)',
+              background: 'transparent',
+            }}
+            onMouseEnter={(e) => {
+              (e.currentTarget as HTMLButtonElement).style.color = colors.accent;
+              (e.currentTarget as HTMLButtonElement).style.borderColor = colors.accent;
+              (e.currentTarget as HTMLButtonElement).style.background = colors.bg;
+            }}
+            onMouseLeave={(e) => {
+              (e.currentTarget as HTMLButtonElement).style.color = 'var(--ink-3)';
+              (e.currentTarget as HTMLButtonElement).style.borderColor = 'var(--edge)';
+              (e.currentTarget as HTMLButtonElement).style.background = 'transparent';
+            }}
+            title="Adicionar negócio nesta etapa"
+          >
+            <Plus className="w-3 h-3" strokeWidth={2} />
+            Adicionar
+          </button>
         )}
       </div>
     </div>

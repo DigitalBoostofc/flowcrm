@@ -689,6 +689,7 @@ export default function Funil() {
   const [editingStagesPipelineId, setEditingStagesPipelineId] = useState<string | null>(null);
 
   const [addNegocioOpen, setAddNegocioOpen] = useState(false);
+  const [addStageId, setAddStageId] = useState<string | null>(null);
 
   const createPipelineMut = useMutation({
     mutationFn: ({ name, kind }: { name: string; kind?: PipelineKind }) =>
@@ -931,6 +932,7 @@ export default function Funil() {
             pipeline={selectedPipeline}
             leads={filteredLeads}
             onCardClick={(id) => setSelectedLeadId(id)}
+            onAddToStage={(stageId) => { setAddStageId(stageId); setAddNegocioOpen(true); }}
           />
         )}
       </div>
@@ -979,10 +981,12 @@ export default function Funil() {
 
       <AddNegocioModal
         open={addNegocioOpen}
-        onClose={() => setAddNegocioOpen(false)}
+        onClose={() => { setAddNegocioOpen(false); setAddStageId(null); }}
         pipelines={pipelines}
         users={users}
         currentUser={currentUser}
+        initialPipelineId={addStageId ? selectedPipelineId : null}
+        initialStageId={addStageId}
       />
     </div>
   );
