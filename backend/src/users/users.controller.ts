@@ -115,6 +115,20 @@ export class UsersController {
     return this.usersService.findAll();
   }
 
+  @Patch(':id/role')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.OWNER)
+  updateRole(@Param('id') id: string, @Body('role') role: UserRole) {
+    return this.usersService.updateRole(id, role);
+  }
+
+  @Patch(':id/active')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.OWNER)
+  setActive(@Param('id') id: string, @Body('active') active: boolean) {
+    return this.usersService.setActive(id, active);
+  }
+
   @Delete(':id')
   @UseGuards(RolesGuard)
   @Roles(UserRole.OWNER)

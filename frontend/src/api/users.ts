@@ -15,6 +15,15 @@ export async function deleteUser(id: string): Promise<void> {
   await api.delete(`/users/${id}`);
 }
 
+export async function updateUserRole(id: string, role: 'manager' | 'seller' | 'agent'): Promise<User> {
+  const res = await api.patch<User>(`/users/${id}/role`, { role });
+  return res.data;
+}
+
+export async function setUserActive(id: string, active: boolean): Promise<void> {
+  await api.patch(`/users/${id}/active`, { active });
+}
+
 export async function getMe(): Promise<User> {
   const res = await api.get<User>('/users/me');
   return res.data;

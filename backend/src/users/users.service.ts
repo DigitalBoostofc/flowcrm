@@ -77,9 +77,36 @@ export class UsersService {
     return this.repo.findOne({ where: { email, workspaceId } });
   }
 
-  async remove(id: string): Promise<void> {
+  async updateRole(id: string, role: UserRole): Promise<User> {
     const workspaceId = this.tenant.requireWorkspaceId();
-    await this.repo.update({ id, workspaceId }, { active: false });
+    const user = await this.repo.findOne({ where: { id, workspaceId } });
+    if (!user) throw new NotFoundException('Usuário não encontrado');
+    if (user.role === UserRole.OWNER) throw new BadRequestException('Não é possível alterar o papel do proprietário.');
+    if (role === UserRole.OWNER) throw new BadRequestException('Não é possível promover para proprietário.');
+
+    if (role === UserRole.MANAGER && user.role !== UserRole.MANAGER) {
+      const count = await this.repo.count({ where: { workspaceId, role: UserRole.MANAGER, active: true } });
+      if (count >= 1) throw new BadRequestException('Limite de 1 gerente atingido.');
+    }
+    if (role === UserRole.SELLER && user.role !== UserRole.SELLER) {
+      const count = await this.repo.count({ where: { workspaceId, role: UserRole.SELLER, active: true } });
+      if (count >= 3) throw new BadRequestException('Limite de 3 vendedores atingido.');
+    }
+
+    user.role = role;
+    return this.repo.save(user);
+  }
+
+  async setActive(id: string, active: boolean): Promise<void> {
+    const workspaceId = this.tenant.requireWorkspaceId();
+    const user = await this.repo.findOne({ where: { id, workspaceId } });
+    if (!user) throw new NotFoundException('Usuário não encontrado');
+    if (user.role === UserRole.OWNER) throw new BadRequestException('Não é possível desativar o proprietário.');
+    await this.repo.update({ id, workspaceId }, { active });
+  }
+
+  async remove(id: string): Promise<void> {
+    return this.setActive(id, false);
   }
 
   async getProfile(userId: string): Promise<User> {
