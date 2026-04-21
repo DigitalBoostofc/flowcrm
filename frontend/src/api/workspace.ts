@@ -31,6 +31,8 @@ export interface Plan {
   highlight: boolean;
   active: boolean;
   sortOrder: number;
+  stripePriceId?: string | null;
+  stripeProductId?: string | null;
 }
 
 export interface FeatureDef {
@@ -82,6 +84,8 @@ export interface CreatePlanInput {
   highlight?: boolean;
   active?: boolean;
   sortOrder?: number;
+  stripePriceId?: string | null;
+  stripeProductId?: string | null;
 }
 
 export type UpdatePlanInput = Partial<CreatePlanInput>;

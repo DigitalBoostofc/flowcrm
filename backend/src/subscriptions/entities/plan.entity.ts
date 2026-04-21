@@ -33,6 +33,12 @@ export class Plan {
   @Column({ type: 'int', default: 0 })
   sortOrder: number;
 
+  @Column({ type: 'varchar', length: 120, nullable: true })
+  stripePriceId: string | null;
+
+  @Column({ type: 'varchar', length: 120, nullable: true })
+  stripeProductId: string | null;
+
   @CreateDateColumn()
   createdAt: Date;
 

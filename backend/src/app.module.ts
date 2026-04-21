@@ -40,6 +40,7 @@ import { PlatformAdminModule } from './platform-admin/platform-admin.module';
 import { StorageModule } from './storage/storage.module';
 import { OtpModule } from './otp/otp.module';
 import { ProductsModule } from './products/products.module';
+import { BillingModule } from './billing/billing.module';
 
 @Module({
   imports: [
@@ -99,6 +100,7 @@ import { ProductsModule } from './products/products.module';
     StorageModule,
     OtpModule,
     ProductsModule,
+    BillingModule,
   ],
 })
 export class AppModule {}

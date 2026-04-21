@@ -33,6 +33,18 @@ export class Workspace {
   @Column({ type: 'varchar', length: 40, nullable: true })
   planSlug: string | null;
 
+  @Column({ type: 'varchar', length: 120, nullable: true })
+  stripeCustomerId: string | null;
+
+  @Column({ type: 'varchar', length: 120, nullable: true })
+  stripeSubscriptionId: string | null;
+
+  @Column({ type: 'timestamptz', nullable: true })
+  currentPeriodEnd: Date | null;
+
+  @Column({ type: 'boolean', default: false })
+  cancelAtPeriodEnd: boolean;
+
   @CreateDateColumn()
   createdAt: Date;
 

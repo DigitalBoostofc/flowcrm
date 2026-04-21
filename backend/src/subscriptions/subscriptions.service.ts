@@ -16,6 +16,8 @@ export interface PlanDto {
   highlight: boolean;
   active: boolean;
   sortOrder: number;
+  stripePriceId: string | null;
+  stripeProductId: string | null;
 }
 
 export interface MeFeaturesDto {
@@ -34,6 +36,8 @@ export interface CreatePlanInput {
   highlight?: boolean;
   active?: boolean;
   sortOrder?: number;
+  stripePriceId?: string | null;
+  stripeProductId?: string | null;
 }
 
 export type UpdatePlanInput = Partial<CreatePlanInput>;
@@ -134,6 +138,8 @@ export class SubscriptionsService {
       highlight: input.highlight ?? false,
       active: input.active ?? true,
       sortOrder: input.sortOrder ?? 0,
+      stripePriceId: input.stripePriceId ?? null,
+      stripeProductId: input.stripeProductId ?? null,
     });
     const saved = await this.planRepo.save(plan);
     return toDto(saved);
@@ -156,6 +162,8 @@ export class SubscriptionsService {
       ...(input.highlight !== undefined && { highlight: input.highlight }),
       ...(input.active !== undefined && { active: input.active }),
       ...(input.sortOrder !== undefined && { sortOrder: input.sortOrder }),
+      ...(input.stripePriceId !== undefined && { stripePriceId: input.stripePriceId }),
+      ...(input.stripeProductId !== undefined && { stripeProductId: input.stripeProductId }),
     });
     const saved = await this.planRepo.save(plan);
     return toDto(saved);
@@ -193,5 +201,7 @@ function toDto(p: Plan): PlanDto {
     highlight: p.highlight,
     active: p.active,
     sortOrder: p.sortOrder,
+    stripePriceId: p.stripePriceId,
+    stripeProductId: p.stripeProductId,
   };
 }

@@ -2,6 +2,8 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import Login from '@/pages/Login';
 import Signup from '@/pages/Signup';
 import Assinar from '@/pages/Assinar';
+import BillingSuccess from '@/pages/BillingSuccess';
+import BillingCancel from '@/pages/BillingCancel';
 import Inicio from '@/pages/Inicio';
 import Pessoas from '@/pages/Pessoas';
 import Negocios from '@/pages/Negocios';
@@ -70,6 +72,8 @@ function AuthedLayout() {
         <Route path="perfil" element={<Perfil />} />
         <Route path="admin" element={<Admin />} />
         <Route path="assinar" element={<Assinar />} />
+        <Route path="billing/success" element={<BillingSuccess />} />
+        <Route path="billing/cancel" element={<BillingCancel />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </AppShell>

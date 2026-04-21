@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Check, X, Loader2, Zap, ArrowLeft } from 'lucide-react';
 import { listPlans, subscribePlan, getFeatureCatalog, type Plan, type FeatureDef } from '@/api/workspace';
+import { createCheckoutSession } from '@/api/billing';
 import { useWorkspace } from '@/hooks/useWorkspace';
 import { useAuthStore } from '@/store/auth.store';
 
@@ -31,8 +32,17 @@ export default function Assinar() {
   }, [plans, params, selectedSlug]);
 
   const subscribeMut = useMutation({
-    mutationFn: (slug: string) => subscribePlan(slug),
-    onSuccess: () => {
+    mutationFn: async (plan: Plan) => {
+      if (plan.stripePriceId) {
+        const { url } = await createCheckoutSession(plan.slug);
+        window.location.href = url;
+        return { redirected: true } as const;
+      }
+      await subscribePlan(plan.slug);
+      return { redirected: false } as const;
+    },
+    onSuccess: (result) => {
+      if (result.redirected) return;
       qc.invalidateQueries({ queryKey: ['workspace-me'] });
       qc.invalidateQueries({ queryKey: ['me-features'] });
       setTimeout(() => navigate('/'), 800);
@@ -106,8 +116,8 @@ export default function Assinar() {
                 catalog={catalog}
                 selected={selectedSlug === p.slug}
                 onSelect={() => setSelectedSlug(p.slug)}
-                onSubscribe={() => subscribeMut.mutate(p.slug)}
-                pending={subscribeMut.isPending && subscribeMut.variables === p.slug}
+                onSubscribe={() => subscribeMut.mutate(p)}
+                pending={subscribeMut.isPending && subscribeMut.variables?.slug === p.slug}
                 disabled={!isOwner}
               />
             ))}
