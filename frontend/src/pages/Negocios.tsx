@@ -439,6 +439,150 @@ function emptyProductDraft(): ProductDraft {
   return { productName: '', unitPrice: '', quantity: '1', discount: '0', discountType: 'value' };
 }
 
+function ProductPickerCombo({
+  onPick,
+}: {
+  onPick: (patch: { productName: string; unitPrice?: string }) => void;
+}) {
+  const qc = useQueryClient();
+  const [query, setQuery] = useState('');
+  const [open, setOpen] = useState(false);
+  const [addOpen, setAddOpen] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
+  const rootRef = useRef<HTMLDivElement>(null);
+
+  const { data = [] } = useQuery({
+    queryKey: ['products', { onlyActive: true }],
+    queryFn: () => listProducts({ onlyActive: true }),
+  });
+
+  const createMut = useMutation({
+    mutationFn: (input: ProductInput) => createProduct(input),
+    onSuccess: (p) => {
+      qc.invalidateQueries({ queryKey: ['products'] });
+      onPick({
+        productName: p.name,
+        ...(p.price != null ? { unitPrice: String(Number(p.price)) } : {}),
+      });
+      setAddOpen(false);
+      setFormError(null);
+      setOpen(false);
+      setQuery('');
+    },
+    onError: (e: any) => setFormError(e?.response?.data?.message ?? 'Erro ao salvar'),
+  });
+
+  useEffect(() => {
+    const onClick = (e: MouseEvent) => {
+      if (!rootRef.current?.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', onClick);
+    return () => document.removeEventListener('mousedown', onClick);
+  }, []);
+
+  const q = query.trim().toLowerCase();
+  const filtered = useMemo(
+    () => (q ? data.filter((p) => p.name.toLowerCase().includes(q)) : data).slice(0, 30),
+    [data, q],
+  );
+  const exact = useMemo(
+    () => (q ? data.find((p) => p.name.toLowerCase() === q) ?? null : null),
+    [data, q],
+  );
+
+  const pick = (p: Product) => {
+    onPick({
+      productName: p.name,
+      ...(p.price != null ? { unitPrice: String(Number(p.price)) } : {}),
+    });
+    setOpen(false);
+    setQuery('');
+  };
+
+  return (
+    <div ref={rootRef} className="relative">
+      <div className="relative">
+        <input
+          placeholder="Buscar produto ou serviço"
+          value={query}
+          onFocus={() => setOpen(true)}
+          onChange={(e) => { setQuery(e.target.value); setOpen(true); }}
+          className="w-full pl-3 pr-9 py-2 rounded-lg outline-none text-sm"
+          style={{ background: 'var(--surface)', border: '1px solid var(--edge)', color: 'var(--ink-1)' }}
+        />
+        <button
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          tabIndex={-1}
+          className="absolute right-1.5 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-[var(--surface-hover)]"
+          style={{ color: 'var(--ink-3)' }}
+          aria-label="Abrir lista"
+        >
+          <ChevronDown className="w-4 h-4" style={{ transform: open ? 'rotate(180deg)' : undefined, transition: 'transform 0.15s' }} />
+        </button>
+      </div>
+      {open && (
+        <div
+          className="absolute left-0 right-0 top-[calc(100%+4px)] z-30 rounded-lg shadow-lg max-h-80 overflow-y-auto"
+          style={{ background: 'var(--surface-raised)', border: '1px solid var(--edge)' }}
+        >
+          <div
+            className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-widest sticky top-0"
+            style={{ color: 'var(--ink-3)', background: 'var(--surface)' }}
+          >
+            Cadastrados em configurações
+          </div>
+          {filtered.length === 0 && (
+            <div className="px-3 py-3 text-xs" style={{ color: 'var(--ink-3)' }}>
+              {q ? 'Nenhum produto encontrado.' : 'Nenhum produto cadastrado ainda.'}
+            </div>
+          )}
+          {filtered.map((p) => (
+            <button
+              key={p.id}
+              type="button"
+              onClick={() => pick(p)}
+              className="w-full flex items-center justify-between gap-2 px-3 py-2 text-sm text-left hover:bg-[var(--surface-hover)]"
+              style={{ color: 'var(--ink-1)' }}
+            >
+              <span className="truncate">{p.name}</span>
+              <span className="text-xs tabular-nums" style={{ color: 'var(--ink-3)' }}>
+                {p.price != null
+                  ? Number(p.price).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+                  : p.type === 'servico'
+                  ? 'Serviço'
+                  : 'Produto'}
+              </span>
+            </button>
+          ))}
+          <button
+            type="button"
+            onClick={() => { setFormError(null); setAddOpen(true); setOpen(false); }}
+            className="w-full flex items-center gap-2 px-3 py-2.5 text-sm text-left hover:bg-[var(--surface-hover)] font-medium sticky bottom-0"
+            style={{
+              color: 'var(--brand-500, #6366f1)',
+              borderTop: '1px solid var(--edge)',
+              background: 'var(--surface-raised)',
+            }}
+          >
+            <Plus className="w-4 h-4" />
+            {q && !exact ? `Cadastrar novo: "${query.trim()}"` : 'Cadastrar novo produto e serviço'}
+          </button>
+        </div>
+      )}
+      {addOpen && (
+        <ProductFormModal
+          initialName={query.trim() || undefined}
+          onClose={() => setAddOpen(false)}
+          onSubmit={(input) => createMut.mutateAsync(input)}
+          pending={createMut.isPending}
+          error={formError}
+        />
+      )}
+    </div>
+  );
+}
+
 function ProductNameField({
   productName,
   onUpdate,
@@ -1048,14 +1192,14 @@ export function AddNegocioModal({
               </div>
             )}
 
-            <button
-              type="button"
-              onClick={() => setProducts((prev) => [...prev, emptyProductDraft()])}
-              className="flex items-center gap-1.5 text-sm font-medium"
-              style={{ color: 'var(--brand-500, #6366f1)' }}
-            >
-              <Plus className="w-4 h-4" /> Adicionar
-            </button>
+            <ProductPickerCombo
+              onPick={(patch) =>
+                setProducts((prev) => [
+                  ...prev,
+                  { ...emptyProductDraft(), ...patch },
+                ])
+              }
+            />
           </section>
 
           {error && <p className="text-xs text-red-500">{error}</p>}
