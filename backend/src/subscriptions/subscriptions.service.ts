@@ -57,7 +57,8 @@ export class SubscriptionsService {
   async listPlans(includeInactive = false): Promise<PlanDto[]> {
     const where = includeInactive ? {} : { active: true };
     const rows = await this.planRepo.find({ where, order: { sortOrder: 'ASC', createdAt: 'ASC' } });
-    return rows.map(toDto);
+    const visible = includeInactive ? rows : rows.filter((p) => p.slug !== 'trial');
+    return visible.map(toDto);
   }
 
   async getMyFeatures(): Promise<MeFeaturesDto> {
