@@ -1,6 +1,7 @@
-import { Controller, Get, Post, Body, Param, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Delete, Body, Param, UseGuards, HttpCode } from '@nestjs/common';
 import { LeadActivitiesService } from './lead-activities.service';
 import { CreateLeadActivityDto } from './dto/create-lead-activity.dto';
+import { UpdateLeadActivityDto } from './dto/update-lead-activity.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { User } from '../users/entities/user.entity';
@@ -22,5 +23,21 @@ export class LeadActivitiesController {
     @CurrentUser() user: User,
   ) {
     return this.service.create(leadId, { ...dto, createdById: user.id });
+  }
+
+  @Patch(':id')
+  update(@Param('id') id: string, @Body() dto: UpdateLeadActivityDto) {
+    return this.service.update(id, dto);
+  }
+
+  @Patch(':id/complete')
+  complete(@Param('id') id: string) {
+    return this.service.complete(id);
+  }
+
+  @Delete(':id')
+  @HttpCode(204)
+  remove(@Param('id') id: string) {
+    return this.service.remove(id);
   }
 }

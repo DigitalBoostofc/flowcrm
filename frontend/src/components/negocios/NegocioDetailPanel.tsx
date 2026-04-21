@@ -8,7 +8,7 @@ import {
 import type { Lead, LeadStatus, LeadActivity, ActivityType, Pipeline, User, Stage } from '@/types/api';
 import { updateLead, updateLeadStatus, moveLead } from '@/api/leads';
 import { updateContact } from '@/api/contacts';
-import { getLeadActivities, createLeadActivity } from '@/api/lead-activities';
+import { getLeadActivities, createLeadActivity, updateLeadActivity, completeLeadActivity, deleteLeadActivity } from '@/api/lead-activities';
 import { listCustomerOrigins } from '@/api/customer-origins';
 import { listLossReasons } from '@/api/loss-reasons';
 import Avatar from '@/components/ui/Avatar';
@@ -200,6 +200,7 @@ export default function NegocioDetailPanel({ lead, currentUser, users, pipelines
   const qc = useQueryClient();
   const [composerType, setComposerType] = useState<ComposerType>('note');
   const [activityText, setActivityText] = useState('');
+  const [scheduledAt, setScheduledAt] = useState('');
   const [subTab, setSubTab] = useState<'historico' | 'fixadas'>('historico');
   const [copied, setCopied] = useState(false);
   const [pipelinePickerOpen, setPipelinePickerOpen] = useState(false);
@@ -307,18 +308,30 @@ export default function NegocioDetailPanel({ lead, currentUser, users, pipelines
   });
 
   const activityMut = useMutation({
-    mutationFn: (data: { type: ActivityType; body: string }) => createLeadActivity(lead.id, data),
+    mutationFn: (data: { type: ActivityType; body: string; scheduledAt?: string }) =>
+      createLeadActivity(lead.id, data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['lead-activities', lead.id] });
       setActivityText('');
+      setScheduledAt('');
     },
+  });
+
+  const completeActivityMut = useMutation({
+    mutationFn: (id: string) => completeLeadActivity(lead.id, id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['lead-activities', lead.id] }),
+  });
+
+  const deleteActivityMut = useMutation({
+    mutationFn: (id: string) => deleteLeadActivity(lead.id, id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['lead-activities', lead.id] }),
   });
 
   const sendActivity = () => {
     const body = activityText.trim();
     if (!body) return;
     const type: ActivityType = composerType === 'note' ? 'note' : composerType;
-    activityMut.mutate({ type, body });
+    activityMut.mutate({ type, body, scheduledAt: scheduledAt || undefined });
   };
 
   const copyCode = async () => {
@@ -579,17 +592,23 @@ export default function NegocioDetailPanel({ lead, currentUser, users, pipelines
                   className="w-full px-2 py-2 rounded-md outline-none text-sm resize-none"
                   style={{ background: 'transparent', color: 'var(--ink-1)' }}
                 />
-                <div className="flex items-center justify-between mt-2">
-                  <button
-                    className="flex items-center gap-1 text-xs font-medium"
-                    style={{ color: 'var(--brand-500, #6366f1)' }}
-                  >
-                    <FileText className="w-3.5 h-3.5" /> Modelos
-                  </button>
+                <div className="flex items-center justify-between mt-2 gap-2">
+                  {composerType !== 'note' && (
+                    <div className="flex items-center gap-1.5 flex-1">
+                      <Clock className="w-3.5 h-3.5 flex-shrink-0" style={{ color: 'var(--ink-3)' }} />
+                      <input
+                        type="datetime-local"
+                        value={scheduledAt}
+                        onChange={(e) => setScheduledAt(e.target.value)}
+                        className="text-xs outline-none bg-transparent flex-1"
+                        style={{ color: 'var(--ink-2)' }}
+                      />
+                    </div>
+                  )}
                   <button
                     onClick={sendActivity}
                     disabled={!activityText.trim() || activityMut.isPending}
-                    className="px-3 py-1.5 rounded-md text-xs font-semibold text-white disabled:opacity-50"
+                    className="ml-auto px-3 py-1.5 rounded-md text-xs font-semibold text-white disabled:opacity-50"
                     style={{ background: 'var(--brand-500, #6366f1)' }}
                   >
                     {activityMut.isPending ? 'Enviando...' : 'Registrar'}
@@ -628,7 +647,13 @@ export default function NegocioDetailPanel({ lead, currentUser, users, pipelines
             ) : (
               <div className="space-y-2">
                 {activities.map((a) => (
-                  <ActivityItem key={a.id} activity={a} users={users} />
+                  <ActivityItem
+                    key={a.id}
+                    activity={a}
+                    users={users}
+                    onComplete={() => completeActivityMut.mutate(a.id)}
+                    onDelete={() => deleteActivityMut.mutate(a.id)}
+                  />
                 ))}
               </div>
             )}
@@ -1014,22 +1039,38 @@ function EmptyFeed() {
   );
 }
 
-function ActivityItem({ activity, users }: { activity: LeadActivity; users: User[] }) {
+const ACTIVITY_META: Record<ActivityType, { label: string; icon: React.ComponentType<React.SVGProps<SVGSVGElement>> }> = {
+  note:     { label: 'Nota',     icon: StickyNote },
+  call:     { label: 'Ligação',  icon: PhoneCall },
+  whatsapp: { label: 'WhatsApp', icon: MessageSquare },
+  meeting:  { label: 'Reunião',  icon: UsersIcon },
+  visit:    { label: 'Visita',   icon: MapPin },
+  proposal: { label: 'Proposta', icon: FileText },
+};
+
+function ActivityItem({
+  activity, users, onComplete, onDelete,
+}: {
+  activity: LeadActivity;
+  users: User[];
+  onComplete: () => void;
+  onDelete: () => void;
+}) {
   const author = users.find((u) => u.id === activity.createdById) ?? activity.createdBy ?? null;
-  const typeMeta: Record<ActivityType, { label: string; icon: React.ComponentType<React.SVGProps<SVGSVGElement>> }> = {
-    note:     { label: 'Nota',     icon: StickyNote },
-    call:     { label: 'Ligação',  icon: PhoneCall },
-    whatsapp: { label: 'WhatsApp', icon: MessageSquare },
-    meeting:  { label: 'Reunião',  icon: UsersIcon },
-    visit:    { label: 'Visita',   icon: MapPin },
-    proposal: { label: 'Proposta', icon: FileText },
-  };
-  const meta = typeMeta[activity.type];
+  const meta = ACTIVITY_META[activity.type];
   const Icon = meta.icon;
+  const isScheduled = !!activity.scheduledAt && !activity.completedAt;
+  const isCompleted = !!activity.completedAt;
+  const isOverdue = isScheduled && new Date(activity.scheduledAt!) < new Date();
+
   return (
     <div
       className="p-3 rounded-lg"
-      style={{ background: 'var(--surface)', border: '1px solid var(--edge)' }}
+      style={{
+        background: isCompleted ? 'var(--surface)' : 'var(--surface)',
+        border: `1px solid ${isOverdue ? '#fca5a5' : 'var(--edge)'}`,
+        opacity: isCompleted ? 0.7 : 1,
+      }}
     >
       <div className="flex items-center gap-2 mb-1">
         <div
@@ -1041,8 +1082,37 @@ function ActivityItem({ activity, users }: { activity: LeadActivity; users: User
         <span className="text-xs font-medium" style={{ color: 'var(--ink-1)' }}>{meta.label}</span>
         {author && <span className="text-xs" style={{ color: 'var(--ink-3)' }}>• {author.name}</span>}
         <span className="text-xs ml-auto" style={{ color: 'var(--ink-3)' }}>{formatDateTime(activity.createdAt)}</span>
+        <button
+          onClick={onDelete}
+          className="p-0.5 rounded hover:bg-[var(--surface-hover)]"
+          style={{ color: 'var(--ink-3)' }}
+          title="Excluir"
+        >
+          <X className="w-3 h-3" />
+        </button>
       </div>
+
       <div className="text-sm whitespace-pre-wrap" style={{ color: 'var(--ink-1)' }}>{activity.body}</div>
+
+      {(isScheduled || isCompleted) && (
+        <div className="flex items-center justify-between mt-2 pt-2" style={{ borderTop: '1px solid var(--edge)' }}>
+          <div className="flex items-center gap-1.5 text-xs" style={{ color: isOverdue ? '#ef4444' : 'var(--ink-3)' }}>
+            <Clock className="w-3 h-3" />
+            {isCompleted
+              ? `Finalizada em ${formatDateTime(activity.completedAt!)}`
+              : `Agendada para ${formatDateTime(activity.scheduledAt!)}`}
+          </div>
+          {isScheduled && (
+            <button
+              onClick={onComplete}
+              className="flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium"
+              style={{ background: 'rgba(16,185,129,0.1)', color: '#10B981' }}
+            >
+              <Check className="w-3 h-3" /> Finalizar
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 }

@@ -134,7 +134,10 @@ export interface LeadActivity {
   body: string;
   createdById?: string;
   createdBy?: User;
+  scheduledAt?: string | null;
+  completedAt?: string | null;
   createdAt: string;
+  updatedAt?: string;
 }
 
 export interface Conversation {

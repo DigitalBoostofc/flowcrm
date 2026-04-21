@@ -1,4 +1,4 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, CreateDateColumn, JoinColumn, Index } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, CreateDateColumn, UpdateDateColumn, JoinColumn, Index } from 'typeorm';
 import { Lead } from '../../leads/entities/lead.entity';
 import { User } from '../../users/entities/user.entity';
 
@@ -40,6 +40,15 @@ export class LeadActivity {
   @Column({ nullable: true })
   createdById: string;
 
+  @Column({ type: 'timestamp', nullable: true })
+  scheduledAt: Date | null;
+
+  @Column({ type: 'timestamp', nullable: true })
+  completedAt: Date | null;
+
   @CreateDateColumn()
   createdAt: Date;
+
+  @UpdateDateColumn()
+  updatedAt: Date;
 }
