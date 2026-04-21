@@ -697,6 +697,8 @@ export default function Funil() {
 
   const [addNegocioOpen, setAddNegocioOpen] = useState(false);
   const [addStageId, setAddStageId] = useState<string | null>(null);
+  const [createFunilModal, setCreateFunilModal] = useState<{ open: boolean; kind: PipelineKind }>({ open: false, kind: 'sale' });
+  const [createFunilForm, setCreateFunilForm] = useState({ name: '', sigla: '' });
 
   const createPipelineMut = useMutation({
     mutationFn: ({ name, kind }: { name: string; kind?: PipelineKind }) =>
@@ -794,10 +796,11 @@ export default function Funil() {
         onCreate={(kind) => {
           const saleCount = pipelines.filter((p) => (p as any).kind !== 'management').length;
           const managementCount = pipelines.filter((p) => (p as any).kind === 'management').length;
-          const name = kind === 'management'
+          const defaultName = kind === 'management'
             ? `Funil de gestão ${managementCount + 1}`
             : `Funil de vendas ${saleCount + 1}`;
-          createPipelineMut.mutate({ name, kind });
+          setCreateFunilForm({ name: defaultName, sigla: '' });
+          setCreateFunilModal({ open: true, kind });
         }}
         onToggleMainNav={toggleSidebar}
         mainNavExpanded={!sidebarCollapsed}
@@ -1094,6 +1097,87 @@ export default function Funil() {
         initialPipelineId={addStageId ? selectedPipelineId : null}
         initialStageId={addStageId}
       />
+
+      {/* Modal de 2ª etapa — nome e sigla do novo funil */}
+      {createFunilModal.open && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ background: 'rgba(0,0,0,0.45)' }}
+          onClick={() => setCreateFunilModal({ open: false, kind: 'sale' })}
+        >
+          <div
+            className="w-full max-w-sm rounded-2xl p-6 space-y-5"
+            style={{ background: 'var(--surface-raised)', border: '1px solid var(--edge)' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <div
+                  className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
+                  style={{
+                    background: createFunilModal.kind === 'management' ? 'rgba(16,185,129,0.12)' : 'rgba(99,91,255,0.12)',
+                    color: createFunilModal.kind === 'management' ? '#10B981' : 'var(--brand-500, #6366f1)',
+                  }}
+                >
+                  {createFunilModal.kind === 'management'
+                    ? <ClipboardList className="w-3.5 h-3.5" />
+                    : <Briefcase className="w-3.5 h-3.5" />}
+                </div>
+                <h3 className="text-base font-semibold" style={{ color: 'var(--ink-1)' }}>
+                  {createFunilModal.kind === 'management' ? 'Funil de gestão' : 'Funil de vendas'}
+                </h3>
+              </div>
+              <p className="text-xs" style={{ color: 'var(--ink-3)' }}>Defina o nome e a sigla que aparecerá na sidebar.</p>
+            </div>
+
+            <div className="space-y-3">
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium" style={{ color: 'var(--ink-2)' }}>Nome do funil</label>
+                <input
+                  autoFocus
+                  value={createFunilForm.name}
+                  onChange={(e) => setCreateFunilForm((f) => ({ ...f, name: e.target.value }))}
+                  placeholder="Ex: Vendas Brasil"
+                  className="input-base"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium" style={{ color: 'var(--ink-2)' }}>
+                  Sigla <span className="font-normal" style={{ color: 'var(--ink-3)' }}>(máx. 4 letras — aparece na sidebar)</span>
+                </label>
+                <input
+                  value={createFunilForm.sigla}
+                  onChange={(e) => setCreateFunilForm((f) => ({ ...f, sigla: e.target.value.toUpperCase().slice(0, 4) }))}
+                  placeholder="Ex: VBR"
+                  maxLength={4}
+                  className="input-base"
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-1">
+              <button
+                onClick={() => setCreateFunilModal({ open: false, kind: 'sale' })}
+                className="btn-ghost"
+              >
+                Cancelar
+              </button>
+              <button
+                disabled={!createFunilForm.name.trim() || createPipelineMut.isPending}
+                onClick={() => {
+                  createPipelineMut.mutate(
+                    { name: createFunilForm.name.trim(), kind: createFunilModal.kind, sigla: createFunilForm.sigla.trim() || undefined } as any,
+                    { onSuccess: () => setCreateFunilModal({ open: false, kind: 'sale' }) },
+                  );
+                }}
+                className="btn-primary"
+              >
+                {createPipelineMut.isPending ? 'Criando...' : 'Criar funil'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
