@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
   GitBranch, XCircle, Users2, Tags, Building2, Radio, FileText,
-  Zap, User as UserIcon, Puzzle, Server, AlertTriangle, Package, Lock,
+  Zap, User as UserIcon, Puzzle, Server, AlertTriangle, Package, Lock, MessageCircle,
 } from 'lucide-react';
 import { useAuthStore } from '@/store/auth.store';
 import { useWorkspace } from '@/hooks/useWorkspace';
@@ -20,13 +20,14 @@ import SistemaTab from '@/components/settings/SistemaTab';
 import DangerZoneTab from '@/components/settings/DangerZoneTab';
 import ProdutosServicosTab from '@/components/settings/ProdutosServicosTab';
 import PrivacidadeTab from '@/components/settings/PrivacidadeTab';
+import WidgetTab from '@/components/settings/WidgetTab';
 import { FeatureLockedScreen } from '@/components/ui/FeatureGate';
 import { useFeatures } from '@/hooks/useFeatures';
 
 type Tab =
   | 'funis-etapas' | 'motivos-perda' | 'origens-clientes'
   | 'categorias-clientes' | 'setores' | 'produtos-servicos' | 'channels'
-  | 'templates' | 'automations' | 'agents' | 'integrations' | 'sistema' | 'danger'
+  | 'templates' | 'automations' | 'agents' | 'widget' | 'integrations' | 'sistema' | 'danger'
   | 'privacidade';
 
 interface NavItem { id: Tab; label: string; icon: typeof GitBranch; ownerOnly?: boolean; platformAdminOnly?: boolean; danger?: boolean; feature?: string }
@@ -65,7 +66,8 @@ const GROUPS: NavGroup[] = [
   {
     title: 'Equipe',
     items: [
-      { id: 'agents',               label: 'Colaboradores',         icon: UserIcon,   ownerOnly: true },
+      { id: 'agents',               label: 'Colaboradores',         icon: UserIcon,     ownerOnly: true },
+      { id: 'widget',               label: 'Widget WhatsApp',       icon: MessageCircle, ownerOnly: true },
     ],
   },
   {
@@ -207,6 +209,7 @@ export default function Settings() {
           {tab === 'templates'           && (has('automation_templates') ? <TemplatesTab /> : <FeatureLockedScreen feature="automation_templates" />)}
           {tab === 'automations'         && (has('automations') ? <AutomationsTab /> : <FeatureLockedScreen feature="automations" />)}
           {tab === 'agents'              && <AgentsTab />}
+          {tab === 'widget'              && <WidgetTab />}
           {tab === 'integrations'        && <IntegrationsTab />}
           {tab === 'privacidade'         && <PrivacidadeTab />}
           {tab === 'sistema'             && <SistemaTab />}

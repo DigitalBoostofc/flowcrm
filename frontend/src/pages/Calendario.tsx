@@ -345,7 +345,7 @@ export default function Calendario() {
         title: t.description,
         date: new Date(t.dueDate!),
         type: t.type,
-        completed: t.status === 'done',
+        completed: t.status === 'completed',
         raw: t,
       }));
 

@@ -14,6 +14,7 @@ import Tasks from '@/pages/Tasks';
 import Companies from '@/pages/Companies';
 import Inbox from '@/pages/Inbox';
 import Calendario from '@/pages/Calendario';
+import WidgetPage from '@/pages/WidgetPage';
 import Admin from '@/pages/Admin';
 import { FeatureLockedScreen } from '@/components/ui/FeatureGate';
 import { useFeatures } from '@/hooks/useFeatures';
@@ -117,6 +118,7 @@ export default function App() {
         <Route path="/termos" element={<Termos />} />
         <Route path="/privacidade" element={<Privacidade />} />
         <Route path="/reembolso" element={<Reembolso />} />
+        <Route path="/widget/:workspaceId" element={<WidgetPage />} />
         <Route
           path="/*"
           element={

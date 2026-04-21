@@ -266,7 +266,7 @@ export default function Analytics() {
                         ))}
                       </Pie>
                       <Tooltip
-                        formatter={(v: number) => formatBRL(v)}
+                        formatter={(v) => formatBRL(Number(v ?? 0))}
                         contentStyle={{ background: 'var(--surface-overlay)', border: '1px solid var(--edge-strong)', borderRadius: 8, color: 'var(--ink-1)' }}
                       />
                     </PieChart>

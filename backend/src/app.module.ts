@@ -46,6 +46,7 @@ import { BillingModule } from './billing/billing.module';
 import { ScheduleModule } from '@nestjs/schedule';
 import { MailModule } from './mail/mail.module';
 import { SummaryModule } from './summary/summary.module';
+import { CaptureModule } from './capture/capture.module';
 
 @Module({
   imports: [
@@ -111,6 +112,7 @@ import { SummaryModule } from './summary/summary.module';
     BillingModule,
     MailModule,
     SummaryModule,
+    CaptureModule,
   ],
 })
 export class AppModule {}

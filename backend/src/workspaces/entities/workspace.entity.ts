@@ -6,6 +6,18 @@ import { User } from '../../users/entities/user.entity';
 
 export type SubscriptionStatus = 'trial' | 'active' | 'expired' | 'canceled';
 
+export interface WidgetConfig {
+  enabled: boolean;
+  title: string;
+  subtitle: string;
+  color: string;
+  pipelineId: string | null;
+  stageId: string | null;
+  assignToId: string | null;
+  whatsappNumber: string;
+  collectEmail: boolean;
+}
+
 @Entity('workspaces')
 export class Workspace {
   @PrimaryGeneratedColumn('uuid')
@@ -47,6 +59,9 @@ export class Workspace {
 
   @Column({ type: 'varchar', length: 20, default: 'all' })
   defaultLeadPrivacy: 'all' | 'restricted';
+
+  @Column({ type: 'jsonb', nullable: true })
+  widgetConfig: WidgetConfig | null;
 
   @CreateDateColumn()
   createdAt: Date;
