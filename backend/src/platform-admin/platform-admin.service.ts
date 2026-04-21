@@ -169,6 +169,7 @@ export class PlatformAdminService {
              c."createdAt", c."updatedAt", w.name AS "workspaceName"
       FROM "channel_configs" c
       LEFT JOIN "workspaces" w ON w.id = c."workspaceId"
+      WHERE c.active = true
       ORDER BY c."createdAt" DESC
     `);
     return rows as any;
