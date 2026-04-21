@@ -682,6 +682,13 @@ export default function Funil() {
   const toggleSidebar = useSidebarStore((s) => s.toggle);
   const [search, setSearch] = useState('');
   const [labelsOpen, setLabelsOpen] = useState(false);
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [filterAssignee, setFilterAssignee] = useState('');
+  const [filterStage, setFilterStage] = useState('');
+  const [filterOrigin, setFilterOrigin] = useState('');
+  const [filterDateFrom, setFilterDateFrom] = useState('');
+  const [filterDateTo, setFilterDateTo] = useState('');
+  const [filterStatus, setFilterStatus] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [selectedPipelineId, setSelectedPipelineId] = useState<string>('');
   const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
@@ -736,24 +743,45 @@ export default function Funil() {
   }, [leads, pipelines, selectedPipelineId]);
 
   const filteredLeads = useMemo(() => {
-    if (!debouncedSearch) return pipelineLeads;
-    return pipelineLeads.filter((l) => {
-      const text = [
-        l.title,
-        l.contact?.name,
-        l.contact?.company,
-        l.contact?.email,
-        l.stage?.name,
-      ]
-        .filter(Boolean)
-        .join(' ')
-        .toLowerCase();
-      return text.includes(debouncedSearch);
-    });
-  }, [pipelineLeads, debouncedSearch]);
+    let result = pipelineLeads;
+
+    if (debouncedSearch) {
+      result = result.filter((l) => {
+        const text = [l.title, l.contact?.name, l.contact?.company, l.contact?.email, l.stage?.name]
+          .filter(Boolean).join(' ').toLowerCase();
+        return text.includes(debouncedSearch);
+      });
+    }
+    if (filterAssignee) result = result.filter((l) => l.assignedToId === filterAssignee);
+    if (filterStage)    result = result.filter((l) => l.stageId === filterStage);
+    if (filterOrigin)   result = result.filter((l) => l.contact?.origin === filterOrigin);
+    if (filterStatus)   result = result.filter((l) => l.status === filterStatus);
+    if (filterDateFrom) result = result.filter((l) => new Date(l.createdAt) >= new Date(filterDateFrom));
+    if (filterDateTo)   result = result.filter((l) => new Date(l.createdAt) <= new Date(filterDateTo + 'T23:59:59'));
+
+    return result;
+  }, [pipelineLeads, debouncedSearch, filterAssignee, filterStage, filterOrigin, filterStatus, filterDateFrom, filterDateTo]);
 
   const total = filteredLeads.length;
   const totalValue = filteredLeads.reduce((s, l) => s + Number(l.value ?? 0), 0);
+
+  const activeFilters = [filterAssignee, filterStage, filterOrigin, filterStatus, filterDateFrom, filterDateTo].filter(Boolean).length;
+
+  const clearFilters = () => {
+    setFilterAssignee(''); setFilterStage(''); setFilterOrigin('');
+    setFilterStatus(''); setFilterDateFrom(''); setFilterDateTo('');
+  };
+
+  const originOptions = useMemo(() => {
+    const set = new Set<string>();
+    pipelineLeads.forEach((l) => { if (l.contact?.origin) set.add(l.contact.origin); });
+    return [...set].sort();
+  }, [pipelineLeads]);
+
+  const stages = useMemo(
+    () => (selectedPipeline?.stages ?? []).slice().sort((a, b) => a.position - b.position),
+    [selectedPipeline],
+  );
 
   return (
     <div className="flex h-full min-h-screen">
@@ -762,7 +790,7 @@ export default function Funil() {
       <PipelineSidebar
         pipelines={pipelines}
         selectedId={selectedPipelineId}
-        onSelect={setSelectedPipelineId}
+        onSelect={(id) => { setSelectedPipelineId(id); clearFilters(); }}
         onCreate={(kind) => {
           const saleCount = pipelines.filter((p) => (p as any).kind !== 'management').length;
           const managementCount = pipelines.filter((p) => (p as any).kind === 'management').length;
@@ -857,11 +885,16 @@ export default function Funil() {
             />
           </div>
           <button
-            className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors hover:bg-[var(--surface-hover)]"
-            style={{ background: 'var(--surface)', border: '1px solid var(--edge)', color: 'var(--ink-1)' }}
+            onClick={() => setFilterOpen((o) => !o)}
+            className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors"
+            style={{
+              background: filterOpen || activeFilters > 0 ? 'var(--brand-50)' : 'var(--surface)',
+              border: `1px solid ${activeFilters > 0 ? 'var(--brand-500)' : 'var(--edge)'}`,
+              color: activeFilters > 0 ? 'var(--brand-500)' : 'var(--ink-1)',
+            }}
           >
             <Filter className="w-4 h-4" />
-            Filtros
+            Filtros{activeFilters > 0 && ` (${activeFilters})`}
           </button>
           <button
             onClick={() => setLabelsOpen(o => !o)}
@@ -888,6 +921,79 @@ export default function Funil() {
           </button>
         </div>
       </div>
+
+      {/* Filter bar */}
+      {filterOpen && (
+        <div
+          className="flex flex-wrap items-center gap-3 px-4 py-3 rounded-xl"
+          style={{ background: 'var(--surface)', border: '1px solid var(--edge)' }}
+        >
+          <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}
+            className="px-3 py-1.5 rounded-lg text-sm outline-none"
+            style={{ background: 'var(--surface-hover)', border: '1px solid var(--edge)', color: 'var(--ink-1)' }}>
+            <option value="">Status</option>
+            <option value="active">Em andamento</option>
+            <option value="won">Ganho</option>
+            <option value="lost">Perdido</option>
+            <option value="frozen">Congelado</option>
+          </select>
+
+          <select value={filterAssignee} onChange={(e) => setFilterAssignee(e.target.value)}
+            className="px-3 py-1.5 rounded-lg text-sm outline-none"
+            style={{ background: 'var(--surface-hover)', border: '1px solid var(--edge)', color: 'var(--ink-1)' }}>
+            <option value="">Responsável</option>
+            {users.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
+          </select>
+
+          <select value={filterStage} onChange={(e) => setFilterStage(e.target.value)}
+            className="px-3 py-1.5 rounded-lg text-sm outline-none"
+            style={{ background: 'var(--surface-hover)', border: '1px solid var(--edge)', color: 'var(--ink-1)' }}>
+            <option value="">Etapa</option>
+            {stages.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+          </select>
+
+          {originOptions.length > 0 && (
+            <select value={filterOrigin} onChange={(e) => setFilterOrigin(e.target.value)}
+              className="px-3 py-1.5 rounded-lg text-sm outline-none"
+              style={{ background: 'var(--surface-hover)', border: '1px solid var(--edge)', color: 'var(--ink-1)' }}>
+              <option value="">Origem</option>
+              {originOptions.map((o) => <option key={o} value={o}>{o}</option>)}
+            </select>
+          )}
+
+          <div className="flex items-center gap-1">
+            <input
+              type="date"
+              value={filterDateFrom}
+              onChange={(e) => setFilterDateFrom(e.target.value)}
+              className="px-2 py-1.5 rounded-lg text-sm outline-none"
+              style={{ background: 'var(--surface-hover)', border: '1px solid var(--edge)', color: filterDateFrom ? 'var(--ink-1)' : 'var(--ink-3)' }}
+              title="De (data de criação)"
+            />
+            <span className="text-xs" style={{ color: 'var(--ink-3)' }}>até</span>
+            <input
+              type="date"
+              value={filterDateTo}
+              onChange={(e) => setFilterDateTo(e.target.value)}
+              className="px-2 py-1.5 rounded-lg text-sm outline-none"
+              style={{ background: 'var(--surface-hover)', border: '1px solid var(--edge)', color: filterDateTo ? 'var(--ink-1)' : 'var(--ink-3)' }}
+              title="Até (data de criação)"
+            />
+          </div>
+
+          {activeFilters > 0 && (
+            <button onClick={clearFilters}
+              className="text-xs px-2.5 py-1.5 rounded-lg"
+              style={{ color: 'var(--danger)', background: 'var(--danger-bg)' }}>
+              Limpar filtros
+            </button>
+          )}
+
+          <span className="text-xs ml-auto" style={{ color: 'var(--ink-3)' }}>
+            {filteredLeads.length} de {pipelineLeads.length} negócios
+          </span>
+        </div>
+      )}
 
       {/* Painel de etiquetas */}
       {labelsOpen && (
