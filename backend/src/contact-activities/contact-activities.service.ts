@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Between, Repository } from 'typeorm';
 import { ContactActivity } from './entities/contact-activity.entity';
 import { CreateContactActivityDto } from './dto/create-contact-activity.dto';
 import { UpdateContactActivityDto } from './dto/update-contact-activity.dto';
@@ -29,6 +29,19 @@ export class ContactActivitiesService {
       companyId: companyId ?? null,
     });
     return this.repo.save(activity);
+  }
+
+  findAll(from?: string, to?: string): Promise<ContactActivity[]> {
+    const workspaceId = this.tenant.requireWorkspaceId();
+    const where: any = { workspaceId };
+    if (from && to) {
+      where.scheduledAt = Between(new Date(from), new Date(to));
+    }
+    return this.repo.find({
+      where,
+      relations: ['createdBy', 'contact', 'company'],
+      order: { scheduledAt: 'ASC' },
+    });
   }
 
   findByContact(contactId: string): Promise<ContactActivity[]> {

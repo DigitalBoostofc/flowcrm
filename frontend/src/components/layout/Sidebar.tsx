@@ -1,7 +1,7 @@
 import { NavLink } from 'react-router-dom';
 import {
   Home, Users, Settings as SettingsIcon, LogOut,
-  BarChart2, Zap, CheckSquare, Building2, Briefcase, MessageCircle, Shield,
+  BarChart2, Zap, CheckSquare, Building2, Briefcase, MessageCircle, Shield, CalendarDays,
 } from 'lucide-react';
 import { useAuthStore } from '@/store/auth.store';
 import { useSidebarStore } from '@/store/sidebar.store';
@@ -18,6 +18,7 @@ const NAV_ITEMS: NavItem[] = [
   { to: '/inicio',                  icon: Home,           label: 'Início' },
   { to: '/analytics',              icon: BarChart2,      label: 'Analytics', feature: 'analytics' },
   { to: '/tasks',                  icon: CheckSquare,    label: 'Tarefas', feature: 'tasks' },
+  { to: '/calendario',             icon: CalendarDays,   label: 'Calendário' },
   { to: '/inbox',                  icon: MessageCircle,  label: 'Inbox', feature: 'inbox' },
   { to: '/pessoas',                icon: Users,          label: 'Pessoas' },
   { to: '/companies',              icon: Building2,      label: 'Empresas' },

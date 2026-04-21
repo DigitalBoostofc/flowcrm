@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Patch, Delete, Body, Param, UseGuards, HttpCode } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Delete, Body, Param, Query, UseGuards, HttpCode } from '@nestjs/common';
 import { ContactActivitiesService } from './contact-activities.service';
 import { CreateContactActivityDto } from './dto/create-contact-activity.dto';
 import { UpdateContactActivityDto } from './dto/update-contact-activity.dto';
@@ -10,6 +10,16 @@ import { User } from '../users/entities/user.entity';
 @UseGuards(JwtAuthGuard)
 export class ContactActivitiesController {
   constructor(private service: ContactActivitiesService) {}
+
+  /* ── Workspace-wide listing (for calendar) ── */
+
+  @Get('contact-activities')
+  findAll(
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+  ) {
+    return this.service.findAll(from, to);
+  }
 
   /* ── Contact routes ── */
 

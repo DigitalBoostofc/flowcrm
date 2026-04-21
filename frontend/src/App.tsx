@@ -13,6 +13,7 @@ import Analytics from '@/pages/Analytics';
 import Tasks from '@/pages/Tasks';
 import Companies from '@/pages/Companies';
 import Inbox from '@/pages/Inbox';
+import Calendario from '@/pages/Calendario';
 import Admin from '@/pages/Admin';
 import { FeatureLockedScreen } from '@/components/ui/FeatureGate';
 import { useFeatures } from '@/hooks/useFeatures';
@@ -71,6 +72,7 @@ function AuthedLayout() {
         <Route path="inbox" element={<GatedInbox />} />
         <Route path="companies" element={<Companies />} />
         <Route path="analytics" element={<GatedAnalytics />} />
+        <Route path="calendario" element={<Calendario />} />
         <Route path="settings" element={<Settings />} />
         <Route path="perfil" element={<Perfil />} />
         <Route path="admin" element={<Admin />} />

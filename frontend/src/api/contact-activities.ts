@@ -43,3 +43,6 @@ export const completeContactActivity = (id: string): Promise<ContactActivity> =>
 
 export const deleteContactActivity = (id: string): Promise<void> =>
   api.delete(`/contact-activities/${id}`).then(() => undefined);
+
+export const listAllActivities = (from?: string, to?: string): Promise<ContactActivity[]> =>
+  api.get('/contact-activities', { params: from && to ? { from, to } : {} }).then(r => r.data);
