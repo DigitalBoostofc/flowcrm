@@ -20,6 +20,7 @@ import { SchedulerModule } from './scheduler/scheduler.module';
 import { QueuesModule } from './common/queues/queues.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { LeadActivitiesModule } from './lead-activities/lead-activities.module';
+import { ContactActivitiesModule } from './contact-activities/contact-activities.module';
 import { LossReasonsModule } from './loss-reasons/loss-reasons.module';
 import { AnalyticsModule } from './analytics/analytics.module';
 import { SearchModule } from './search/search.module';
@@ -81,6 +82,7 @@ import { BillingModule } from './billing/billing.module';
     SchedulerModule,
     NotificationsModule,
     LeadActivitiesModule,
+    ContactActivitiesModule,
     LossReasonsModule,
     AnalyticsModule,
     SearchModule,

@@ -5,23 +5,11 @@ import {
   FileText, PhoneCall, Users as UsersIcon, Briefcase, MapPin, Pencil,
   Facebook, Linkedin, Instagram, Twitter,
 } from 'lucide-react';
-import type { Contact, User, Task, TaskType } from '@/types/api';
+import type { Contact, User } from '@/types/api';
 import { updateContact } from '@/api/contacts';
-import { listTasks, createTask, completeTask, reopenTask } from '@/api/tasks';
 import Avatar from '@/components/ui/Avatar';
-
-/* ── Types ───────────────────────────────────────────── */
-
-type ActivityType = TaskType;
-
-const ACTIVITY_TYPES: { key: ActivityType; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
-  { key: 'email',    label: 'E-mail',   icon: Mail },
-  { key: 'call',     label: 'Ligação',  icon: PhoneCall },
-  { key: 'whatsapp', label: 'WhatsApp', icon: MessageSquare },
-  { key: 'proposal', label: 'Proposta', icon: FileText },
-  { key: 'meeting',  label: 'Reunião',  icon: UsersIcon },
-  { key: 'visit',    label: 'Visita',   icon: MapPin },
-];
+import { getContactActivities, createContactActivity, completeContactActivity, deleteContactActivity } from '@/api/contact-activities';
+import { ActivityComposer, ActivityFeedList } from '@/components/ui/ActivityFeed';
 
 /* ── Inline editable field ───────────────────────────── */
 
@@ -97,21 +85,24 @@ export interface PessoaDetailPanelProps {
   onClose: () => void;
 }
 
+function fmt(iso: string) {
+  const d = new Date(iso);
+  return d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' }).replace('.', '') +
+    ' ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+}
+
 export default function PessoaDetailPanel({ contact, currentUser, users, onClose }: PessoaDetailPanelProps) {
   const qc = useQueryClient();
   const [tab, setTab] = useState<'historico' | 'negocios'>('historico');
-  const [activityType, setActivityType] = useState<ActivityType | 'note'>('note');
-  const [activityText, setActivityText] = useState('');
-  const [subTab, setSubTab] = useState<'feed' | 'fixadas'>('feed');
 
   const responsavel = useMemo(
     () => users.find((u) => u.id === contact.responsibleId) ?? null,
     [users, contact.responsibleId],
   );
 
-  const { data: tasks = [] } = useQuery({
-    queryKey: ['pessoa-tasks', contact.id],
-    queryFn: () => listTasks({ targetType: 'contact', targetId: contact.id }),
+  const { data: activities = [] } = useQuery({
+    queryKey: ['contact-activities', contact.id],
+    queryFn: () => getContactActivities(contact.id),
   });
 
   const updateMut = useMutation({
@@ -131,42 +122,20 @@ export default function PessoaDetailPanel({ contact, currentUser, users, onClose
   };
 
   const createActivityMut = useMutation({
-    mutationFn: () => {
-      if (activityType === 'note') {
-        // treat note as a proposal/internal marker — store as a completed task with type proposal? no.
-        // For a generic "Nota" we'll create a meeting-type task already completed for visual log.
-        return createTask({
-          type: 'meeting',
-          description: activityText.trim(),
-          targetType: 'contact',
-          targetId: contact.id,
-          targetLabel: contact.name,
-        });
-      }
-      return createTask({
-        type: activityType,
-        description: activityText.trim(),
-        targetType: 'contact',
-        targetId: contact.id,
-        targetLabel: contact.name,
-      });
-    },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['pessoa-tasks', contact.id] });
-      setActivityText('');
-    },
+    mutationFn: ({ type, body, scheduledAt }: { type: string; body: string; scheduledAt?: string }) =>
+      createContactActivity(contact.id, { type, body, scheduledAt }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['contact-activities', contact.id] }),
   });
 
-  const toggleTaskMut = useMutation({
-    mutationFn: (t: Task) => (t.status === 'pending' ? completeTask(t.id) : reopenTask(t.id)),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['pessoa-tasks', contact.id] }),
+  const completeActivityMut = useMutation({
+    mutationFn: (id: string) => completeContactActivity(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['contact-activities', contact.id] }),
   });
 
-  const fmt = (iso: string) => {
-    const d = new Date(iso);
-    return d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }).replace('.', '') +
-      ' ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-  };
+  const deleteActivityMut = useMutation({
+    mutationFn: (id: string) => deleteContactActivity(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['contact-activities', contact.id] }),
+  });
 
   const address = useMemo(() => {
     const parts = [contact.rua, contact.numero, contact.bairro, contact.cidade, contact.estado]
@@ -283,202 +252,18 @@ export default function PessoaDetailPanel({ contact, currentUser, users, onClose
           <div className="space-y-4 min-w-0">
             {tab === 'historico' ? (
               <>
-                {/* Activity composer */}
-                <div
-                  className="rounded-xl overflow-hidden"
-                  style={{ background: 'var(--surface)', border: '1px solid var(--edge)' }}
-                >
-                  <div
-                    className="flex items-center gap-1 px-2 pt-2 overflow-x-auto"
-                    style={{ borderBottom: '1px solid var(--edge)' }}
-                  >
-                    <button
-                      onClick={() => setActivityType('note')}
-                      className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium rounded-t-md border-b-2 whitespace-nowrap"
-                      style={{
-                        color: activityType === 'note' ? 'var(--brand-500, #6366f1)' : 'var(--ink-2)',
-                        borderColor: activityType === 'note' ? 'var(--brand-500, #6366f1)' : 'transparent',
-                      }}
-                    >
-                      <Pencil className="w-3.5 h-3.5" />
-                      Nota
-                    </button>
-                    {ACTIVITY_TYPES.map(({ key, label, icon: Icon }) => (
-                      <button
-                        key={key}
-                        onClick={() => setActivityType(key)}
-                        className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium rounded-t-md border-b-2 whitespace-nowrap"
-                        style={{
-                          color: activityType === key ? 'var(--brand-500, #6366f1)' : 'var(--ink-2)',
-                          borderColor: activityType === key ? 'var(--brand-500, #6366f1)' : 'transparent',
-                        }}
-                      >
-                        <Icon className="w-3.5 h-3.5" />
-                        {label}
-                      </button>
-                    ))}
-                  </div>
-                  <textarea
-                    rows={3}
-                    value={activityText}
-                    onChange={(e) => setActivityText(e.target.value)}
-                    placeholder="O que foi feito e qual o próximo passo?"
-                    className="w-full px-3 py-2 text-sm resize-none outline-none"
-                    style={{ background: 'transparent', color: 'var(--ink-1)' }}
-                  />
-                  <div
-                    className="flex items-center justify-between px-3 py-2"
-                    style={{ borderTop: '1px solid var(--edge)' }}
-                  >
-                    <button className="text-xs font-medium" style={{ color: 'var(--brand-500, #6366f1)' }}>
-                      + Modelos
-                    </button>
-                    <button
-                      onClick={() => activityText.trim() && createActivityMut.mutate()}
-                      disabled={!activityText.trim() || createActivityMut.isPending}
-                      className="px-3 py-1 rounded-md text-xs font-semibold text-white disabled:opacity-50"
-                      style={{ background: 'var(--brand-500, #6366f1)' }}
-                    >
-                      {createActivityMut.isPending ? 'Salvando...' : 'Salvar'}
-                    </button>
-                  </div>
-                </div>
-
-                {/* Sub-tabs */}
-                <div
-                  className="flex items-center gap-4"
-                  style={{ borderBottom: '1px solid var(--edge)' }}
-                >
-                  {([
-                    { k: 'feed',    label: 'Histórico de atividades' },
-                    { k: 'fixadas', label: 'Fixadas' },
-                  ] as const).map((t) => (
-                    <button
-                      key={t.k}
-                      onClick={() => setSubTab(t.k)}
-                      className="py-2 text-sm font-medium relative"
-                      style={{ color: subTab === t.k ? 'var(--ink-1)' : 'var(--ink-2)' }}
-                    >
-                      {t.label}
-                      {subTab === t.k && (
-                        <span className="absolute left-0 right-0 -bottom-[1px] h-0.5" style={{ background: 'var(--ink-1)' }} />
-                      )}
-                    </button>
-                  ))}
-                </div>
-
-                <div className="flex items-center justify-end">
-                  <div className="flex items-center gap-1.5 text-xs" style={{ color: 'var(--ink-2)' }}>
-                    Mostrar atividades:
-                    <select
-                      className="px-2 py-1 rounded-md text-xs outline-none"
-                      style={{ background: 'var(--surface)', border: '1px solid var(--edge)', color: 'var(--ink-1)' }}
-                    >
-                      <option>da pessoa e negócios rela...</option>
-                      <option>apenas da pessoa</option>
-                    </select>
-                  </div>
-                </div>
-
-                {/* Feed */}
-                {tasks.length === 0 ? (
-                  <div
-                    className="py-8 text-center rounded-xl"
-                    style={{
-                      background: 'var(--surface)',
-                      border: '1px dashed var(--edge)',
-                      color: 'var(--ink-3)',
-                    }}
-                  >
-                    Nenhuma atividade registrada ainda.
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {tasks.map((t) => {
-                      const typeInfo = ACTIVITY_TYPES.find((a) => a.key === t.type);
-                      const Icon = typeInfo?.icon ?? Pencil;
-                      return (
-                        <div
-                          key={t.id}
-                          className="rounded-xl p-4"
-                          style={{ background: 'var(--surface)', border: '1px solid var(--edge)' }}
-                        >
-                          <div
-                            className="inline-flex items-center gap-1.5 text-xs font-medium px-2 py-0.5 rounded mb-2"
-                            style={{ background: 'var(--surface-hover)', color: 'var(--ink-2)' }}
-                          >
-                            <UsersIcon className="w-3 h-3" />
-                            {contact.name}
-                          </div>
-                          <div className="flex items-start gap-3">
-                            <div
-                              className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
-                              style={{ background: 'rgba(99,102,241,0.12)' }}
-                            >
-                              <Icon className="w-4 h-4" style={{ color: 'var(--brand-500, #6366f1)' }} />
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-start justify-between gap-3">
-                                <div>
-                                  <div className="text-sm font-semibold" style={{ color: 'var(--ink-1)' }}>
-                                    {typeInfo?.label ?? 'Nota'}
-                                  </div>
-                                  <div className="text-xs" style={{ color: 'var(--ink-3)' }}>
-                                    Criada {fmt(t.createdAt)}
-                                  </div>
-                                </div>
-                                <div className="flex items-center gap-2 flex-shrink-0">
-                                  {t.dueDate && t.status === 'pending' && (
-                                    <span
-                                      className="text-xs font-medium px-2 py-0.5 rounded"
-                                      style={{ background: 'rgba(34,197,94,0.15)', color: '#22c55e' }}
-                                    >
-                                      Prazo: {fmt(t.dueDate)}
-                                    </span>
-                                  )}
-                                  <label className="flex items-center gap-1 text-xs cursor-pointer" style={{ color: 'var(--ink-2)' }}>
-                                    <input
-                                      type="checkbox"
-                                      checked={t.status === 'completed'}
-                                      onChange={() => toggleTaskMut.mutate(t)}
-                                    />
-                                    Finalizar
-                                  </label>
-                                </div>
-                              </div>
-                              {t.description && (
-                                <div className="text-sm mt-2" style={{ color: 'var(--ink-1)' }}>
-                                  {t.description}
-                                </div>
-                              )}
-                              <div className="flex items-center gap-3 mt-2 text-xs" style={{ color: 'var(--ink-3)' }}>
-                                {t.createdById && users.find((u) => u.id === t.createdById) && (
-                                  <span className="inline-flex items-center gap-1">
-                                    Criada por{' '}
-                                    <Avatar
-                                      name={users.find((u) => u.id === t.createdById)!.name}
-                                      url={users.find((u) => u.id === t.createdById)!.avatarUrl}
-                                      size={16}
-                                    />
-                                  </span>
-                                )}
-                                {t.responsibleIds.length > 0 && (
-                                  <span className="inline-flex items-center gap-1">
-                                    Responsáveis
-                                    {t.responsibleIds.slice(0, 3).map((id) => {
-                                      const u = users.find((x) => x.id === id);
-                                      return u ? <Avatar key={id} name={u.name} url={u.avatarUrl} size={16} /> : null;
-                                    })}
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
+                <ActivityComposer
+                  isPending={createActivityMut.isPending}
+                  onSubmit={(type, body, scheduledAt) =>
+                    createActivityMut.mutateAsync({ type, body, scheduledAt })
+                  }
+                />
+                <ActivityFeedList
+                  activities={activities}
+                  users={users}
+                  onComplete={(id) => completeActivityMut.mutate(id)}
+                  onDelete={(id) => deleteActivityMut.mutate(id)}
+                />
               </>
             ) : (
               <div

@@ -12,6 +12,7 @@ import { listContacts } from '@/api/contacts';
 import { useAuthStore } from '@/store/auth.store';
 import type { Company, CompanyPrivacy, User } from '@/types/api';
 import Avatar from '@/components/ui/Avatar';
+import CompanyDetailPanel from '@/components/companies/CompanyDetailPanel';
 import {
   ResizableDataList,
   ViewEditorModal,
@@ -810,6 +811,7 @@ export default function Companies() {
   const [filterOpen, setFilterOpen] = useState(false);
   const [viewEditorOpen, setViewEditorOpen] = useState(false);
   const [editingCompany, setEditingCompany] = useState<Company | null>(null);
+  const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [deleteTarget, setDeleteTarget] = useState<Company | null>(null);
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
@@ -1092,7 +1094,7 @@ export default function Companies() {
         widths={cols.prefs.widths}
         onWidthChange={cols.setWidth}
         loading={isLoading}
-        onRowClick={(c) => setEditingCompany(c)}
+        onRowClick={(c) => setSelectedCompany(c)}
         emptyState={<EmptyState onAdd={() => setAddOpen(true)} />}
         selectedIds={selectedIds}
         onSelectionChange={setSelectedIds}
@@ -1149,6 +1151,15 @@ export default function Companies() {
             </div>
           </div>
         </div>
+      )}
+
+      {selectedCompany && (
+        <CompanyDetailPanel
+          company={selectedCompany}
+          users={users}
+          onClose={() => setSelectedCompany(null)}
+          onEdit={() => { setEditingCompany(selectedCompany); setSelectedCompany(null); }}
+        />
       )}
 
       <AddCompanyModal
