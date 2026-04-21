@@ -1,6 +1,7 @@
 import { Logger, Provider } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import Stripe from 'stripe';
+
+const Stripe = require('stripe');
 
 export const STRIPE_CLIENT = 'STRIPE_CLIENT';
 
@@ -14,7 +15,7 @@ export const StripeProvider: Provider = {
       new Logger('Stripe').warn('STRIPE_SECRET_KEY não configurada — billing desabilitado');
       return null;
     }
-    return new (Stripe as any)(key, { apiVersion: '2024-06-20' });
+    return new Stripe(key, { apiVersion: '2024-06-20' });
   },
   inject: [ConfigService],
 };
