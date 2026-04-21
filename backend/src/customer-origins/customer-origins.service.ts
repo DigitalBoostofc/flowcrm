@@ -14,9 +14,15 @@ export class CustomerOriginsService {
     private readonly tenant: TenantContext,
   ) {}
 
-  findAll(): Promise<CustomerOrigin[]> {
+  async findAll(): Promise<CustomerOrigin[]> {
     const workspaceId = this.tenant.requireWorkspaceId();
-    return this.repo.find({ where: { workspaceId }, order: { name: 'ASC' } });
+    const existing = await this.repo.find({ where: { workspaceId }, order: { name: 'ASC' } });
+    if (existing.length === 0) {
+      const defaults = ['Rede Social', 'Google / Site', 'Indicação', 'Prospecção'];
+      await Promise.all(defaults.map(name => this.repo.save(this.repo.create({ name, workspaceId }))));
+      return this.repo.find({ where: { workspaceId }, order: { name: 'ASC' } });
+    }
+    return existing;
   }
 
   async create(dto: CreateCustomerOriginDto): Promise<CustomerOrigin> {

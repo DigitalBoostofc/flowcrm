@@ -15,6 +15,7 @@ import { listLossReasons } from '@/api/loss-reasons';
 import Avatar from '@/components/ui/Avatar';
 import LabelPicker from '@/components/labels/LabelPicker';
 import { StatusDropdown } from '@/components/negocios/StatusDropdown';
+import OrigemPicker from '@/components/negocios/OrigemPicker';
 
 /* ── Formatters ──────────────────────────────────────── */
 
@@ -805,13 +806,14 @@ export default function NegocioDetailPanel({ lead, currentUser, users, pipelines
                   multiline
                   onSave={(v) => leadMut.mutateAsync({ notes: v })}
                 />
-                <InlineSelect
-                  label="Origem"
-                  value={lead.customerOriginId}
-                  options={customerOrigins}
-                  onChange={(id) => leadMut.mutate({ customerOriginId: id })}
-                  placeholder={customerOrigins.length === 0 ? 'Cadastre origens nas configurações' : 'Selecionar'}
-                />
+                <div className="grid items-center gap-3 py-1.5" style={{ gridTemplateColumns: '110px 1fr' }}>
+                  <div className="text-xs" style={{ color: 'var(--ink-3)' }}>Origem</div>
+                  <OrigemPicker
+                    value={lead.customerOriginId}
+                    origins={customerOrigins}
+                    onChange={(id) => leadMut.mutate({ customerOriginId: id })}
+                  />
+                </div>
               </div>
             </SidebarCard>
 
