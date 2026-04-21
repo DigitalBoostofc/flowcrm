@@ -48,8 +48,23 @@ export class BillingService {
   }
 
   async ensureCustomer(workspace: Workspace): Promise<string> {
-    if (workspace.stripeCustomerId) return workspace.stripeCustomerId;
     const stripe = this.requireStripe();
+
+    if (workspace.stripeCustomerId) {
+      try {
+        const existing = await stripe.customers.retrieve(workspace.stripeCustomerId);
+        if (existing && !existing.deleted) return workspace.stripeCustomerId;
+      } catch (err: any) {
+        if (err?.code !== 'resource_missing') throw err;
+        this.logger.warn(
+          `Customer ${workspace.stripeCustomerId} não existe mais no Stripe — recriando para workspace ${workspace.id}`,
+        );
+      }
+      await this.wsRepo.update(workspace.id, { stripeCustomerId: null, stripeSubscriptionId: null });
+      workspace.stripeCustomerId = null;
+      workspace.stripeSubscriptionId = null;
+    }
+
     const owner = workspace.ownerUserId
       ? await this.userRepo.findOne({ where: { id: workspace.ownerUserId } })
       : null;
