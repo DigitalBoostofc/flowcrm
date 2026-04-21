@@ -70,6 +70,12 @@ export default function PlansTab() {
                     <Star className="w-2.5 h-2.5" fill="currentColor" /> Destaque
                   </span>
                 )}
+                {p.slug === 'trial' && (
+                  <span className="text-[10px] px-1.5 py-0.5 rounded font-medium"
+                    style={{ background: '#fef3c7', color: '#a16207' }}>
+                    Trial
+                  </span>
+                )}
                 {!p.active && (
                   <span className="text-[10px] px-1.5 py-0.5 rounded"
                     style={{ background: 'var(--surface-hover)', color: 'var(--ink-3)' }}>Inativo</span>
@@ -111,16 +117,18 @@ export default function PlansTab() {
               >
                 <Pencil className="w-4 h-4" />
               </button>
-              <button
-                onClick={() => {
-                  if (confirm(`Excluir o plano "${p.name}"?`)) delMut.mutate(p.id);
-                }}
-                className="p-2 rounded hover:bg-[var(--surface-hover)]"
-                style={{ color: 'var(--ink-3)' }}
-                title="Excluir"
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
+              {p.slug !== 'trial' && (
+                <button
+                  onClick={() => {
+                    if (confirm(`Excluir o plano "${p.name}"?`)) delMut.mutate(p.id);
+                  }}
+                  className="p-2 rounded hover:bg-[var(--surface-hover)]"
+                  style={{ color: 'var(--ink-3)' }}
+                  title="Excluir"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              )}
             </div>
           </div>
         ))}

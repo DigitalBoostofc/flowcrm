@@ -65,13 +65,23 @@ export class SubscriptionsService {
     const w = await this.wsRepo.findOne({ where: { id: workspaceId } });
     if (!w) throw new NotFoundException('Workspace não encontrado');
 
-    // Trial libera tudo
+    // Trial usa o plano configurável com slug 'trial' (admin define o que libera).
+    // Se não houver plano 'trial' cadastrado, libera tudo (fallback seguro).
     if (w.subscriptionStatus === 'trial') {
+      const trialPlan = await this.planRepo.findOne({ where: { slug: 'trial' } });
+      if (!trialPlan) {
+        return {
+          planSlug: w.planSlug,
+          subscriptionStatus: w.subscriptionStatus,
+          features: Object.keys(FEATURE_CATALOG),
+          allUnlocked: true,
+        };
+      }
       return {
         planSlug: w.planSlug,
         subscriptionStatus: w.subscriptionStatus,
-        features: Object.keys(FEATURE_CATALOG),
-        allUnlocked: true,
+        features: trialPlan.features ?? [],
+        allUnlocked: false,
       };
     }
 
@@ -172,6 +182,9 @@ export class SubscriptionsService {
   async adminDeletePlan(id: string): Promise<void> {
     const plan = await this.planRepo.findOne({ where: { id } });
     if (!plan) throw new NotFoundException('Plano não encontrado');
+    if (plan.slug === 'trial') {
+      throw new ConflictException('O plano Trial é reservado e não pode ser excluído. Desative ou ajuste as funcionalidades.');
+    }
     const inUse = await this.wsRepo.count({ where: { planSlug: plan.slug } });
     if (inUse > 0) {
       throw new ConflictException(
