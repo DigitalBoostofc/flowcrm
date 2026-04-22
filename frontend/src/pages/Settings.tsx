@@ -67,13 +67,13 @@ const GROUPS: NavGroup[] = [
     title: 'Equipe',
     items: [
       { id: 'agents',               label: 'Colaboradores',         icon: UserIcon,     ownerOnly: true },
-      { id: 'widget',               label: 'Widget WhatsApp',       icon: MessageCircle, ownerOnly: true },
     ],
   },
   {
     title: 'Integrações',
     items: [
       { id: 'integrations',         label: 'Google Calendar',       icon: Puzzle },
+      { id: 'widget',               label: 'Widget WhatsApp',       icon: MessageCircle, ownerOnly: true },
     ],
   },
   {
