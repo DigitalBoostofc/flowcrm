@@ -6,8 +6,8 @@ import {
   PhoneCall, Users as UsersIcon, MapPin, StickyNote, Clock, Check,
   Copy, Pin, HelpCircle, ChevronRight, ChevronDown, Tag, Trash2, Pencil,
 } from 'lucide-react';
-import Modal from '@/components/ui/Modal';
 import type { Lead, LeadStatus, LeadActivity, ActivityType, Pipeline, User, Stage } from '@/types/api';
+import EditLeadModal from '@/components/negocios/EditLeadModal';
 import { updateLead, updateLeadStatus, moveLead, deleteLead } from '@/api/leads';
 import { updateContact } from '@/api/contacts';
 import { updateCompany } from '@/api/companies';
@@ -216,7 +216,6 @@ export default function NegocioDetailPanel({ lead, currentUser, users, pipelines
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
   const moreBtnRef = useRef<HTMLButtonElement>(null);
   const [editLeadOpen, setEditLeadOpen] = useState(false);
-  const [editLeadForm, setEditLeadForm] = useState({ title: '', notes: '', startDate: '', conclusionDate: '' });
 
   /* ESC to close */
   useEffect(() => {
@@ -396,16 +395,6 @@ export default function NegocioDetailPanel({ lead, currentUser, users, pipelines
 
   const displayTitle = lead.title ?? lead.contact?.name ?? 'Sem título';
   const currentStageIdx = stages.findIndex((s) => s.id === lead.stageId);
-
-  async function saveLeadEdit() {
-    await leadMut.mutateAsync({
-      title: editLeadForm.title || undefined,
-      notes: editLeadForm.notes || null,
-      startDate: editLeadForm.startDate || null,
-      conclusionDate: editLeadForm.conclusionDate || null,
-    });
-    setEditLeadOpen(false);
-  }
 
   return (
     <div
@@ -821,7 +810,7 @@ export default function NegocioDetailPanel({ lead, currentUser, users, pipelines
             {/* Dados do negócio */}
             <SidebarCard title="Dados do negócio" action={
               <button
-                onClick={() => { setEditLeadForm({ title: lead.title ?? '', notes: lead.notes ?? '', startDate: lead.startDate ? String(lead.startDate).slice(0, 10) : '', conclusionDate: lead.conclusionDate ? String(lead.conclusionDate).slice(0, 10) : '' }); setEditLeadOpen(true); }}
+                onClick={() => setEditLeadOpen(true)}
                 className="flex items-center gap-1 btn-ghost"
                 style={{ height: 22, padding: '0 6px', fontSize: 11, color: 'var(--brand-500)' }}
               >
@@ -1007,57 +996,13 @@ export default function NegocioDetailPanel({ lead, currentUser, users, pipelines
         </div>
       </div>
 
-      {/* ── Modal editar negócio ── */}
-      <Modal open={editLeadOpen} onClose={() => setEditLeadOpen(false)} title="Editar negócio" maxWidth="max-w-lg">
-        <div className="space-y-4">
-          <div className="space-y-1.5">
-            <label className="text-xs font-medium" style={{ color: 'var(--ink-2)' }}>Título</label>
-            <input
-              className="input-base"
-              value={editLeadForm.title}
-              onChange={e => setEditLeadForm(f => ({ ...f, title: e.target.value }))}
-              placeholder="Título do negócio"
-            />
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium" style={{ color: 'var(--ink-2)' }}>Data de início</label>
-              <input
-                type="date"
-                className="input-base"
-                value={editLeadForm.startDate}
-                onChange={e => setEditLeadForm(f => ({ ...f, startDate: e.target.value }))}
-              />
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium" style={{ color: 'var(--ink-2)' }}>Data de conclusão</label>
-              <input
-                type="date"
-                className="input-base"
-                value={editLeadForm.conclusionDate}
-                onChange={e => setEditLeadForm(f => ({ ...f, conclusionDate: e.target.value }))}
-              />
-            </div>
-          </div>
-          <div className="space-y-1.5">
-            <label className="text-xs font-medium" style={{ color: 'var(--ink-2)' }}>Descrição</label>
-            <textarea
-              className="input-base"
-              rows={4}
-              style={{ height: 'auto', padding: '8px 12px', resize: 'vertical' }}
-              value={editLeadForm.notes}
-              onChange={e => setEditLeadForm(f => ({ ...f, notes: e.target.value }))}
-              placeholder="Descreva o negócio..."
-            />
-          </div>
-          <div className="flex justify-end gap-2 pt-2">
-            <button className="btn-secondary" onClick={() => setEditLeadOpen(false)}>Cancelar</button>
-            <button className="btn-primary" onClick={saveLeadEdit} disabled={leadMut.isPending}>
-              {leadMut.isPending ? 'Salvando...' : 'Salvar'}
-            </button>
-          </div>
-        </div>
-      </Modal>
+      <EditLeadModal
+        lead={lead}
+        pipelines={pipelines}
+        users={users}
+        open={editLeadOpen}
+        onClose={() => setEditLeadOpen(false)}
+      />
     </div>
   );
 }
