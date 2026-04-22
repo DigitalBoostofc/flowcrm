@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, InternalServerErrorException, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Brackets, IsNull, Repository } from 'typeorm';
 import { EventEmitter2 } from '@nestjs/event-emitter';
@@ -14,6 +14,7 @@ import { TenantContext } from '../common/tenant/tenant-context.service';
 
 @Injectable()
 export class LeadsService {
+  private readonly logger = new Logger(LeadsService.name);
   constructor(
     @InjectRepository(Lead)
     private repo: Repository<Lead>,
@@ -136,15 +137,20 @@ export class LeadsService {
     const exists = await this.repo.findOne({ where: { id, workspaceId } });
     if (!exists) throw new NotFoundException('Lead não encontrado');
 
-    await this.repo.update(
-      { id, workspaceId },
-      {
-        status: dto.status,
-        lossReason: dto.status === LeadStatus.LOST ? (dto.lossReason ?? null) as any : null as any,
-        freezeReason: dto.status === LeadStatus.FROZEN ? (dto.freezeReason ?? null) : null,
-        frozenReturnDate: dto.status === LeadStatus.FROZEN ? (dto.frozenReturnDate ?? null) : null,
-      },
-    );
+    try {
+      await this.repo.update(
+        { id, workspaceId },
+        {
+          status: dto.status,
+          lossReason: dto.status === LeadStatus.LOST ? (dto.lossReason ?? null) as any : null as any,
+          freezeReason: dto.status === LeadStatus.FROZEN ? (dto.freezeReason ?? null) : null,
+          frozenReturnDate: dto.status === LeadStatus.FROZEN ? (dto.frozenReturnDate ?? null) : null,
+        },
+      );
+    } catch (err: any) {
+      this.logger.error('updateStatus DB error', err?.message, err?.stack);
+      throw new InternalServerErrorException(err?.message ?? 'Erro ao atualizar status');
+    }
 
     return this.findOne(id);
   }
