@@ -132,12 +132,21 @@ export class LeadsService {
   }
 
   async updateStatus(id: string, dto: UpdateLeadStatusDto): Promise<Lead> {
-    const lead = await this.findOne(id);
-    lead.status = dto.status;
-    lead.lossReason = dto.status === LeadStatus.LOST ? (dto.lossReason ?? null) as any : null as any;
-    lead.freezeReason = dto.status === LeadStatus.FROZEN ? (dto.freezeReason ?? null) : null;
-    lead.frozenReturnDate = dto.status === LeadStatus.FROZEN ? (dto.frozenReturnDate ?? null) : null;
-    return this.repo.save(lead);
+    const workspaceId = this.tenant.requireWorkspaceId();
+    const exists = await this.repo.findOne({ where: { id, workspaceId } });
+    if (!exists) throw new NotFoundException('Lead não encontrado');
+
+    await this.repo.update(
+      { id, workspaceId },
+      {
+        status: dto.status,
+        lossReason: dto.status === LeadStatus.LOST ? (dto.lossReason ?? null) as any : null as any,
+        freezeReason: dto.status === LeadStatus.FROZEN ? (dto.freezeReason ?? null) : null,
+        frozenReturnDate: dto.status === LeadStatus.FROZEN ? (dto.frozenReturnDate ?? null) : null,
+      },
+    );
+
+    return this.findOne(id);
   }
 
   async move(id: string, stageId: string): Promise<Lead> {
