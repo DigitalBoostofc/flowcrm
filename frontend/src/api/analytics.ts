@@ -1,8 +1,8 @@
 import { api } from './client';
 
 export interface AnalyticsSummary {
-  totals: { active: number; won: number; lost: number; total: number };
-  values: { active: number; won: number; lost: number; forecast: number };
+  totals: { active: number; won: number; lost: number; frozen: number; total: number };
+  values: { active: number; won: number; lost: number; frozen: number; forecast: number };
   conversionRate: number;
   avgDaysToWin: number;
   avgTicket: number;

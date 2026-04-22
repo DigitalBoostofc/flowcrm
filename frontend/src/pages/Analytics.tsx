@@ -54,7 +54,7 @@ export default function Analytics() {
         { name: 'Ativo',      value: data.totals.active, color: '#3b82f6' },
         { name: 'Ganho',      value: data.totals.won,    color: '#10b981' },
         { name: 'Perdido',    value: data.totals.lost,   color: '#ef4444' },
-        { name: 'Congelado',  value: data.totals.frozen ?? 0, color: '#0ea5e9' },
+        { name: 'Congelado',  value: data.totals.frozen, color: '#0ea5e9' },
       ].filter((d) => d.value > 0)
     : [];
 
@@ -106,7 +106,7 @@ export default function Analytics() {
 
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-4 gap-4">
             <MetricCard icon={<CircleDot className="w-4 h-4" />} label="Em andamento" value={data.totals.active} />
-            <MetricCard icon={<Snowflake className="w-4 h-4" />} label="Congelados" value={data.totals.frozen ?? 0} valueStyle="text-sky-500" />
+            <MetricCard icon={<Snowflake className="w-4 h-4" />} label="Congelados" value={data.totals.frozen} valueStyle="text-sky-500" />
             <MetricCard icon={<XCircle className="w-4 h-4" />} label="Perdidos" value={data.totals.lost} valueStyle="text-red-500" />
             <MetricCard icon={<DollarSign className="w-4 h-4" />} label="Receita total (ganhos)" value={formatBRL(data.values.won)} valueStyle="text-emerald-500" />
           </div>
