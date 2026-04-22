@@ -137,16 +137,17 @@ export class AnalyticsService {
       ]);
 
     // Totals
-    const totals = { active: 0, won: 0, lost: 0, total: 0 };
-    const values = { active: 0, won: 0, lost: 0, forecast: 0 };
+    const totals = { active: 0, won: 0, lost: 0, frozen: 0, total: 0 };
+    const values = { active: 0, won: 0, lost: 0, frozen: 0, forecast: 0 };
     for (const r of totalsRows) {
       const c = parseInt(r.count, 10);
       const v = parseFloat(r.total_value);
-      if (r.status === LeadStatus.ACTIVE) { totals.active = c; values.active = v; values.forecast = v; }
-      else if (r.status === LeadStatus.WON) { totals.won = c; values.won = v; }
-      else if (r.status === LeadStatus.LOST) { totals.lost = c; }
+      if (r.status === LeadStatus.ACTIVE)       { totals.active = c; values.active = v; values.forecast = v; }
+      else if (r.status === LeadStatus.WON)     { totals.won = c; values.won = v; }
+      else if (r.status === LeadStatus.LOST)    { totals.lost = c; }
+      else if (r.status === LeadStatus.FROZEN)  { totals.frozen = c; values.frozen = v; }
     }
-    totals.total = totals.active + totals.won + totals.lost;
+    totals.total = totals.active + totals.won + totals.lost + totals.frozen;
 
     const conversionRate = totals.won + totals.lost > 0
       ? Math.round((totals.won / (totals.won + totals.lost)) * 100)
@@ -163,11 +164,13 @@ export class AnalyticsService {
     }));
 
     // byAgent
-    const agentMap: Record<string, { name: string; active: number; won: number; lost: number; value: number }> = {};
+    const agentMap: Record<string, { name: string; active: number; won: number; lost: number; frozen: number; value: number }> = {};
     for (const r of byAgentRows) {
       const key = r.agentId;
-      if (!agentMap[key]) agentMap[key] = { name: r.name, active: 0, won: 0, lost: 0, value: 0 };
-      agentMap[key][r.status as 'active' | 'won' | 'lost'] += parseInt(r.count, 10);
+      if (!agentMap[key]) agentMap[key] = { name: r.name, active: 0, won: 0, lost: 0, frozen: 0, value: 0 };
+      if (r.status === 'active' || r.status === 'won' || r.status === 'lost' || r.status === 'frozen') {
+        agentMap[key][r.status as 'active' | 'won' | 'lost' | 'frozen'] += parseInt(r.count, 10);
+      }
       agentMap[key].value += parseFloat(r.value);
     }
     const byAgent = Object.entries(agentMap).map(([agentId, data]) => ({ agentId, ...data }));

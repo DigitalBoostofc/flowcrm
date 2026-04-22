@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
-import { TrendingUp, Trophy, XCircle, CircleDot, DollarSign, Clock, AlertTriangle, BadgeDollarSign } from 'lucide-react';
+import { TrendingUp, Trophy, XCircle, CircleDot, DollarSign, Clock, AlertTriangle, BadgeDollarSign, Snowflake } from 'lucide-react';
 import { getAnalyticsSummary } from '@/api/analytics';
 import { listPipelines } from '@/api/pipelines';
 import { formatBRL } from '@/lib/format';
@@ -51,9 +51,10 @@ export default function Analytics() {
 
   const pieData = data
     ? [
-        { name: 'Ativo', value: data.totals.active, color: '#3b82f6' },
-        { name: 'Ganho', value: data.totals.won, color: '#10b981' },
-        { name: 'Perdido', value: data.totals.lost, color: '#ef4444' },
+        { name: 'Ativo',      value: data.totals.active, color: '#3b82f6' },
+        { name: 'Ganho',      value: data.totals.won,    color: '#10b981' },
+        { name: 'Perdido',    value: data.totals.lost,   color: '#ef4444' },
+        { name: 'Congelado',  value: data.totals.frozen ?? 0, color: '#0ea5e9' },
       ].filter((d) => d.value > 0)
     : [];
 
@@ -103,8 +104,9 @@ export default function Analytics() {
             <MetricCard icon={<BadgeDollarSign className="w-4 h-4" />} label="Ticket médio" value={formatBRL(data.avgTicket)} valueStyle="text-emerald-500" sub={`sobre ${data.totals.won} ganhos`} />
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-4 gap-4">
             <MetricCard icon={<CircleDot className="w-4 h-4" />} label="Em andamento" value={data.totals.active} />
+            <MetricCard icon={<Snowflake className="w-4 h-4" />} label="Congelados" value={data.totals.frozen ?? 0} valueStyle="text-sky-500" />
             <MetricCard icon={<XCircle className="w-4 h-4" />} label="Perdidos" value={data.totals.lost} valueStyle="text-red-500" />
             <MetricCard icon={<DollarSign className="w-4 h-4" />} label="Receita total (ganhos)" value={formatBRL(data.values.won)} valueStyle="text-emerald-500" />
           </div>
@@ -201,6 +203,7 @@ export default function Analytics() {
                             {a.active} ativos ·{' '}
                             <span className="text-emerald-500">{a.won} ganhos</span> ·{' '}
                             <span className="text-red-500">{a.lost} perdidos</span>
+                            {(a as any).frozen > 0 && <> · <span className="text-sky-500">{(a as any).frozen} cong.</span></>}
                           </div>
                         </div>
                         <div className="text-sm font-semibold" style={{ color: 'var(--ink-1)' }}>
