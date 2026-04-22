@@ -1,6 +1,6 @@
 import { useEffect, type ReactNode } from 'react';
 import { useLocation } from 'react-router-dom';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Menu, Zap } from 'lucide-react';
 import Sidebar from './Sidebar';
 import ConnectionBanner from './ConnectionBanner';
 import LeadPanel from '@/components/lead-panel/LeadPanel';
@@ -11,7 +11,7 @@ import { useSidebarStore } from '@/store/sidebar.store';
 
 export default function AppShell({ children }: { children: ReactNode }) {
   const theme = useThemeStore(s => s.theme);
-  const { collapsed, toggle } = useSidebarStore();
+  const { collapsed, toggle, mobileOpen, openMobile, closeMobile } = useSidebarStore();
   const location = useLocation();
   const hideSidebar = location.pathname.startsWith('/funil');
 
@@ -19,24 +19,70 @@ export default function AppShell({ children }: { children: ReactNode }) {
     document.documentElement.classList.toggle('dark', theme === 'dark');
   }, [theme]);
 
-  return (
-    <div className="h-screen flex overflow-hidden" style={{ backgroundColor: 'var(--canvas)' }}>
-      {!hideSidebar && <Sidebar />}
+  // Close mobile sidebar on route change
+  useEffect(() => {
+    closeMobile();
+  }, [location.pathname]); // eslint-disable-line react-hooks/exhaustive-deps
 
-      <div className="flex-1 flex flex-col overflow-hidden min-w-0">
-        <ConnectionBanner />
-        <main className="flex-1 overflow-auto min-w-0">{children}</main>
+  return (
+    <div className="h-screen flex flex-col overflow-hidden" style={{ backgroundColor: 'var(--canvas)' }}>
+      {/* Mobile top bar */}
+      {!hideSidebar && (
+        <div
+          className="md:hidden flex items-center gap-3 px-4 h-[52px] flex-shrink-0"
+          style={{ borderBottom: '1px solid var(--edge)', background: 'var(--surface)' }}
+        >
+          <button
+            onClick={openMobile}
+            className="p-1.5 rounded-lg -ml-1"
+            style={{ color: 'var(--ink-2)' }}
+            aria-label="Abrir menu"
+          >
+            <Menu className="w-5 h-5" />
+          </button>
+          <div className="flex items-center gap-2">
+            <div
+              className="w-6 h-6 rounded-md flex items-center justify-center"
+              style={{ background: 'linear-gradient(135deg, #635BFF 0%, #4B44E8 100%)' }}
+            >
+              <Zap className="w-3 h-3 text-white" strokeWidth={2.5} fill="white" />
+            </div>
+            <span className="text-sm font-semibold" style={{ color: 'var(--ink-1)' }}>AppexCRM</span>
+          </div>
+        </div>
+      )}
+
+      <div className="flex-1 flex overflow-hidden min-w-0">
+        {/* Mobile overlay */}
+        {!hideSidebar && mobileOpen && (
+          <div
+            className="fixed inset-0 z-30 md:hidden"
+            style={{ background: 'rgba(0,0,0,0.45)' }}
+            onClick={closeMobile}
+          />
+        )}
+
+        {/* Sidebar */}
+        {!hideSidebar && <Sidebar />}
+
+        <div className="flex-1 flex flex-col overflow-hidden min-w-0">
+          <ConnectionBanner />
+          <main className="flex-1 overflow-auto min-w-0">{children}</main>
+        </div>
+
+        <LeadPanel />
       </div>
 
-      <LeadPanel />
       <Toaster />
       <QualificationModal />
 
+      {/* Desktop collapse toggle — hidden on mobile */}
       {!hideSidebar && (
         <button
           onClick={toggle}
           title={collapsed ? 'Expandir' : 'Recolher'}
           aria-label={collapsed ? 'Expandir sidebar' : 'Recolher sidebar'}
+          className="hidden md:flex"
           style={{
             position: 'fixed',
             top: '50%',
@@ -50,7 +96,6 @@ export default function AppShell({ children }: { children: ReactNode }) {
             border: '1px solid var(--edge-strong)',
             color: 'var(--ink-3)',
             cursor: 'pointer',
-            display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             transition: 'left 0.22s cubic-bezier(0.4,0,0.2,1)',

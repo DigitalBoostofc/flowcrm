@@ -5,7 +5,7 @@ import {
   Search, Filter, ArrowUpDown, Plus, List, GitBranch,
   X, Pencil, Trash2, GripVertical, Link as LinkIcon, Info,
   ListChecks, Trophy, ChevronLeft, ChevronRight, Settings as SettingsIcon, Tag,
-  Briefcase, ClipboardList, Snowflake, XCircle, CheckCircle2,
+  Briefcase, ClipboardList, Snowflake, XCircle, CheckCircle2, Menu, Zap,
 } from 'lucide-react';
 import { listAllLeads } from '@/api/leads';
 import LabelsManager from '@/components/labels/LabelsManager';
@@ -697,6 +697,9 @@ export default function Funil() {
   const currentUser = useAuthStore((s) => s.user);
   const sidebarCollapsed = useSidebarStore((s) => s.collapsed);
   const toggleSidebar = useSidebarStore((s) => s.toggle);
+  const openMobileSidebar = useSidebarStore((s) => s.openMobile);
+  const closeMobileSidebar = useSidebarStore((s) => s.closeMobile);
+  const mobileOpen = useSidebarStore((s) => s.mobileOpen);
   const [search, setSearch] = useState('');
   const [labelsOpen, setLabelsOpen] = useState(false);
   const [filterOpen, setFilterOpen] = useState(false);
@@ -807,7 +810,29 @@ export default function Funil() {
   );
 
   return (
-    <div className="flex h-full min-h-screen">
+    <div className="flex flex-col h-full min-h-screen">
+      {/* Mobile top bar */}
+      <div
+        className="md:hidden flex items-center gap-3 px-4 h-[52px] flex-shrink-0"
+        style={{ borderBottom: '1px solid var(--edge)', background: 'var(--surface)' }}
+      >
+        <button onClick={openMobileSidebar} className="p-1.5 rounded-lg -ml-1" style={{ color: 'var(--ink-2)' }} aria-label="Abrir menu">
+          <Menu className="w-5 h-5" />
+        </button>
+        <div className="flex items-center gap-2">
+          <div className="w-6 h-6 rounded-md flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #635BFF 0%, #4B44E8 100%)' }}>
+            <Zap className="w-3 h-3 text-white" strokeWidth={2.5} fill="white" />
+          </div>
+          <span className="text-sm font-semibold" style={{ color: 'var(--ink-1)' }}>AppexCRM</span>
+        </div>
+      </div>
+
+      {/* Mobile overlay */}
+      {mobileOpen && (
+        <div className="fixed inset-0 z-30 md:hidden" style={{ background: 'rgba(0,0,0,0.45)' }} onClick={closeMobileSidebar} />
+      )}
+
+      <div className="flex flex-1 min-h-0">
       <Sidebar />
 
       <PipelineSidebar
@@ -1233,6 +1258,7 @@ export default function Funil() {
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 }

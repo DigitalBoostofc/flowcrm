@@ -543,7 +543,7 @@ export default function Tasks() {
   }, [tasks.length, statusFilter]);
 
   return (
-    <div className="p-6 space-y-4">
+    <div className="p-3 md:p-6 space-y-4">
       <h1 className="page-title">Tarefas</h1>
 
       {/* Filter bar */}

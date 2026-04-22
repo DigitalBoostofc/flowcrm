@@ -867,7 +867,7 @@ export function AddNegocioModal({
       onClick={onClose}
     >
       <div
-        className="glass-raised rounded-xl shadow-2xl max-w-3xl w-full my-8 animate-fade-up"
+        className="glass-raised rounded-xl shadow-2xl w-full sm:max-w-3xl my-4 sm:my-8 animate-fade-up"
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
@@ -1505,7 +1505,7 @@ export default function Negocios() {
   const cols = useColumnPrefs<Lead>('negocios', negociosColumns);
 
   return (
-    <div className="p-6 space-y-4">
+    <div className="p-3 md:p-6 space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div className="flex items-center gap-3 flex-wrap">
@@ -1556,7 +1556,7 @@ export default function Negocios() {
       {/* Toolbar */}
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div className="flex items-center gap-3 flex-wrap flex-1 min-w-0">
-          <div className="relative flex-1 min-w-[260px] max-w-md">
+          <div className="relative flex-1 min-w-0 max-w-md">
             <Search
               className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4"
               style={{ color: 'var(--ink-3)' }}
