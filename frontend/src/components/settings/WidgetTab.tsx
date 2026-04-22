@@ -71,7 +71,7 @@ export default function WidgetTab() {
 
   const workspaceId = workspace?.id ?? '';
   const widgetUrl = `${window.location.origin}/widget/${workspaceId}`;
-  const embedCode = `<iframe\n  src="${widgetUrl}"\n  style="position:fixed;bottom:20px;right:20px;width:380px;height:520px;border:none;z-index:9999;"\n  title="Widget FlowCRM"\n></iframe>`;
+  const embedCode = `<iframe\n  src="${widgetUrl}"\n  style="position:fixed;bottom:20px;right:20px;width:380px;height:520px;border:none;z-index:9999;"\n  title="Widget AppexCRM"\n></iframe>`;
 
   function copyEmbed() {
     navigator.clipboard.writeText(embedCode);
