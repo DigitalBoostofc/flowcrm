@@ -67,8 +67,8 @@ export default function Analytics() {
           value={pipelineId ?? ''}
           onChange={(e) => setPipelineId(e.target.value || null)}
         >
-          <option value="">Todos os pipelines</option>
-          {pipelines.map((p) => (
+          <option value="">Todos os funis de vendas</option>
+          {pipelines.filter((p) => p.kind === 'sale').map((p) => (
             <option key={p.id} value={p.id}>{p.name}</option>
           ))}
         </select>

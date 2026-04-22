@@ -25,10 +25,10 @@ export class AnalyticsService {
       .where('l.workspaceId = :workspaceId', { workspaceId })
       .andWhere('l.archivedAt IS NULL');
 
+    // Funis de gestão nunca entram no analytics
+    qb.andWhere("p.kind = 'sale'");
     if (pipelineId) {
       qb.andWhere('l.pipelineId = :pipelineId', { pipelineId });
-    } else {
-      qb.andWhere("p.kind = 'sale'");
     }
 
     // Run all aggregations in parallel with a single shared query each
@@ -42,21 +42,18 @@ export class AnalyticsService {
           .groupBy('l.status')
           .getRawMany(),
 
-        // byStage (active only)
+        // byStage (active only) — clone already has kind='sale' + optional pipelineId
         qb.clone()
           .select('l.stageId', 'stageId')
           .addSelect('s.name', 'stageName')
           .addSelect('COUNT(*)', 'count')
           .addSelect('COALESCE(SUM(l.value), 0)', 'value')
-          .where('l.workspaceId = :workspaceId', { workspaceId })
-          .andWhere('l.archivedAt IS NULL')
-          .andWhere('l.status = :status', { status: LeadStatus.ACTIVE })
-          .andWhere(pipelineId ? 'l.pipelineId = :pipelineId' : "p.kind = 'sale'", pipelineId ? { pipelineId } : {})
+          .andWhere('l.status = :activeStatus', { activeStatus: LeadStatus.ACTIVE })
           .groupBy('l.stageId')
           .addGroupBy('s.name')
           .getRawMany(),
 
-        // byAgent
+        // byAgent — clone already has kind='sale' + optional pipelineId
         qb.clone()
           .select("COALESCE(l.assignedToId, '__unassigned__')", 'agentId')
           .addSelect("COALESCE(u.name, 'Sem responsável')", 'name')
@@ -72,10 +69,7 @@ export class AnalyticsService {
         qb.clone()
           .select("COALESCE(l.lossReason, 'Sem motivo')", 'reason')
           .addSelect('COUNT(*)', 'count')
-          .where('l.workspaceId = :workspaceId', { workspaceId })
-          .andWhere('l.archivedAt IS NULL')
-          .andWhere('l.status = :status', { status: LeadStatus.LOST })
-          .andWhere(pipelineId ? 'l.pipelineId = :pipelineId' : "p.kind = 'sale'", pipelineId ? { pipelineId } : {})
+          .andWhere('l.status = :lostStatus', { lostStatus: LeadStatus.LOST })
           .groupBy('l.lossReason')
           .orderBy('count', 'DESC')
           .limit(5)
@@ -85,20 +79,14 @@ export class AnalyticsService {
         qb.clone()
           .select("TO_CHAR(l.createdAt, 'YYYY-MM-DD')", 'day')
           .addSelect('COUNT(*)', 'count')
-          .where('l.workspaceId = :workspaceId', { workspaceId })
-          .andWhere('l.archivedAt IS NULL')
-          .andWhere('l.createdAt >= NOW() - INTERVAL \'30 days\'')
-          .andWhere(pipelineId ? 'l.pipelineId = :pipelineId' : "p.kind = 'sale'", pipelineId ? { pipelineId } : {})
+          .andWhere("l.createdAt >= NOW() - INTERVAL '30 days'")
           .groupBy("TO_CHAR(l.createdAt, 'YYYY-MM-DD')")
           .getRawMany(),
 
         // avg days to win
         qb.clone()
           .select('AVG(EXTRACT(EPOCH FROM (l.updatedAt - l.createdAt)) / 86400)', 'avgDays')
-          .where('l.workspaceId = :workspaceId', { workspaceId })
-          .andWhere('l.archivedAt IS NULL')
-          .andWhere('l.status = :status', { status: LeadStatus.WON })
-          .andWhere(pipelineId ? 'l.pipelineId = :pipelineId' : "p.kind = 'sale'", pipelineId ? { pipelineId } : {})
+          .andWhere('l.status = :wonStatus', { wonStatus: LeadStatus.WON })
           .getRawOne(),
 
         // revenue by origin
@@ -107,10 +95,7 @@ export class AnalyticsService {
           .select("COALESCE(c.origin, 'Sem origem')", 'origin')
           .addSelect('COUNT(*)', 'count')
           .addSelect('COALESCE(SUM(l.value), 0)', 'value')
-          .where('l.workspaceId = :workspaceId', { workspaceId })
-          .andWhere('l.archivedAt IS NULL')
-          .andWhere('l.status = :status', { status: LeadStatus.WON })
-          .andWhere(pipelineId ? 'l.pipelineId = :pipelineId' : "p.kind = 'sale'", pipelineId ? { pipelineId } : {})
+          .andWhere('l.status = :wonStatus2', { wonStatus2: LeadStatus.WON })
           .groupBy("COALESCE(c.origin, 'Sem origem')")
           .orderBy('value', 'DESC')
           .limit(8)
@@ -126,11 +111,8 @@ export class AnalyticsService {
           .addSelect("COALESCE(au.name, 'Sem responsável')", 'assignedTo')
           .addSelect('l.updatedAt', 'updatedAt')
           .addSelect('EXTRACT(DAY FROM NOW() - l.updatedAt)', 'daysSinceUpdate')
-          .where('l.workspaceId = :workspaceId', { workspaceId })
-          .andWhere('l.archivedAt IS NULL')
-          .andWhere('l.status = :status', { status: LeadStatus.ACTIVE })
-          .andWhere('l.updatedAt < NOW() - INTERVAL \'14 days\'')
-          .andWhere(pipelineId ? 'l.pipelineId = :pipelineId' : "p.kind = 'sale'", pipelineId ? { pipelineId } : {})
+          .andWhere('l.status = :activeStatus2', { activeStatus2: LeadStatus.ACTIVE })
+          .andWhere("l.updatedAt < NOW() - INTERVAL '14 days'")
           .orderBy('l.updatedAt', 'ASC')
           .limit(10)
           .getRawMany(),
