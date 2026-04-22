@@ -35,7 +35,7 @@ export class Lead {
   @Column({ type: 'uuid' })
   workspaceId: string;
 
-  @ManyToOne(() => Contact, (contact) => contact.leads, { nullable: true })
+  @ManyToOne(() => Contact, (contact) => contact.leads, { nullable: true, onDelete: 'SET NULL' })
   @JoinColumn({ name: 'contactId' })
   contact: Contact | null;
 
