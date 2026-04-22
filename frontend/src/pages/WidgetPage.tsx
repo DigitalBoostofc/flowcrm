@@ -11,6 +11,7 @@ interface WidgetConfig {
   icon: string;
   formBg: string;
   successMessage: string;
+  whatsappRedirect: boolean;
   whatsappNumber: string;
   collectEmail: boolean;
 }
@@ -106,7 +107,7 @@ export default function WidgetPage() {
     try {
       const res = await axios.post(`${API}/api/public/capture/${workspaceId}`, form);
       setStep('done');
-      if (res.data?.whatsappNumber) {
+      if (cfg?.whatsappRedirect && res.data?.whatsappNumber) {
         const phone = res.data.whatsappNumber.replace(/\D/g, '');
         const msg = encodeURIComponent(form.message || `Olá! Vi no site e quero saber mais.`);
         setTimeout(() => {

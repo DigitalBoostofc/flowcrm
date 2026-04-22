@@ -20,6 +20,7 @@ interface WidgetConfig {
   pipelineId: string | null;
   stageId: string | null;
   assignToId: string | null;
+  whatsappRedirect: boolean;
   whatsappNumber: string;
   collectEmail: boolean;
 }
@@ -35,6 +36,7 @@ const DEFAULTS: WidgetConfig = {
   pipelineId: null,
   stageId: null,
   assignToId: null,
+  whatsappRedirect: false,
   whatsappNumber: '',
   collectEmail: false,
 };
@@ -379,10 +381,29 @@ export default function WidgetTab() {
 
           <h3 className="text-sm font-semibold pt-2" style={{ color: 'var(--ink-2)' }}>CRM</h3>
 
-          <div className="space-y-1.5">
-            <label className="text-xs font-medium" style={{ color: 'var(--ink-2)' }}>WhatsApp para redirecionamento</label>
-            <input value={cfg.whatsappNumber} onChange={e => set('whatsappNumber', e.target.value)} className="input-base" placeholder="5511999999999" />
-            <p className="text-[11px]" style={{ color: 'var(--ink-3)' }}>Código do país + DDD + número, sem espaços ou símbolos.</p>
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-medium" style={{ color: 'var(--ink-2)' }}>Redirecionar para WhatsApp</span>
+              <button
+                onClick={() => set('whatsappRedirect', !cfg.whatsappRedirect)}
+                className="flex items-center gap-1.5 text-xs font-medium"
+                style={{
+                  padding: '4px 10px', borderRadius: 6, border: '1px solid',
+                  borderColor: cfg.whatsappRedirect ? 'var(--brand-500)' : 'var(--edge-strong)',
+                  background: cfg.whatsappRedirect ? 'var(--brand-50)' : 'var(--surface)',
+                  color: cfg.whatsappRedirect ? 'var(--brand-500)' : 'var(--ink-3)',
+                }}
+              >
+                {cfg.whatsappRedirect ? <ToggleRight className="w-4 h-4" /> : <ToggleLeft className="w-4 h-4" />}
+                {cfg.whatsappRedirect ? 'Ativo' : 'Inativo'}
+              </button>
+            </div>
+            {cfg.whatsappRedirect && (
+              <div className="space-y-1">
+                <input value={cfg.whatsappNumber} onChange={e => set('whatsappNumber', e.target.value)} className="input-base" placeholder="5511999999999" />
+                <p className="text-[11px]" style={{ color: 'var(--ink-3)' }}>Código do país + DDD + número, sem espaços ou símbolos.</p>
+              </div>
+            )}
           </div>
 
           <div className="space-y-1.5">
