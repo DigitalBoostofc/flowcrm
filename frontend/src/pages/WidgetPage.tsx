@@ -24,6 +24,15 @@ export default function WidgetPage() {
   const [error, setError] = useState('');
 
   useEffect(() => {
+    document.documentElement.style.background = 'transparent';
+    document.body.style.background = 'transparent';
+    return () => {
+      document.documentElement.style.background = '';
+      document.body.style.background = '';
+    };
+  }, []);
+
+  useEffect(() => {
     if (!workspaceId) return;
     axios
       .get(`${API}/api/public/capture/${workspaceId}/config`)
@@ -31,7 +40,13 @@ export default function WidgetPage() {
       .catch(() => {});
   }, [workspaceId]);
 
-  if (!cfg) return null;
+  if (!cfg) {
+    return (
+      <div style={{ width: '100%', height: '100%', background: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <p style={{ color: '#888', fontSize: 13, fontFamily: 'system-ui, sans-serif' }}>Widget não encontrado ou inativo.</p>
+      </div>
+    );
+  }
 
   const primary = cfg.color || '#6366f1';
 
@@ -60,7 +75,7 @@ export default function WidgetPage() {
 
   if (step === 'idle') {
     return (
-      <div className="flex items-end justify-end w-full h-full p-4">
+      <div className="flex items-end justify-end w-full h-full p-4" style={{ background: 'transparent' }}>
         <button
           onClick={() => setStep('open')}
           className="flex items-center gap-2 px-4 py-3 rounded-full shadow-lg text-white font-medium text-sm transition-transform hover:scale-105 active:scale-95"
