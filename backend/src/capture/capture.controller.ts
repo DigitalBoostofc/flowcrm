@@ -25,7 +25,7 @@ export class CaptureController {
   @HttpCode(200)
   capture(
     @Param('workspaceId') workspaceId: string,
-    @Body() body: { name: string; phone: string; email?: string; message?: string },
+    @Body() body: { name: string; phone: string; email?: string; message?: string; contactType?: 'fisica' | 'juridica' },
   ) {
     return this.service.capture(workspaceId, body);
   }
