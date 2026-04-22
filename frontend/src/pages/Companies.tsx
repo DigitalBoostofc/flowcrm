@@ -1,4 +1,5 @@
 import { useRef, useState, useEffect, useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Search, Filter, Plus, X, Building2, Star, Pencil, Camera, Trash2, Columns3,
@@ -805,6 +806,7 @@ type SortCompanies = 'nome_asc' | 'nome_desc' | 'recente' | 'antigo';
 export default function Companies() {
   const user = useAuthStore((s) => s.user);
   const qc = useQueryClient();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [addOpen, setAddOpen] = useState(false);
@@ -830,6 +832,16 @@ export default function Companies() {
     queryKey: ['companies', debouncedSearch],
     queryFn: () => listCompanies(debouncedSearch || undefined),
   });
+
+  useEffect(() => {
+    const editId = searchParams.get('editId');
+    if (!editId || companies.length === 0) return;
+    const found = companies.find(c => c.id === editId);
+    if (found) {
+      setEditingCompany(found);
+      setSearchParams(p => { p.delete('editId'); return p; }, { replace: true });
+    }
+  }, [searchParams, companies]);
 
   const deleteMut = useMutation({
     mutationFn: (id: string) => deleteCompany(id),

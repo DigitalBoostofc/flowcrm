@@ -1,10 +1,12 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
 import {
   X, Star, MoreHorizontal, Plus, Mail, Phone, MessageSquare, FileText,
   PhoneCall, Users as UsersIcon, MapPin, StickyNote, Clock, Check,
-  Copy, Pin, HelpCircle, ChevronRight, ChevronDown, Tag, Trash2,
+  Copy, Pin, HelpCircle, ChevronRight, ChevronDown, Tag, Trash2, Pencil,
 } from 'lucide-react';
+import Modal from '@/components/ui/Modal';
 import type { Lead, LeadStatus, LeadActivity, ActivityType, Pipeline, User, Stage } from '@/types/api';
 import { updateLead, updateLeadStatus, moveLead, deleteLead } from '@/api/leads';
 import { updateContact } from '@/api/contacts';
@@ -201,6 +203,7 @@ export interface NegocioDetailPanelProps {
 
 export default function NegocioDetailPanel({ lead, currentUser, users, pipelines, onClose, onPipelineMoved }: NegocioDetailPanelProps) {
   const qc = useQueryClient();
+  const navigate = useNavigate();
   const [composerType, setComposerType] = useState<ComposerType>('note');
   const [activityText, setActivityText] = useState('');
   const [scheduledAt, setScheduledAt] = useState('');
@@ -212,6 +215,8 @@ export default function NegocioDetailPanel({ lead, currentUser, users, pipelines
   const [pickerPos, setPickerPos] = useState({ top: 0, left: 0 });
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
   const moreBtnRef = useRef<HTMLButtonElement>(null);
+  const [editLeadOpen, setEditLeadOpen] = useState(false);
+  const [editLeadForm, setEditLeadForm] = useState({ title: '', notes: '', startDate: '', conclusionDate: '' });
 
   /* ESC to close */
   useEffect(() => {
@@ -391,6 +396,16 @@ export default function NegocioDetailPanel({ lead, currentUser, users, pipelines
 
   const displayTitle = lead.title ?? lead.contact?.name ?? 'Sem título';
   const currentStageIdx = stages.findIndex((s) => s.id === lead.stageId);
+
+  async function saveLeadEdit() {
+    await leadMut.mutateAsync({
+      title: editLeadForm.title || undefined,
+      notes: editLeadForm.notes || null,
+      startDate: editLeadForm.startDate || null,
+      conclusionDate: editLeadForm.conclusionDate || null,
+    });
+    setEditLeadOpen(false);
+  }
 
   return (
     <div
@@ -787,7 +802,15 @@ export default function NegocioDetailPanel({ lead, currentUser, users, pipelines
             </SidebarCard>
 
             {/* Dados do negócio */}
-            <SidebarCard title="Dados do negócio">
+            <SidebarCard title="Dados do negócio" action={
+              <button
+                onClick={() => { setEditLeadForm({ title: lead.title ?? '', notes: lead.notes ?? '', startDate: lead.startDate ? String(lead.startDate).slice(0, 10) : '', conclusionDate: lead.conclusionDate ? String(lead.conclusionDate).slice(0, 10) : '' }); setEditLeadOpen(true); }}
+                className="flex items-center gap-1 btn-ghost"
+                style={{ height: 22, padding: '0 6px', fontSize: 11, color: 'var(--brand-500)' }}
+              >
+                <Pencil size={11} /> Editar
+              </button>
+            }>
               <div className="space-y-0">
                 <InlineResponsavel
                   label="Responsável"
@@ -828,7 +851,15 @@ export default function NegocioDetailPanel({ lead, currentUser, users, pipelines
 
             {/* Dados da empresa vinculada */}
             {lead.company && (
-              <SidebarCard title="Dados da empresa">
+              <SidebarCard title="Dados da empresa" action={
+                <button
+                  onClick={() => navigate(`/companies?editId=${lead.companyId}`)}
+                  className="flex items-center gap-1 btn-ghost"
+                  style={{ height: 22, padding: '0 6px', fontSize: 11, color: 'var(--brand-500)' }}
+                >
+                  <Pencil size={11} /> Editar
+                </button>
+              }>
                 <div
                   className="flex items-center gap-2 p-2 rounded-md mb-2"
                   style={{ background: 'var(--surface)', border: '1px solid var(--edge)' }}
@@ -874,7 +905,15 @@ export default function NegocioDetailPanel({ lead, currentUser, users, pipelines
 
             {/* Dados da pessoa vinculada */}
             {lead.contact && (
-              <SidebarCard title="Dados da pessoa">
+              <SidebarCard title="Dados da pessoa" action={
+                <button
+                  onClick={() => navigate(`/pessoas?editId=${lead.contactId}`)}
+                  className="flex items-center gap-1 btn-ghost"
+                  style={{ height: 22, padding: '0 6px', fontSize: 11, color: 'var(--brand-500)' }}
+                >
+                  <Pencil size={11} /> Editar
+                </button>
+              }>
                 <div
                   className="flex items-center gap-2 p-2 rounded-md mb-2"
                   style={{ background: 'var(--surface)', border: '1px solid var(--edge)' }}
@@ -950,6 +989,58 @@ export default function NegocioDetailPanel({ lead, currentUser, users, pipelines
           </div>
         </div>
       </div>
+
+      {/* ── Modal editar negócio ── */}
+      <Modal open={editLeadOpen} onClose={() => setEditLeadOpen(false)} title="Editar negócio" maxWidth="max-w-lg">
+        <div className="space-y-4">
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium" style={{ color: 'var(--ink-2)' }}>Título</label>
+            <input
+              className="input-base"
+              value={editLeadForm.title}
+              onChange={e => setEditLeadForm(f => ({ ...f, title: e.target.value }))}
+              placeholder="Título do negócio"
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium" style={{ color: 'var(--ink-2)' }}>Data de início</label>
+              <input
+                type="date"
+                className="input-base"
+                value={editLeadForm.startDate}
+                onChange={e => setEditLeadForm(f => ({ ...f, startDate: e.target.value }))}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium" style={{ color: 'var(--ink-2)' }}>Data de conclusão</label>
+              <input
+                type="date"
+                className="input-base"
+                value={editLeadForm.conclusionDate}
+                onChange={e => setEditLeadForm(f => ({ ...f, conclusionDate: e.target.value }))}
+              />
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium" style={{ color: 'var(--ink-2)' }}>Descrição</label>
+            <textarea
+              className="input-base"
+              rows={4}
+              style={{ height: 'auto', padding: '8px 12px', resize: 'vertical' }}
+              value={editLeadForm.notes}
+              onChange={e => setEditLeadForm(f => ({ ...f, notes: e.target.value }))}
+              placeholder="Descreva o negócio..."
+            />
+          </div>
+          <div className="flex justify-end gap-2 pt-2">
+            <button className="btn-secondary" onClick={() => setEditLeadOpen(false)}>Cancelar</button>
+            <button className="btn-primary" onClick={saveLeadEdit} disabled={leadMut.isPending}>
+              {leadMut.isPending ? 'Salvando...' : 'Salvar'}
+            </button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }
@@ -1060,13 +1151,16 @@ function Stars({ value, onChange }: { value: number; onChange: (v: number) => vo
 }
 
 
-function SidebarCard({ title, children }: { title: React.ReactNode; children: React.ReactNode }) {
+function SidebarCard({ title, action, children }: { title: React.ReactNode; action?: React.ReactNode; children: React.ReactNode }) {
   return (
     <div
       className="rounded-lg p-3"
       style={{ background: 'var(--surface-raised)', border: '1px solid var(--edge)' }}
     >
-      <h4 className="text-xs font-semibold mb-2" style={{ color: 'var(--ink-1)' }}>{title}</h4>
+      <div className="flex items-center justify-between mb-2">
+        <h4 className="text-xs font-semibold" style={{ color: 'var(--ink-1)' }}>{title}</h4>
+        {action}
+      </div>
       {children}
     </div>
   );

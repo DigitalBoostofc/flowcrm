@@ -1,4 +1,5 @@
 import { useRef, useState, useEffect, useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Search, Filter, Plus, X, Users, Pencil, Camera, Trash2, Columns3, Loader2,
@@ -817,6 +818,7 @@ type SortPessoas = 'nome_asc' | 'nome_desc' | 'recente' | 'antigo';
 export default function Pessoas() {
   const user = useAuthStore((s) => s.user);
   const qc = useQueryClient();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [addOpen, setAddOpen] = useState(false);
@@ -846,6 +848,16 @@ export default function Pessoas() {
     queryKey: ['pessoas', debouncedSearch],
     queryFn: () => listContacts(debouncedSearch || undefined),
   });
+
+  useEffect(() => {
+    const editId = searchParams.get('editId');
+    if (!editId || contacts.length === 0) return;
+    const found = contacts.find(c => c.id === editId);
+    if (found) {
+      setEditingPessoa(found);
+      setSearchParams(p => { p.delete('editId'); return p; }, { replace: true });
+    }
+  }, [searchParams, contacts]);
 
   const deleteMut = useMutation({
     mutationFn: (id: string) => deleteContact(id),
