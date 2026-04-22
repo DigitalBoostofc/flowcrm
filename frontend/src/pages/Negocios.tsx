@@ -1352,6 +1352,7 @@ export default function Negocios() {
       key: 'categoria',
       label: 'Categoria',
       defaultWidth: 160,
+      hiddenByDefault: true,
       render: (lead) => (
         <span className="truncate block" style={{ color: lead.contact?.categoria ? 'var(--ink-2)' : 'var(--ink-3)' }}>
           {lead.contact?.categoria ?? '—'}
@@ -1375,6 +1376,7 @@ export default function Negocios() {
       key: 'email',
       label: 'E-mail',
       defaultWidth: 220,
+      hiddenByDefault: true,
       render: (lead) => (
         <span className="truncate block" style={{ color: lead.contact?.email ? 'var(--ink-2)' : 'var(--ink-3)' }}>
           {lead.contact?.email ?? '—'}
@@ -1474,7 +1476,6 @@ export default function Negocios() {
       key: 'ranking',
       label: 'Ranking',
       defaultWidth: 150,
-      hiddenByDefault: true,
       render: (lead) => <RankingCell lead={lead} />,
     },
     {
