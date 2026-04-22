@@ -20,6 +20,10 @@ import {
 } from '@/components/data-list';
 import { maskCep, fetchViaCep } from '@/lib/cep';
 
+function formatBRL(value: number) {
+  return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+}
+
 /* ── Form helpers ────────────────────────────────────── */
 
 function SectionTitle({ title, subtitle }: { title: string; subtitle?: string }) {
@@ -1010,6 +1014,27 @@ export default function Pessoas() {
           {new Date(c.createdAt).toLocaleDateString('pt-BR')}
         </span>
       ),
+    },
+    {
+      key: 'negociosValor',
+      label: 'Negócios (R$)',
+      defaultWidth: 150,
+      hiddenByDefault: true,
+      align: 'right',
+      getNumericValue: (c) => {
+        if (!c.leads?.length) return null;
+        const sum = c.leads.reduce((acc, l) => acc + Number(l.value ?? 0), 0);
+        return sum > 0 ? sum : null;
+      },
+      formatAggregate: formatBRL,
+      render: (c) => {
+        const sum = c.leads?.reduce((acc, l) => acc + Number(l.value ?? 0), 0) ?? 0;
+        return (
+          <span className="truncate block" style={{ color: sum > 0 ? 'var(--ink-1)' : 'var(--ink-3)' }}>
+            {sum > 0 ? formatBRL(sum) : '—'}
+          </span>
+        );
+      },
     },
   ], [userById]);
 

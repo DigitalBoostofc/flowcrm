@@ -1461,7 +1461,6 @@ export default function Negocios() {
       key: 'value',
       label: 'Valor',
       defaultWidth: 140,
-      hiddenByDefault: true,
       align: 'right',
       getNumericValue: (lead) => lead.value ? Number(lead.value) : null,
       formatAggregate: formatBRL,
