@@ -1,4 +1,4 @@
-import { Controller, Post, Body, Get, Param, UseGuards, ForbiddenException } from '@nestjs/common';
+import { Controller, Post, Body, Get, Param, UseGuards } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
@@ -7,6 +7,7 @@ import { JwtAuthGuard } from './jwt-auth.guard';
 import { RolesGuard } from './roles.guard';
 import { Roles } from './roles.decorator';
 import { CurrentUser } from './current-user.decorator';
+import { UserRole } from '../users/entities/user.entity';
 
 class ForgotPasswordDto {
   @IsEmail() email: string;
@@ -57,7 +58,7 @@ export class AuthController {
 
   @Post('impersonate/:userId')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('owner')
+  @Roles(UserRole.OWNER)
   impersonate(
     @Param('userId') userId: string,
     @CurrentUser() admin: { id: string; workspaceId: string; role: string },
