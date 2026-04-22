@@ -87,7 +87,8 @@ export default function WidgetTab() {
     }));
   }
 
-  const activeUsers = users.filter(u => (u as any).active !== false && u.role !== 'owner');
+  const activeUsers = users.filter(u => (u as any).active !== false);
+  const salePipelines = pipelines.filter(p => p.kind === 'sale');
 
   return (
     <div className="space-y-6">
@@ -184,7 +185,7 @@ export default function WidgetTab() {
               className="input-base"
             >
               <option value="">Padrão do workspace</option>
-              {pipelines.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+              {salePipelines.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
             </select>
           </div>
 
@@ -210,7 +211,7 @@ export default function WidgetTab() {
               className="input-base"
             >
               <option value="">Sem atribuição</option>
-              {activeUsers.map(u => <option key={u.id} value={u.id}>{u.name} ({u.role})</option>)}
+              {activeUsers.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
             </select>
           </div>
 
