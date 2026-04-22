@@ -867,8 +867,8 @@ export default function Funil() {
             <button
               onClick={() => navigate(
                 selectedPipelineId
-                  ? `/negocios?pipeline=${selectedPipelineId}`
-                  : '/negocios',
+                  ? `/negocios?pipeline=${selectedPipelineId}&status=active`
+                  : '/negocios?status=active',
               )}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all"
               style={{ background: 'transparent', color: 'var(--ink-2)' }}
