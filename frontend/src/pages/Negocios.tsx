@@ -1249,24 +1249,26 @@ export default function Negocios() {
   const qc = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
   const initialPipelineFilter = searchParams.get('pipeline') ?? '';
+  const initialStatusFilter   = searchParams.get('status') ?? '';
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [addOpen, setAddOpen] = useState(false);
-  const [filterOpen, setFilterOpen] = useState(Boolean(initialPipelineFilter));
+  const [filterOpen, setFilterOpen] = useState(Boolean(initialPipelineFilter || initialStatusFilter));
   const [viewEditorOpen, setViewEditorOpen] = useState(false);
   const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [deleteTarget, setDeleteTarget] = useState<Lead | null>(null);
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
-  const [filterStatus, setFilterStatus] = useState('');
+  const [filterStatus, setFilterStatus] = useState(initialStatusFilter);
   const [filterPipeline, setFilterPipeline] = useState(initialPipelineFilter);
   const [filterAssignee, setFilterAssignee] = useState('');
 
-  // Remove o query param assim que capturado (evita "colar" o filtro ao recarregar via link)
+  // Remove query params assim que capturados
   useEffect(() => {
-    if (searchParams.get('pipeline')) {
+    if (searchParams.get('pipeline') || searchParams.get('status')) {
       const next = new URLSearchParams(searchParams);
       next.delete('pipeline');
+      next.delete('status');
       setSearchParams(next, { replace: true });
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps

@@ -5,7 +5,7 @@ import {
   Search, Filter, ArrowUpDown, Plus, List, GitBranch,
   X, Pencil, Trash2, GripVertical, Link as LinkIcon, Info,
   ListChecks, Trophy, ChevronLeft, ChevronRight, Settings as SettingsIcon, Tag,
-  Briefcase, ClipboardList,
+  Briefcase, ClipboardList, Snowflake, XCircle, CheckCircle2,
 } from 'lucide-react';
 import { listAllLeads } from '@/api/leads';
 import LabelsManager from '@/components/labels/LabelsManager';
@@ -762,7 +762,8 @@ export default function Funil() {
   }, [leads, pipelines, selectedPipelineId]);
 
   const filteredLeads = useMemo(() => {
-    let result = pipelineLeads;
+    // Por padrão o kanban só mostra negócios ativos; frozen/won/lost ficam ocultos
+    let result = pipelineLeads.filter((l) => filterStatus ? l.status === filterStatus : l.status === 'active');
 
     if (debouncedSearch) {
       result = result.filter((l) => {
@@ -774,7 +775,6 @@ export default function Funil() {
     if (filterAssignee) result = result.filter((l) => l.assignedToId === filterAssignee);
     if (filterStage)    result = result.filter((l) => l.stageId === filterStage);
     if (filterOrigin)   result = result.filter((l) => l.contact?.origin === filterOrigin);
-    if (filterStatus)   result = result.filter((l) => l.status === filterStatus);
     if (filterDateFrom) result = result.filter((l) => new Date(l.createdAt) >= new Date(filterDateFrom));
     if (filterDateTo)   result = result.filter((l) => new Date(l.createdAt) <= new Date(filterDateTo + 'T23:59:59'));
 
@@ -783,6 +783,10 @@ export default function Funil() {
 
   const total = filteredLeads.length;
   const totalValue = filteredLeads.reduce((s, l) => s + Number(l.value ?? 0), 0);
+
+  const frozenCount = pipelineLeads.filter((l) => l.status === 'frozen').length;
+  const lostCount   = pipelineLeads.filter((l) => l.status === 'lost').length;
+  const wonCount    = pipelineLeads.filter((l) => l.status === 'won').length;
 
   const activeFilters = [filterAssignee, filterStage, filterOrigin, filterStatus, filterDateFrom, filterDateTo].filter(Boolean).length;
 
@@ -931,6 +935,40 @@ export default function Funil() {
         </div>
 
         <div className="flex items-center gap-2">
+          {/* Atalhos para negócios ocultos do kanban */}
+          <button
+            onClick={() => navigate(`/negocios?pipeline=${selectedPipelineId}&status=frozen`)}
+            title={`Congelados (${frozenCount})`}
+            className="relative flex items-center justify-center w-9 h-9 rounded-lg transition-colors hover:bg-[var(--surface-hover)]"
+            style={{ border: '1px solid var(--edge)', color: '#0ea5e9' }}
+          >
+            <Snowflake className="w-4 h-4" />
+            {frozenCount > 0 && (
+              <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 px-0.5 rounded-full text-[10px] font-bold text-white flex items-center justify-center" style={{ background: '#0ea5e9' }}>{frozenCount}</span>
+            )}
+          </button>
+          <button
+            onClick={() => navigate(`/negocios?pipeline=${selectedPipelineId}&status=lost`)}
+            title={`Perdidos (${lostCount})`}
+            className="relative flex items-center justify-center w-9 h-9 rounded-lg transition-colors hover:bg-[var(--surface-hover)]"
+            style={{ border: '1px solid var(--edge)', color: '#ef4444' }}
+          >
+            <XCircle className="w-4 h-4" />
+            {lostCount > 0 && (
+              <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 px-0.5 rounded-full text-[10px] font-bold text-white flex items-center justify-center" style={{ background: '#ef4444' }}>{lostCount}</span>
+            )}
+          </button>
+          <button
+            onClick={() => navigate(`/negocios?pipeline=${selectedPipelineId}&status=won`)}
+            title={`Ganhos (${wonCount})`}
+            className="relative flex items-center justify-center w-9 h-9 rounded-lg transition-colors hover:bg-[var(--surface-hover)]"
+            style={{ border: '1px solid var(--edge)', color: '#10b981' }}
+          >
+            <CheckCircle2 className="w-4 h-4" />
+            {wonCount > 0 && (
+              <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 px-0.5 rounded-full text-[10px] font-bold text-white flex items-center justify-center" style={{ background: '#10b981' }}>{wonCount}</span>
+            )}
+          </button>
           <button
             onClick={() => setAddNegocioOpen(true)}
             className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-white shadow-sm transition-all hover:opacity-90"
