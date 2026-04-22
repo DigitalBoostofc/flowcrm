@@ -4,6 +4,8 @@ export interface ContactActivity {
   id: string;
   contactId?: string | null;
   companyId?: string | null;
+  contact?: { id: string; name: string } | null;
+  company?: { id: string; name: string } | null;
   type: string;
   body: string;
   createdById?: string;
