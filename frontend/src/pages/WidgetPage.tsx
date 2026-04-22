@@ -9,6 +9,7 @@ interface WidgetConfig {
   subtitle: string;
   color: string;
   icon: string;
+  formBg: string;
   whatsappNumber: string;
   collectEmail: boolean;
 }
@@ -92,6 +93,7 @@ export default function WidgetPage() {
 
   const primary = cfg.color || '#6366f1';
   const icon = cfg.icon || 'chat';
+  const formBg = cfg.formBg || '#ffffff';
 
   async function handleSubmit() {
     if (!form.name.trim() || !form.phone.trim()) {
@@ -154,7 +156,7 @@ export default function WidgetPage() {
   return (
     <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'flex-end', justifyContent: 'flex-end', padding: 16 }}>
       <div style={{
-        background: '#fff', borderRadius: 16,
+        background: formBg, borderRadius: 16,
         boxShadow: '0 4px 24px rgba(0,0,0,0.15)',
         overflow: 'hidden', width: '100%', maxWidth: 320,
         fontFamily: 'system-ui, -apple-system, sans-serif',

@@ -15,6 +15,7 @@ interface WidgetConfig {
   subtitle: string;
   color: string;
   icon: string;
+  formBg: string;
   pipelineId: string | null;
   stageId: string | null;
   assignToId: string | null;
@@ -28,6 +29,7 @@ const DEFAULTS: WidgetConfig = {
   subtitle: 'Responderemos no WhatsApp',
   color: '#25D366',
   icon: 'whatsapp',
+  formBg: '#ffffff',
   pipelineId: null,
   stageId: null,
   assignToId: null,
@@ -155,9 +157,10 @@ function StyledSelect({ value, onChange, options, placeholder }: {
 /* ── Form preview (static mockup, always light) ── */
 function FormPreview({ cfg }: { cfg: WidgetConfig }) {
   const primary = cfg.color || '#6366f1';
+  const formBg = cfg.formBg || '#ffffff';
   return (
     <div style={{
-      background: '#fff', borderRadius: 16,
+      background: formBg, borderRadius: 16,
       boxShadow: '0 2px 12px rgba(0,0,0,0.12)',
       overflow: 'hidden', width: '100%',
       fontFamily: 'system-ui, -apple-system, sans-serif',
@@ -305,6 +308,18 @@ export default function WidgetTab() {
                 style={{ border: '1px solid var(--edge)' }}
               />
               <input value={cfg.color} onChange={e => set('color', e.target.value)} className="input-base flex-1" placeholder="#25D366" />
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium" style={{ color: 'var(--ink-2)' }}>Cor de fundo do formulário</label>
+            <div className="flex items-center gap-3">
+              <input
+                type="color" value={cfg.formBg || '#ffffff'} onChange={e => set('formBg', e.target.value)}
+                className="w-10 h-10 rounded-lg cursor-pointer"
+                style={{ border: '1px solid var(--edge)' }}
+              />
+              <input value={cfg.formBg || '#ffffff'} onChange={e => set('formBg', e.target.value)} className="input-base flex-1" placeholder="#ffffff" />
             </div>
           </div>
 
