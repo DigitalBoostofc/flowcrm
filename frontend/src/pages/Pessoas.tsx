@@ -1148,7 +1148,7 @@ export default function Pessoas() {
         widths={cols.prefs.widths}
         onWidthChange={cols.setWidth}
         loading={isLoading}
-        onRowClick={(c) => setEditingPessoa(c)}
+        onRowClick={(c) => setSelectedPessoa(c)}
         emptyState={<EmptyState onAdd={() => setAddOpen(true)} />}
         selectedIds={selectedIds}
         onSelectionChange={setSelectedIds}
@@ -1247,6 +1247,7 @@ export default function Pessoas() {
           currentUser={user}
           users={users}
           onClose={() => setSelectedPessoa(null)}
+          onEdit={() => { setEditingPessoa(selectedPessoa); setSelectedPessoa(null); }}
         />
       )}
 
