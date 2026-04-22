@@ -1,10 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { api } from '@/api/client';
 import { listPipelines } from '@/api/pipelines';
 import { listUsers } from '@/api/users';
 import { useWorkspace } from '@/hooks/useWorkspace';
-import { Copy, Check, ExternalLink, MessageCircle, ToggleLeft, ToggleRight } from 'lucide-react';
+import { Copy, Check, ExternalLink, MessageCircle, ToggleLeft, ToggleRight, ChevronDown } from 'lucide-react';
 
 interface WidgetConfig {
   enabled: boolean;
@@ -45,6 +45,124 @@ async function listStages(pipelineId: string) {
   return (res.data?.stages ?? []) as { id: string; name: string; position: number }[];
 }
 
+interface SelectOption { value: string; label: string }
+
+function StyledSelect({
+  value,
+  onChange,
+  options,
+  placeholder,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  options: SelectOption[];
+  placeholder?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const selected = options.find(o => o.value === value);
+
+  useEffect(() => {
+    if (!open) return;
+    function handleClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [open]);
+
+  return (
+    <div ref={ref} style={{ position: 'relative' }}>
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        style={{
+          width: '100%',
+          height: 36,
+          padding: '0 12px',
+          borderRadius: 8,
+          fontSize: 13.5,
+          fontFamily: 'inherit',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 8,
+          background: 'var(--surface)',
+          border: '1px solid var(--edge-strong)',
+          color: selected ? 'var(--ink-1)' : 'var(--ink-3)',
+          cursor: 'pointer',
+          outline: 'none',
+          transition: 'border-color 0.15s, box-shadow 0.15s',
+          boxShadow: open ? '0 0 0 3px rgba(99,91,255,0.15)' : undefined,
+          borderColor: open ? 'var(--brand-500)' : undefined,
+        }}
+      >
+        <span style={{ flex: 1, textAlign: 'left', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {selected?.label ?? placeholder ?? ''}
+        </span>
+        <ChevronDown
+          style={{
+            width: 14,
+            height: 14,
+            flexShrink: 0,
+            color: 'var(--ink-3)',
+            transform: open ? 'rotate(180deg)' : undefined,
+            transition: 'transform 0.15s',
+          }}
+        />
+      </button>
+
+      {open && (
+        <div
+          style={{
+            position: 'absolute',
+            top: 'calc(100% + 4px)',
+            left: 0,
+            right: 0,
+            zIndex: 50,
+            background: 'var(--surface-raised)',
+            border: '1px solid var(--edge-strong)',
+            borderRadius: 8,
+            boxShadow: 'var(--shadow-lg)',
+            overflow: 'hidden',
+            maxHeight: 220,
+            overflowY: 'auto',
+          }}
+        >
+          {options.map(opt => (
+            <button
+              key={opt.value}
+              type="button"
+              onMouseDown={() => { onChange(opt.value); setOpen(false); }}
+              style={{
+                width: '100%',
+                padding: '7px 12px',
+                textAlign: 'left',
+                fontSize: 13.5,
+                fontFamily: 'inherit',
+                background: opt.value === value ? 'var(--brand-50)' : 'transparent',
+                color: opt.value === value ? 'var(--brand-500)' : 'var(--ink-1)',
+                border: 'none',
+                cursor: 'pointer',
+                display: 'block',
+                transition: 'background 0.1s',
+              }}
+              onMouseEnter={e => {
+                if (opt.value !== value) (e.currentTarget as HTMLButtonElement).style.background = 'var(--surface-hover)';
+              }}
+              onMouseLeave={e => {
+                if (opt.value !== value) (e.currentTarget as HTMLButtonElement).style.background = 'transparent';
+              }}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function WidgetTab() {
   const { data: workspace } = useWorkspace();
   const [cfg, setCfg] = useState<WidgetConfig>(DEFAULTS);
@@ -64,7 +182,6 @@ export default function WidgetTab() {
     if (savedConfig) setCfg(savedConfig);
   }, [savedConfig]);
 
-  // Auto-seleciona o primeiro funil de venda se nenhum estiver configurado
   useEffect(() => {
     if (salePipelines.length > 0 && !cfg.pipelineId) {
       set('pipelineId', salePipelines[0].id);
@@ -98,6 +215,16 @@ export default function WidgetTab() {
 
   const activeUsers = users.filter(u => (u as any).active !== false);
 
+  const pipelineOptions: SelectOption[] = salePipelines.map(p => ({ value: p.id, label: p.name }));
+  const stageOptions: SelectOption[] = [
+    { value: '', label: 'Primeira etapa' },
+    ...stages.map(s => ({ value: s.id, label: s.name })),
+  ];
+  const userOptions: SelectOption[] = [
+    { value: '', label: 'Sem atribuição' },
+    ...activeUsers.map(u => ({ value: u.id, label: u.name })),
+  ];
+
   return (
     <div className="space-y-6">
       <div className="flex items-start justify-between">
@@ -108,7 +235,7 @@ export default function WidgetTab() {
         <button
           onClick={() => set('enabled', !cfg.enabled)}
           className="flex items-center gap-2 text-sm font-medium transition-colors"
-          style={{ color: cfg.enabled ? 'var(--accent)' : 'var(--ink-3)' }}
+          style={{ color: cfg.enabled ? 'var(--brand-500)' : 'var(--ink-3)' }}
         >
           {cfg.enabled
             ? <ToggleRight className="w-6 h-6" />
@@ -165,7 +292,7 @@ export default function WidgetTab() {
             <button
               onClick={() => set('collectEmail', !cfg.collectEmail)}
               className="flex items-center gap-2 text-sm"
-              style={{ color: cfg.collectEmail ? 'var(--accent)' : 'var(--ink-3)' }}
+              style={{ color: cfg.collectEmail ? 'var(--brand-500)' : 'var(--ink-3)' }}
             >
               {cfg.collectEmail ? <ToggleRight className="w-5 h-5" /> : <ToggleLeft className="w-5 h-5" />}
               Coletar e-mail
@@ -187,42 +314,34 @@ export default function WidgetTab() {
 
           <div className="space-y-1.5">
             <label className="text-xs font-medium" style={{ color: 'var(--ink-2)' }}>Funil de destino</label>
-            <select
+            <StyledSelect
               value={cfg.pipelineId ?? ''}
-              onChange={e => set('pipelineId', e.target.value || null)}
-              className="input-base"
-              style={{ colorScheme: 'auto' }}
-            >
-              {salePipelines.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-            </select>
+              onChange={v => set('pipelineId', v || null)}
+              options={pipelineOptions}
+              placeholder="Selecione um funil"
+            />
           </div>
 
           {cfg.pipelineId && stages.length > 0 && (
             <div className="space-y-1.5">
               <label className="text-xs font-medium" style={{ color: 'var(--ink-2)' }}>Etapa de entrada</label>
-              <select
+              <StyledSelect
                 value={cfg.stageId ?? ''}
-                onChange={e => set('stageId', e.target.value || null)}
-                className="input-base"
-                style={{ colorScheme: 'auto' }}
-              >
-                <option value="">Primeira etapa</option>
-                {stages.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-              </select>
+                onChange={v => set('stageId', v || null)}
+                options={stageOptions}
+                placeholder="Primeira etapa"
+              />
             </div>
           )}
 
           <div className="space-y-1.5">
             <label className="text-xs font-medium" style={{ color: 'var(--ink-2)' }}>Atribuir leads para</label>
-            <select
+            <StyledSelect
               value={cfg.assignToId ?? ''}
-              onChange={e => set('assignToId', e.target.value || null)}
-              className="input-base"
-              style={{ colorScheme: 'auto' }}
-            >
-              <option value="">Sem atribuição</option>
-              {activeUsers.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
-            </select>
+              onChange={v => set('assignToId', v || null)}
+              options={userOptions}
+              placeholder="Sem atribuição"
+            />
           </div>
 
           <div className="flex justify-end pt-2">
@@ -267,7 +386,7 @@ export default function WidgetTab() {
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center gap-1 text-xs"
-                style={{ color: 'var(--accent)' }}
+                style={{ color: 'var(--brand-500)' }}
               >
                 <ExternalLink className="w-3.5 h-3.5" /> Abrir widget
               </a>
@@ -283,7 +402,7 @@ export default function WidgetTab() {
               <button
                 onClick={copyEmbed}
                 className="absolute top-2 right-2 p-1.5 rounded-md transition-colors"
-                style={{ background: 'var(--surface-hover)', color: copied ? 'var(--accent)' : 'var(--ink-3)' }}
+                style={{ background: 'var(--surface-hover)', color: copied ? 'var(--brand-500)' : 'var(--ink-3)' }}
                 title="Copiar"
               >
                 {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
