@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { X, Mail, Phone, MessageSquare, Globe, MapPin, User as UserIcon } from 'lucide-react';
 import type { Contact, User } from '@/types/api';
 import Avatar from '@/components/ui/Avatar';
-import { ActivityComposer, ActivityFeedList } from '@/components/ui/ActivityFeed';
+import { ActivityComposer, ActivityFeedList, type SystemEvent } from '@/components/ui/ActivityFeed';
 import { getContactActivities, createContactActivity, completeContactActivity, deleteContactActivity } from '@/api/contact-activities';
 
 interface Props {
@@ -63,6 +63,11 @@ export default function PessoaDetailPanel({ contact, users, onClose, onEdit }: P
     .filter(Boolean).join(', ');
 
   const whatsapp = contact.whatsapp || contact.celular;
+
+  const systemEvents: SystemEvent[] = [
+    ...(responsible ? [{ icon: 'assign' as const, label: `Responsável assumiu — ${responsible.name}`, date: contact.createdAt }] : []),
+    { icon: 'user' as const, label: 'Pessoa criada', date: contact.createdAt },
+  ];
 
   return (
     <div
@@ -133,6 +138,7 @@ export default function PessoaDetailPanel({ contact, users, onClose, onEdit }: P
                   users={users}
                   onComplete={id => completeMut.mutate(id)}
                   onDelete={id => deleteMut.mutate(id)}
+                  systemEvents={systemEvents}
                 />
               </>
             ) : (

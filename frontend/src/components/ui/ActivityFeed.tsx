@@ -2,6 +2,7 @@ import { useState } from 'react';
 import {
   StickyNote, PhoneCall, MessageSquare, FileText,
   Users as UsersIcon, MapPin, Mail, Clock, Check, X,
+  Plus, UserCheck, Building2, User as UserIcon,
 } from 'lucide-react';
 
 export interface Activity {
@@ -184,6 +185,39 @@ export function ActivityItem({ activity, users, onComplete, onDelete }: Activity
   );
 }
 
+/* ── System events ────────────────────────────────────── */
+
+export type SystemEventIcon = 'plus' | 'user' | 'building' | 'assign';
+
+export interface SystemEvent {
+  icon: SystemEventIcon;
+  label: string;
+  date: string;
+}
+
+const SYSTEM_ICONS: Record<SystemEventIcon, React.ComponentType<React.SVGProps<SVGSVGElement>>> = {
+  plus:     Plus,
+  user:     UserIcon,
+  building: Building2,
+  assign:   UserCheck,
+};
+
+function SystemEventItem({ event }: { event: SystemEvent }) {
+  const Icon = SYSTEM_ICONS[event.icon];
+  return (
+    <div className="flex items-center gap-3 py-1.5">
+      <div
+        className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0"
+        style={{ background: 'var(--surface-hover)', border: '1px solid var(--edge)' }}
+      >
+        <Icon className="w-3 h-3" style={{ color: 'var(--ink-3)' }} />
+      </div>
+      <span className="text-xs flex-1" style={{ color: 'var(--ink-3)' }}>{event.label}</span>
+      <span className="text-xs" style={{ color: 'var(--ink-3)' }}>{fmt(event.date)}</span>
+    </div>
+  );
+}
+
 /* ── Feed list ────────────────────────────────────────── */
 
 interface FeedProps {
@@ -191,10 +225,13 @@ interface FeedProps {
   users: User[];
   onComplete: (id: string) => void;
   onDelete: (id: string) => void;
+  systemEvents?: SystemEvent[];
 }
 
-export function ActivityFeedList({ activities, users, onComplete, onDelete }: FeedProps) {
-  if (activities.length === 0) {
+export function ActivityFeedList({ activities, users, onComplete, onDelete, systemEvents = [] }: FeedProps) {
+  const hasContent = activities.length > 0 || systemEvents.length > 0;
+
+  if (!hasContent) {
     return (
       <div className="flex flex-col items-center justify-center py-10 gap-2">
         <StickyNote className="w-8 h-8" style={{ color: 'var(--ink-3)' }} />
@@ -202,6 +239,7 @@ export function ActivityFeedList({ activities, users, onComplete, onDelete }: Fe
       </div>
     );
   }
+
   return (
     <div className="space-y-2">
       {activities.map((a) => (
@@ -213,6 +251,21 @@ export function ActivityFeedList({ activities, users, onComplete, onDelete }: Fe
           onDelete={() => onDelete(a.id)}
         />
       ))}
+      {systemEvents.length > 0 && (
+        <div
+          className="rounded-lg px-3 py-1"
+          style={{ border: '1px solid var(--edge)', background: 'var(--surface)' }}
+        >
+          {systemEvents.map((ev, i) => (
+            <div key={i}>
+              <SystemEventItem event={ev} />
+              {i < systemEvents.length - 1 && (
+                <div style={{ height: 1, background: 'var(--edge)', margin: '0 0 0 36px' }} />
+              )}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

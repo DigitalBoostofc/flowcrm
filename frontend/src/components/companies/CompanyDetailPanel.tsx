@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { X, Mail, Phone, MessageSquare, Globe, MapPin, Building2 } from 'lucide-react';
 import type { Company, User } from '@/types/api';
 import Avatar from '@/components/ui/Avatar';
-import { ActivityComposer, ActivityFeedList } from '@/components/ui/ActivityFeed';
+import { ActivityComposer, ActivityFeedList, type SystemEvent } from '@/components/ui/ActivityFeed';
 import {
   getCompanyActivities,
   createCompanyActivity,
@@ -57,6 +57,11 @@ export default function CompanyDetailPanel({ company, users, onClose, onEdit }: 
 
   const address = [company.rua, company.numero, company.bairro, company.cidade, company.estado]
     .filter(Boolean).join(', ');
+
+  const systemEvents: SystemEvent[] = [
+    ...(responsible ? [{ icon: 'assign' as const, label: `Responsável assumiu — ${responsible.name}`, date: company.createdAt }] : []),
+    { icon: 'building' as const, label: 'Empresa criada', date: company.createdAt },
+  ];
 
   return (
     <div
@@ -123,6 +128,7 @@ export default function CompanyDetailPanel({ company, users, onClose, onEdit }: 
                   users={users}
                   onComplete={id => completeMut.mutate(id)}
                   onDelete={id => deleteMut.mutate(id)}
+                  systemEvents={systemEvents}
                 />
               </>
             ) : (
