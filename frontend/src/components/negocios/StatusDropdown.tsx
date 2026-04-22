@@ -1,8 +1,74 @@
 import { useEffect, useRef, useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { CircleDot, CheckCircle2, XCircle, ChevronDown, Check, Snowflake, Plus, X } from 'lucide-react';
+import { CircleDot, CheckCircle2, XCircle, ChevronDown, Check, Snowflake, Plus, X, ChevronLeft, ChevronRight, CalendarDays } from 'lucide-react';
 import type { LeadStatus } from '@/types/api';
 import { createLossReason } from '@/api/loss-reasons';
+
+const WEEK_DAYS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+const MONTHS = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+
+function MiniCalendar({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const today = new Date();
+  const init = value ? new Date(value + 'T12:00:00') : today;
+  const [cursor, setCursor] = useState({ year: init.getFullYear(), month: init.getMonth() });
+
+  const firstDay = new Date(cursor.year, cursor.month, 1).getDay();
+  const daysInMonth = new Date(cursor.year, cursor.month + 1, 0).getDate();
+  const cells: (number | null)[] = [...Array(firstDay).fill(null), ...Array.from({ length: daysInMonth }, (_, i) => i + 1)];
+  while (cells.length % 7 !== 0) cells.push(null);
+
+  const selected = value ? new Date(value + 'T12:00:00') : null;
+  const isSelected = (d: number) => selected?.getFullYear() === cursor.year && selected?.getMonth() === cursor.month && selected?.getDate() === d;
+  const isToday = (d: number) => today.getFullYear() === cursor.year && today.getMonth() === cursor.month && today.getDate() === d;
+
+  const prev = () => setCursor(c => c.month === 0 ? { year: c.year - 1, month: 11 } : { ...c, month: c.month - 1 });
+  const next = () => setCursor(c => c.month === 11 ? { year: c.year + 1, month: 0 } : { ...c, month: c.month + 1 });
+
+  const pick = (d: number) => {
+    const mm = String(cursor.month + 1).padStart(2, '0');
+    const dd = String(d).padStart(2, '0');
+    onChange(`${cursor.year}-${mm}-${dd}`);
+  };
+
+  return (
+    <div className="rounded-lg overflow-hidden" style={{ background: 'var(--surface)', border: '1px solid var(--edge)' }}>
+      <div className="flex items-center justify-between px-2 py-1.5" style={{ borderBottom: '1px solid var(--edge)' }}>
+        <button onClick={prev} className="p-0.5 rounded hover:bg-[var(--surface-hover)]" style={{ color: 'var(--ink-2)' }}>
+          <ChevronLeft className="w-3.5 h-3.5" />
+        </button>
+        <span className="text-xs font-semibold" style={{ color: 'var(--ink-1)' }}>{MONTHS[cursor.month]} {cursor.year}</span>
+        <button onClick={next} className="p-0.5 rounded hover:bg-[var(--surface-hover)]" style={{ color: 'var(--ink-2)' }}>
+          <ChevronRight className="w-3.5 h-3.5" />
+        </button>
+      </div>
+      <div className="grid grid-cols-7 px-1 pt-1">
+        {WEEK_DAYS.map(d => (
+          <div key={d} className="text-center text-[10px] font-semibold pb-1" style={{ color: 'var(--ink-3)' }}>{d}</div>
+        ))}
+        {cells.map((d, i) => (
+          <div key={i} className="flex items-center justify-center p-0.5">
+            {d ? (
+              <button
+                onClick={() => pick(d)}
+                className="w-6 h-6 rounded-full text-[11px] font-medium transition-colors"
+                style={{
+                  background: isSelected(d) ? '#0ea5e9' : isToday(d) ? 'var(--surface-hover)' : 'transparent',
+                  color: isSelected(d) ? '#fff' : isToday(d) ? '#0ea5e9' : 'var(--ink-1)',
+                  fontWeight: isToday(d) ? 700 : undefined,
+                }}
+              >{d}</button>
+            ) : null}
+          </div>
+        ))}
+      </div>
+      {value && (
+        <div className="flex justify-end px-2 pb-1.5">
+          <button onClick={() => onChange('')} className="text-[10px] hover:underline" style={{ color: 'var(--ink-3)' }}>Limpar</button>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export const STATUS_CONFIG: Record<LeadStatus, { label: string; color: string; bg: string; Icon: typeof CircleDot }> = {
   active:  { label: 'Em andamento', color: '#635BFF', bg: 'rgba(99,91,255,0.1)',   Icon: CircleDot    },
@@ -27,6 +93,7 @@ export function StatusDropdown({
   const [step, setStep] = useState<Step>('menu');
   const [freezeReason, setFreezeReason] = useState('');
   const [frozenReturnDate, setFrozenReturnDate] = useState('');
+  const [calendarOpen, setCalendarOpen] = useState(false);
   const [selectedReason, setSelectedReason] = useState('');
   const [addingReason, setAddingReason] = useState(false);
   const [newReasonLabel, setNewReasonLabel] = useState('');
@@ -55,7 +122,7 @@ export function StatusDropdown({
     return () => document.removeEventListener('mousedown', handler);
   }, [open]);
 
-  const close = () => { setOpen(false); setStep('menu'); setFreezeReason(''); setFrozenReturnDate(''); setSelectedReason(''); setAddingReason(false); setNewReasonLabel(''); };
+  const close = () => { setOpen(false); setStep('menu'); setFreezeReason(''); setFrozenReturnDate(''); setSelectedReason(''); setAddingReason(false); setNewReasonLabel(''); setCalendarOpen(false); };
 
   const choose = (status: LeadStatus) => {
     if (status === 'lost') { setStep('lost'); return; }
@@ -230,13 +297,25 @@ export function StatusDropdown({
               </div>
               <div>
                 <label className="text-xs mb-1 block" style={{ color: 'var(--ink-3)' }}>Retorno previsto (opcional)</label>
-                <input
-                  type="date"
-                  value={frozenReturnDate}
-                  onChange={e => setFrozenReturnDate(e.target.value)}
-                  className="w-full px-2 py-1.5 rounded-md text-xs outline-none"
-                  style={{ background: 'var(--surface)', border: '1px solid var(--edge)', color: 'var(--ink-1)' }}
-                />
+                <button
+                  type="button"
+                  onClick={() => setCalendarOpen(o => !o)}
+                  className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-xs text-left"
+                  style={{ background: 'var(--surface)', border: '1px solid var(--edge)', color: frozenReturnDate ? 'var(--ink-1)' : 'var(--ink-3)' }}
+                >
+                  <CalendarDays className="w-3.5 h-3.5 flex-shrink-0" />
+                  {frozenReturnDate
+                    ? new Date(frozenReturnDate + 'T12:00:00').toLocaleDateString('pt-BR')
+                    : 'Selecionar data'}
+                </button>
+                {calendarOpen && (
+                  <div className="mt-1">
+                    <MiniCalendar
+                      value={frozenReturnDate}
+                      onChange={(v) => { setFrozenReturnDate(v); setCalendarOpen(false); }}
+                    />
+                  </div>
+                )}
               </div>
               <div className="flex gap-2">
                 <button
