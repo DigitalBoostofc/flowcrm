@@ -861,7 +861,8 @@ export default function Pessoas() {
 
   const deleteMut = useMutation({
     mutationFn: (id: string) => deleteContact(id),
-    onSuccess: () => {
+    onSuccess: (_data, id) => {
+      qc.setQueriesData<Contact[]>({ queryKey: ['pessoas'] }, (old) => old?.filter(c => c.id !== id) ?? old);
       qc.invalidateQueries({ queryKey: ['pessoas'] });
       setDeleteTarget(null);
     },
@@ -870,7 +871,9 @@ export default function Pessoas() {
 
   const bulkDeleteMut = useMutation({
     mutationFn: (ids: string[]) => Promise.all(ids.map((id) => deleteContact(id))),
-    onSuccess: () => {
+    onSuccess: (_data, ids) => {
+      const idSet = new Set(ids);
+      qc.setQueriesData<Contact[]>({ queryKey: ['pessoas'] }, (old) => old?.filter(c => !idSet.has(c.id)) ?? old);
       qc.invalidateQueries({ queryKey: ['pessoas'] });
       setSelectedIds(new Set());
       setBulkDeleteOpen(false);
