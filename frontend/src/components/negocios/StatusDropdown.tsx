@@ -296,18 +296,26 @@ export function StatusDropdown({
                 />
               </div>
               <div>
-                <label className="text-xs mb-1 block" style={{ color: 'var(--ink-3)' }}>Retorno previsto (opcional)</label>
-                <button
-                  type="button"
+                <div
+                  role="button"
+                  tabIndex={0}
                   onClick={() => setCalendarOpen(o => !o)}
-                  className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-xs text-left"
-                  style={{ background: 'var(--surface)', border: '1px solid var(--edge)', color: frozenReturnDate ? 'var(--ink-1)' : 'var(--ink-3)' }}
+                  onKeyDown={e => e.key === 'Enter' && setCalendarOpen(o => !o)}
+                  className="cursor-pointer"
                 >
-                  <CalendarDays className="w-3.5 h-3.5 flex-shrink-0" />
-                  {frozenReturnDate
-                    ? new Date(frozenReturnDate + 'T12:00:00').toLocaleDateString('pt-BR')
-                    : 'Selecionar data'}
-                </button>
+                  <div className="text-xs mb-1" style={{ color: 'var(--ink-3)' }}>Retorno previsto (opcional)</div>
+                  <div
+                    className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-xs select-none"
+                    style={{ background: 'var(--surface)', border: '1px solid var(--edge)', color: frozenReturnDate ? 'var(--ink-1)' : 'var(--ink-3)' }}
+                  >
+                    <CalendarDays className="w-3.5 h-3.5 flex-shrink-0" />
+                    <span className="flex-1">
+                      {frozenReturnDate
+                        ? new Date(frozenReturnDate + 'T12:00:00').toLocaleDateString('pt-BR')
+                        : 'Selecionar data'}
+                    </span>
+                  </div>
+                </div>
                 {calendarOpen && (
                   <div className="mt-1">
                     <MiniCalendar
