@@ -846,11 +846,13 @@ export default function Companies() {
   const deleteMut = useMutation({
     mutationFn: (id: string) => deleteCompany(id),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['companies'] }); setDeleteTarget(null); },
+    onError: () => alert('Erro ao deletar empresa. Tente novamente.'),
   });
 
   const bulkDeleteMut = useMutation({
-    mutationFn: () => Promise.all([...selectedIds].map((id) => deleteCompany(id))),
+    mutationFn: (ids: string[]) => Promise.all(ids.map((id) => deleteCompany(id))),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['companies'] }); setSelectedIds(new Set()); setBulkDeleteOpen(false); },
+    onError: () => alert('Erro ao deletar empresas. Tente novamente.'),
   });
 
   const filteredCompanies = useMemo(() => {
@@ -1155,7 +1157,7 @@ export default function Companies() {
             <div className="flex gap-2 justify-end">
               <button onClick={() => setBulkDeleteOpen(false)} className="px-3 py-1.5 rounded-lg text-sm"
                 style={{ background: 'var(--surface-hover)', color: 'var(--ink-2)' }}>Cancelar</button>
-              <button onClick={() => bulkDeleteMut.mutate()} disabled={bulkDeleteMut.isPending}
+              <button onClick={() => bulkDeleteMut.mutate([...selectedIds])} disabled={bulkDeleteMut.isPending}
                 className="px-3 py-1.5 rounded-lg text-sm font-medium text-white disabled:opacity-50"
                 style={{ background: 'var(--danger)' }}>
                 {bulkDeleteMut.isPending ? 'Deletando…' : 'Deletar'}

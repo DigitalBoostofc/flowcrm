@@ -865,15 +865,17 @@ export default function Pessoas() {
       qc.invalidateQueries({ queryKey: ['pessoas'] });
       setDeleteTarget(null);
     },
+    onError: () => alert('Erro ao deletar pessoa. Tente novamente.'),
   });
 
   const bulkDeleteMut = useMutation({
-    mutationFn: () => Promise.all([...selectedIds].map((id) => deleteContact(id))),
+    mutationFn: (ids: string[]) => Promise.all(ids.map((id) => deleteContact(id))),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['pessoas'] });
       setSelectedIds(new Set());
       setBulkDeleteOpen(false);
     },
+    onError: () => alert('Erro ao deletar pessoas. Tente novamente.'),
   });
 
   const userById = useMemo(() => {
@@ -1248,7 +1250,7 @@ export default function Pessoas() {
             <div className="flex gap-2 justify-end">
               <button onClick={() => setBulkDeleteOpen(false)} className="px-3 py-1.5 rounded-lg text-sm"
                 style={{ background: 'var(--surface-hover)', color: 'var(--ink-2)' }}>Cancelar</button>
-              <button onClick={() => bulkDeleteMut.mutate()} disabled={bulkDeleteMut.isPending}
+              <button onClick={() => bulkDeleteMut.mutate([...selectedIds])} disabled={bulkDeleteMut.isPending}
                 className="px-3 py-1.5 rounded-lg text-sm font-medium text-white disabled:opacity-50"
                 style={{ background: 'var(--danger)' }}>
                 {bulkDeleteMut.isPending ? 'Deletando…' : 'Deletar'}
