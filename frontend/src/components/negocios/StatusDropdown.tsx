@@ -130,9 +130,9 @@ export function StatusDropdown({
                       onClick={() => setSelectedReason(active ? '' : r.label)}
                       className="w-full flex items-center gap-2 px-3 py-2 text-xs hover:bg-[var(--surface-hover)] transition-colors"
                       style={{
-                        color: active ? 'var(--ink-1)' : 'var(--ink-1)',
                         background: active ? 'var(--surface-hover)' : 'transparent',
                         fontWeight: active ? 600 : 400,
+                        color: 'var(--ink-1)',
                       }}
                     >
                       <div className="w-3.5 h-3.5 flex-shrink-0 flex items-center justify-center">
@@ -142,6 +142,26 @@ export function StatusDropdown({
                     </button>
                   );
                 })}
+                {(() => {
+                  const active = selectedReason === '__sem_motivo__';
+                  return (
+                    <button
+                      key="__sem_motivo__"
+                      onClick={() => setSelectedReason(active ? '' : '__sem_motivo__')}
+                      className="w-full flex items-center gap-2 px-3 py-2 text-xs hover:bg-[var(--surface-hover)] transition-colors"
+                      style={{
+                        background: active ? 'var(--surface-hover)' : 'transparent',
+                        fontWeight: active ? 600 : 400,
+                        color: 'var(--ink-2)',
+                      }}
+                    >
+                      <div className="w-3.5 h-3.5 flex-shrink-0 flex items-center justify-center">
+                        {active && <Check className="w-3.5 h-3.5" style={{ color: 'var(--brand-500, #6366f1)' }} strokeWidth={3} />}
+                      </div>
+                      Sem motivo
+                    </button>
+                  );
+                })()}
               </div>
 
               {addingReason && (
@@ -178,14 +198,11 @@ export function StatusDropdown({
 
               <div className="flex gap-2 p-2" style={{ borderTop: '1px solid var(--edge)' }}>
                 <button
-                  onClick={() => { onUpdate(lead.id, 'lost'); close(); }}
-                  className="flex-1 px-2 py-1.5 rounded-md text-xs transition-colors hover:bg-[var(--surface-hover)]"
-                  style={{ color: 'var(--ink-3)', border: '1px solid var(--edge)' }}
-                >
-                  Sem motivo
-                </button>
-                <button
-                  onClick={() => { onUpdate(lead.id, 'lost', { lossReason: selectedReason || undefined }); close(); }}
+                  onClick={() => {
+                    const reason = selectedReason === '__sem_motivo__' ? undefined : selectedReason || undefined;
+                    onUpdate(lead.id, 'lost', { lossReason: reason });
+                    close();
+                  }}
                   disabled={!selectedReason}
                   className="flex-1 px-2 py-1.5 rounded-md text-xs font-semibold text-white disabled:opacity-40"
                   style={{ background: 'var(--brand-500, #6366f1)' }}
