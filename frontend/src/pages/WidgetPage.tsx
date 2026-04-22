@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import axios from 'axios';
-import { MessageCircle, Phone, Headphones, Smile, Zap, Send, CheckCircle2, Loader2 } from 'lucide-react';
+import { MessageCircle, Phone, Headphones, Smile, Zap, Send, Loader2 } from 'lucide-react';
 
 interface WidgetConfig {
   enabled: boolean;
@@ -10,6 +10,7 @@ interface WidgetConfig {
   color: string;
   icon: string;
   formBg: string;
+  successMessage: string;
   whatsappNumber: string;
   collectEmail: boolean;
 }
@@ -143,11 +144,36 @@ export default function WidgetPage() {
 
   if (step === 'done') {
     return (
-      <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-        <div style={{ background: '#fff', borderRadius: 16, boxShadow: '0 4px 24px rgba(0,0,0,0.15)', padding: 32, textAlign: 'center', maxWidth: 320, width: '100%', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
-          <CheckCircle2 size={48} style={{ color: primary, margin: '0 auto 12px' }} />
-          <h3 style={{ fontWeight: 700, color: '#111', fontSize: 18, margin: '0 0 8px' }}>Mensagem enviada!</h3>
-          <p style={{ color: '#6b7280', fontSize: 14, margin: 0 }}>Aguarde nosso contato no WhatsApp.</p>
+      <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'flex-end', justifyContent: 'flex-end', padding: 16 }}>
+        <div style={{
+          background: formBg, borderRadius: 16,
+          boxShadow: '0 4px 24px rgba(0,0,0,0.15)',
+          overflow: 'hidden', width: '100%', maxWidth: 320,
+          fontFamily: 'system-ui, -apple-system, sans-serif',
+        }}>
+          <div style={{ padding: '16px 20px', background: primary, color: '#fff', display: 'flex', alignItems: 'center', gap: 10 }}>
+            <WidgetIcon icon={icon} size={20} />
+            <div>
+              <div style={{ fontWeight: 600, fontSize: 14 }}>{cfg.title}</div>
+              <div style={{ fontSize: 12, opacity: 0.85 }}>{cfg.subtitle}</div>
+            </div>
+          </div>
+          <div style={{ padding: '36px 24px', textAlign: 'center' }}>
+            <div style={{
+              width: 64, height: 64, borderRadius: '50%',
+              background: 'rgba(34,197,94,0.12)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              margin: '0 auto 16px',
+            }}>
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+            </div>
+            <h3 style={{ fontWeight: 700, color: '#111', fontSize: 17, margin: '0 0 8px' }}>Mensagem enviada!</h3>
+            <p style={{ color: '#6b7280', fontSize: 14, margin: 0, lineHeight: 1.5 }}>
+              {cfg.successMessage || 'Logo nosso time entrará em contato. Obrigado.'}
+            </p>
+          </div>
         </div>
       </div>
     );

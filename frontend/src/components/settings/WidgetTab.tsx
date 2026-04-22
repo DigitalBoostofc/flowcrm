@@ -16,6 +16,7 @@ interface WidgetConfig {
   color: string;
   icon: string;
   formBg: string;
+  successMessage: string;
   pipelineId: string | null;
   stageId: string | null;
   assignToId: string | null;
@@ -30,6 +31,7 @@ const DEFAULTS: WidgetConfig = {
   color: '#25D366',
   icon: 'whatsapp',
   formBg: '#ffffff',
+  successMessage: 'Logo nosso time entrará em contato. Obrigado.',
   pipelineId: null,
   stageId: null,
   assignToId: null,
@@ -210,7 +212,7 @@ export default function WidgetTab() {
   const { data: workspace } = useWorkspace();
   const [cfg, setCfg] = useState<WidgetConfig>(DEFAULTS);
   const [copied, setCopied] = useState(false);
-  const [previewMode, setPreviewMode] = useState<'button' | 'form'>('button');
+  const [previewMode, setPreviewMode] = useState<'button' | 'form' | 'done'>('button');
 
   const { data: savedConfig } = useQuery({ queryKey: ['widget-config'], queryFn: getWidgetConfig });
   const { data: pipelines = [] } = useQuery({ queryKey: ['pipelines'], queryFn: listPipelines });
@@ -324,6 +326,18 @@ export default function WidgetTab() {
           </div>
 
           <div className="space-y-1.5">
+            <label className="text-xs font-medium" style={{ color: 'var(--ink-2)' }}>Mensagem de confirmação</label>
+            <textarea
+              value={cfg.successMessage || ''}
+              onChange={e => set('successMessage', e.target.value)}
+              className="input-base"
+              placeholder="Logo nosso time entrará em contato. Obrigado."
+              rows={2}
+              style={{ height: 'auto', padding: '8px 12px', resize: 'none' }}
+            />
+          </div>
+
+          <div className="space-y-1.5">
             <label className="text-xs font-medium" style={{ color: 'var(--ink-2)' }}>Ícone do botão</label>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
               {ICON_OPTIONS.map(({ id, label }) => (
@@ -400,7 +414,7 @@ export default function WidgetTab() {
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-semibold" style={{ color: 'var(--ink-2)' }}>Preview</h3>
             <div style={{ display: 'flex', gap: 2, background: 'var(--surface)', border: '1px solid var(--edge)', borderRadius: 6, padding: 2 }}>
-              {(['button', 'form'] as const).map(mode => (
+              {([['button', 'Botão'], ['form', 'Formulário'], ['done', 'Enviado']] as const).map(([mode, label]) => (
                 <button
                   key={mode}
                   onClick={() => setPreviewMode(mode)}
@@ -413,7 +427,7 @@ export default function WidgetTab() {
                     boxShadow: previewMode === mode ? 'var(--shadow-sm)' : 'none',
                   }}
                 >
-                  {mode === 'button' ? 'Botão' : 'Formulário'}
+                  {label}
                 </button>
               ))}
             </div>
@@ -436,8 +450,39 @@ export default function WidgetTab() {
                 {cfg.title || 'Fale conosco'}
               </div>
             </div>
-          ) : (
+          ) : previewMode === 'form' ? (
             <FormPreview cfg={cfg} />
+          ) : (
+            /* Enviado preview */
+            <div style={{
+              background: cfg.formBg || '#ffffff', borderRadius: 16,
+              boxShadow: '0 2px 12px rgba(0,0,0,0.12)', overflow: 'hidden',
+              fontFamily: 'system-ui, -apple-system, sans-serif', color: '#111',
+            }}>
+              <div style={{ padding: '14px 18px', background: cfg.color || '#25D366', color: '#fff', display: 'flex', alignItems: 'center', gap: 10 }}>
+                <WidgetIcon icon={cfg.icon || 'chat'} size={18} />
+                <div>
+                  <div style={{ fontWeight: 600, fontSize: 13 }}>{cfg.title || 'Fale conosco'}</div>
+                  <div style={{ fontSize: 11, opacity: 0.85 }}>{cfg.subtitle || 'Responderemos no WhatsApp'}</div>
+                </div>
+              </div>
+              <div style={{ padding: '32px 20px', textAlign: 'center' }}>
+                <div style={{
+                  width: 56, height: 56, borderRadius: '50%',
+                  background: 'rgba(34,197,94,0.12)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  margin: '0 auto 14px',
+                }}>
+                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="20 6 9 17 4 12" />
+                  </svg>
+                </div>
+                <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 6 }}>Mensagem enviada!</div>
+                <div style={{ fontSize: 13, color: '#6b7280', lineHeight: 1.5 }}>
+                  {cfg.successMessage || 'Logo nosso time entrará em contato. Obrigado.'}
+                </div>
+              </div>
+            </div>
           )}
 
           <div className="space-y-2">
