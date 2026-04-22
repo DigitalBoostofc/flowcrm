@@ -9,7 +9,11 @@ const MONTHS = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','A
 
 function MiniCalendar({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   const today = new Date();
-  const init = value ? new Date(value + 'T12:00:00') : today;
+  today.setHours(0, 0, 0, 0);
+  const tomorrow = new Date(today);
+  tomorrow.setDate(today.getDate() + 1);
+
+  const init = value ? new Date(value + 'T12:00:00') : tomorrow;
   const [cursor, setCursor] = useState({ year: init.getFullYear(), month: init.getMonth() });
 
   const firstDay = new Date(cursor.year, cursor.month, 1).getDay();
@@ -19,12 +23,13 @@ function MiniCalendar({ value, onChange }: { value: string; onChange: (v: string
 
   const selected = value ? new Date(value + 'T12:00:00') : null;
   const isSelected = (d: number) => selected?.getFullYear() === cursor.year && selected?.getMonth() === cursor.month && selected?.getDate() === d;
-  const isToday = (d: number) => today.getFullYear() === cursor.year && today.getMonth() === cursor.month && today.getDate() === d;
+  const isPast = (d: number) => new Date(cursor.year, cursor.month, d) < tomorrow;
 
   const prev = () => setCursor(c => c.month === 0 ? { year: c.year - 1, month: 11 } : { ...c, month: c.month - 1 });
   const next = () => setCursor(c => c.month === 11 ? { year: c.year + 1, month: 0 } : { ...c, month: c.month + 1 });
 
   const pick = (d: number) => {
+    if (isPast(d)) return;
     const mm = String(cursor.month + 1).padStart(2, '0');
     const dd = String(d).padStart(2, '0');
     onChange(`${cursor.year}-${mm}-${dd}`);
@@ -50,11 +55,12 @@ function MiniCalendar({ value, onChange }: { value: string; onChange: (v: string
             {d ? (
               <button
                 onClick={() => pick(d)}
-                className="w-6 h-6 rounded-full text-[11px] font-medium transition-colors"
+                disabled={isPast(d)}
+                className="w-6 h-6 rounded-full text-[11px] font-medium transition-colors disabled:cursor-not-allowed"
                 style={{
-                  background: isSelected(d) ? '#0ea5e9' : isToday(d) ? 'var(--surface-hover)' : 'transparent',
-                  color: isSelected(d) ? '#fff' : isToday(d) ? '#0ea5e9' : 'var(--ink-1)',
-                  fontWeight: isToday(d) ? 700 : undefined,
+                  background: isSelected(d) ? '#0ea5e9' : 'transparent',
+                  color: isPast(d) ? 'var(--ink-4, #ccc)' : isSelected(d) ? '#fff' : 'var(--ink-1)',
+                  opacity: isPast(d) ? 0.35 : 1,
                 }}
               >{d}</button>
             ) : null}
@@ -155,8 +161,9 @@ export function StatusDropdown({
 
       {open && (
         <div
-          className="absolute left-0 top-full mt-1 z-50 rounded-xl shadow-xl py-1 min-w-[200px]"
+          className="absolute left-0 top-full mt-1 z-50 rounded-xl shadow-xl py-1 min-w-[220px]"
           style={{ background: 'var(--surface-raised)', border: '1px solid var(--edge)' }}
+          onMouseDown={(e) => e.stopPropagation()}
         >
           {step === 'menu' && (
             (Object.entries(STATUS_CONFIG) as [LeadStatus, typeof STATUS_CONFIG[LeadStatus]][]).map(([key, s]) => (
@@ -286,7 +293,6 @@ export function StatusDropdown({
               <div>
                 <label className="text-xs mb-1 block" style={{ color: 'var(--ink-3)' }}>Motivo (opcional)</label>
                 <input
-                  autoFocus
                   type="text"
                   value={freezeReason}
                   onChange={e => setFreezeReason(e.target.value)}

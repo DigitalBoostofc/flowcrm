@@ -279,11 +279,14 @@ export default function NegocioDetailPanel({ lead, currentUser, users, pipelines
     mutationFn: ({ status, extra }: { status: LeadStatus; extra?: { lossReason?: string; freezeReason?: string; frozenReturnDate?: string } }) =>
       updateLeadStatus(lead.id, status, extra),
     onSuccess: (updated) => {
-      // Atualiza o cache imediatamente para que o kanban remova o card sem esperar o refetch
       qc.setQueryData<Lead[]>(['negocios'], (prev) =>
         prev?.map((l) => (l.id === updated.id ? updated : l)) ?? prev,
       );
       qc.invalidateQueries({ queryKey: ['negocios'] });
+    },
+    onError: (err: any) => {
+      const msg = err?.response?.data?.message ?? err?.message ?? 'Erro ao atualizar status';
+      alert(msg);
     },
   });
 
