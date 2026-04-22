@@ -753,21 +753,38 @@ export default function NegocioDetailPanel({ lead, currentUser, users, pipelines
             </div>
 
             {/* Feed */}
-            {activities.length === 0 ? (
-              <EmptyFeed />
-            ) : (
-              <div className="space-y-2">
-                {activities.map((a) => (
-                  <ActivityItem
-                    key={a.id}
-                    activity={a}
-                    users={users}
-                    onComplete={() => completeActivityMut.mutate(a.id)}
-                    onDelete={() => deleteActivityMut.mutate(a.id)}
-                  />
-                ))}
-              </div>
-            )}
+            <div className="space-y-2">
+              {activities.length === 0 && <EmptyFeed />}
+              {activities.map((a) => (
+                <ActivityItem
+                  key={a.id}
+                  activity={a}
+                  users={users}
+                  onComplete={() => completeActivityMut.mutate(a.id)}
+                  onDelete={() => deleteActivityMut.mutate(a.id)}
+                />
+              ))}
+
+              {/* ── Eventos de sistema ── */}
+              {assignedTo && (
+                <SystemEvent
+                  icon="user"
+                  color="#6366f1"
+                  label={<>Responsável assumiu — <strong>{assignedTo.name}</strong></>}
+                  date={lead.createdAt}
+                />
+              )}
+              <SystemEvent
+                icon="plus"
+                color="#22c55e"
+                label={
+                  createdBy
+                    ? <>Negócio criado por <strong>{createdBy.name}</strong></>
+                    : <>Negócio criado via widget</>
+                }
+                date={lead.createdAt}
+              />
+            </div>
           </div>
 
           {/* RIGHT sidebar */}
@@ -1046,6 +1063,36 @@ export default function NegocioDetailPanel({ lead, currentUser, users, pipelines
 }
 
 /* ── Sub-components ──────────────────────────────────── */
+
+function SystemEvent({ icon, color, label, date }: {
+  icon: 'plus' | 'user';
+  color: string;
+  label: React.ReactNode;
+  date: string;
+}) {
+  return (
+    <div className="flex items-start gap-2.5">
+      <div
+        className="flex-shrink-0 flex items-center justify-center rounded-full"
+        style={{ width: 26, height: 26, background: `${color}18`, border: `1px solid ${color}30` }}
+      >
+        {icon === 'plus' ? (
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.5" strokeLinecap="round">
+            <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
+          </svg>
+        ) : (
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="8" r="4" /><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" />
+          </svg>
+        )}
+      </div>
+      <div className="flex-1 min-w-0 py-0.5">
+        <div className="text-xs" style={{ color: 'var(--ink-2)' }}>{label}</div>
+        <div className="text-[11px] mt-0.5" style={{ color: 'var(--ink-3)' }}>{formatDateTime(date)}</div>
+      </div>
+    </div>
+  );
+}
 
 function InlineTitle({ value, onSave }: { value: string; onSave: (v: string) => Promise<unknown> | void }) {
   const [editing, setEditing] = useState(false);
