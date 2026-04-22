@@ -235,12 +235,19 @@ export default function WidgetTab() {
         <button
           onClick={() => set('enabled', !cfg.enabled)}
           className="flex items-center gap-2 text-sm font-medium transition-colors"
-          style={{ color: cfg.enabled ? 'var(--brand-500)' : 'var(--ink-3)' }}
+          style={{
+            padding: '6px 12px',
+            borderRadius: 8,
+            border: '1px solid',
+            borderColor: cfg.enabled ? 'var(--brand-500)' : 'var(--edge-strong)',
+            background: cfg.enabled ? 'var(--brand-50)' : 'var(--surface)',
+            color: cfg.enabled ? 'var(--brand-500)' : 'var(--ink-2)',
+          }}
         >
           {cfg.enabled
-            ? <ToggleRight className="w-6 h-6" />
-            : <ToggleLeft className="w-6 h-6" />}
-          {cfg.enabled ? 'Ativo' : 'Inativo'}
+            ? <ToggleRight className="w-5 h-5" />
+            : <ToggleLeft className="w-5 h-5" />}
+          {cfg.enabled ? 'Widget ativo' : 'Widget inativo'}
         </button>
       </div>
 
