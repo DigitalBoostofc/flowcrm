@@ -179,9 +179,9 @@
     box-shadow: 0 0 0 3px rgba(122,119,255,0.18);
   }
 
-  .dark select.input-base,
-  .dark select.select-base {
-    color-scheme: dark;
+  select.input-base,
+  select.select-base {
+    color-scheme: light dark;
   }
 
   /* ── Select ── */

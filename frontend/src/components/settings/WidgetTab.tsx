@@ -53,6 +53,7 @@ export default function WidgetTab() {
   const { data: savedConfig } = useQuery({ queryKey: ['widget-config'], queryFn: getWidgetConfig });
   const { data: pipelines = [] } = useQuery({ queryKey: ['pipelines'], queryFn: listPipelines });
   const { data: users = [] } = useQuery({ queryKey: ['users'], queryFn: listUsers });
+  const salePipelines = pipelines.filter(p => p.kind === 'sale');
   const { data: stages = [] } = useQuery({
     queryKey: ['stages', cfg.pipelineId],
     queryFn: () => cfg.pipelineId ? listStages(cfg.pipelineId) : Promise.resolve([]),
@@ -62,6 +63,14 @@ export default function WidgetTab() {
   useEffect(() => {
     if (savedConfig) setCfg(savedConfig);
   }, [savedConfig]);
+
+  // Auto-seleciona o primeiro funil de venda se nenhum estiver configurado
+  useEffect(() => {
+    if (salePipelines.length > 0 && !cfg.pipelineId) {
+      set('pipelineId', salePipelines[0].id);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [salePipelines.length]);
 
   const saveMutation = useMutation({
     mutationFn: saveWidgetConfig,
@@ -88,7 +97,6 @@ export default function WidgetTab() {
   }
 
   const activeUsers = users.filter(u => (u as any).active !== false);
-  const salePipelines = pipelines.filter(p => p.kind === 'sale');
 
   return (
     <div className="space-y-6">
@@ -183,8 +191,8 @@ export default function WidgetTab() {
               value={cfg.pipelineId ?? ''}
               onChange={e => set('pipelineId', e.target.value || null)}
               className="input-base"
+              style={{ colorScheme: 'auto' }}
             >
-              <option value="">Padrão do workspace</option>
               {salePipelines.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
             </select>
           </div>
@@ -196,6 +204,7 @@ export default function WidgetTab() {
                 value={cfg.stageId ?? ''}
                 onChange={e => set('stageId', e.target.value || null)}
                 className="input-base"
+                style={{ colorScheme: 'auto' }}
               >
                 <option value="">Primeira etapa</option>
                 {stages.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
@@ -209,6 +218,7 @@ export default function WidgetTab() {
               value={cfg.assignToId ?? ''}
               onChange={e => set('assignToId', e.target.value || null)}
               className="input-base"
+              style={{ colorScheme: 'auto' }}
             >
               <option value="">Sem atribuição</option>
               {activeUsers.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
