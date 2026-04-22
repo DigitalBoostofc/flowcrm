@@ -27,6 +27,7 @@ export function StatusDropdown({
   const [step, setStep] = useState<Step>('menu');
   const [freezeReason, setFreezeReason] = useState('');
   const [frozenReturnDate, setFrozenReturnDate] = useState('');
+  const [selectedReason, setSelectedReason] = useState('');
   const [addingReason, setAddingReason] = useState(false);
   const [newReasonLabel, setNewReasonLabel] = useState('');
   const newReasonRef = useRef<HTMLInputElement>(null);
@@ -36,8 +37,9 @@ export function StatusDropdown({
     mutationFn: (label: string) => createLossReason(label),
     onSuccess: (created) => {
       qc.invalidateQueries({ queryKey: ['loss-reasons'] });
-      onUpdate(lead.id, 'lost', { lossReason: created.label });
-      close();
+      setSelectedReason(created.label);
+      setAddingReason(false);
+      setNewReasonLabel('');
     },
   });
 
@@ -53,7 +55,7 @@ export function StatusDropdown({
     return () => document.removeEventListener('mousedown', handler);
   }, [open]);
 
-  const close = () => { setOpen(false); setStep('menu'); setFreezeReason(''); setFrozenReturnDate(''); setAddingReason(false); setNewReasonLabel(''); };
+  const close = () => { setOpen(false); setStep('menu'); setFreezeReason(''); setFrozenReturnDate(''); setSelectedReason(''); setAddingReason(false); setNewReasonLabel(''); };
 
   const choose = (status: LeadStatus) => {
     if (status === 'lost') { setStep('lost'); return; }
@@ -118,23 +120,30 @@ export function StatusDropdown({
                   </button>
                 )}
               </div>
-              <button
-                onClick={() => { onUpdate(lead.id, 'lost'); close(); }}
-                className="w-full flex items-center gap-2 px-3 py-2 text-xs hover:bg-[var(--surface-hover)] transition-colors"
-                style={{ color: 'var(--ink-3)' }}
-              >
-                Sem motivo
-              </button>
-              {lossReasons.map((r) => (
-                <button
-                  key={r.id}
-                  onClick={() => { onUpdate(lead.id, 'lost', { lossReason: r.label }); close(); }}
-                  className="w-full flex items-center gap-2 px-3 py-2 text-xs hover:bg-[var(--surface-hover)] transition-colors"
-                  style={{ color: 'var(--ink-1)' }}
-                >
-                  {r.label}
-                </button>
-              ))}
+
+              <div className="max-h-48 overflow-y-auto">
+                {lossReasons.map((r) => {
+                  const active = selectedReason === r.label;
+                  return (
+                    <button
+                      key={r.id}
+                      onClick={() => setSelectedReason(active ? '' : r.label)}
+                      className="w-full flex items-center gap-2 px-3 py-2 text-xs hover:bg-[var(--surface-hover)] transition-colors"
+                      style={{
+                        color: active ? 'var(--ink-1)' : 'var(--ink-1)',
+                        background: active ? 'var(--surface-hover)' : 'transparent',
+                        fontWeight: active ? 600 : 400,
+                      }}
+                    >
+                      <div className="w-3.5 h-3.5 flex-shrink-0 flex items-center justify-center">
+                        {active && <Check className="w-3.5 h-3.5" style={{ color: 'var(--brand-500, #6366f1)' }} strokeWidth={3} />}
+                      </div>
+                      {r.label}
+                    </button>
+                  );
+                })}
+              </div>
+
               {addingReason && (
                 <div className="flex items-center gap-1.5 px-2 py-2" style={{ borderTop: '1px solid var(--edge)' }}>
                   <input
@@ -166,6 +175,24 @@ export function StatusDropdown({
                   </button>
                 </div>
               )}
+
+              <div className="flex gap-2 p-2" style={{ borderTop: '1px solid var(--edge)' }}>
+                <button
+                  onClick={() => { onUpdate(lead.id, 'lost'); close(); }}
+                  className="flex-1 px-2 py-1.5 rounded-md text-xs transition-colors hover:bg-[var(--surface-hover)]"
+                  style={{ color: 'var(--ink-3)', border: '1px solid var(--edge)' }}
+                >
+                  Sem motivo
+                </button>
+                <button
+                  onClick={() => { onUpdate(lead.id, 'lost', { lossReason: selectedReason || undefined }); close(); }}
+                  disabled={!selectedReason}
+                  className="flex-1 px-2 py-1.5 rounded-md text-xs font-semibold text-white disabled:opacity-40"
+                  style={{ background: 'var(--brand-500, #6366f1)' }}
+                >
+                  Salvar
+                </button>
+              </div>
             </>
           )}
 
