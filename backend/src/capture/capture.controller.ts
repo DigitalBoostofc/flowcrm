@@ -39,12 +39,11 @@ export class CaptureController {
     return this.service.updateConfig(workspaceId, config);
   }
 
-  /** Authenticated — get current config */
+  /** Authenticated — get current config (regardless of enabled state) */
   @Get('workspaces/widget-config')
   @UseGuards(JwtAuthGuard)
-  async getConfig(@Req() req: any) {
+  async getConfig() {
     const workspaceId = this.tenant.requireWorkspaceId();
-    const result = await this.service.getPublicConfig(workspaceId);
-    return result?.config ?? null;
+    return this.service.getPrivateConfig(workspaceId);
   }
 }

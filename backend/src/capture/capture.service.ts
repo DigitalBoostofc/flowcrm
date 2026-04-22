@@ -21,6 +21,11 @@ export class CaptureService {
     return { config: ws.widgetConfig, workspaceName: ws.name };
   }
 
+  async getPrivateConfig(workspaceId: string): Promise<WidgetConfig | null> {
+    const ws = await this.workspaces.findOne({ where: { id: workspaceId } });
+    return ws?.widgetConfig ?? null;
+  }
+
   async capture(
     workspaceId: string,
     data: { name: string; phone: string; email?: string; message?: string },
