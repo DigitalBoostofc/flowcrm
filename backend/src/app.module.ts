@@ -48,10 +48,18 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { MailModule } from './mail/mail.module';
 import { SummaryModule } from './summary/summary.module';
 import { CaptureModule } from './capture/capture.module';
+import { HealthModule } from './common/health/health.module';
+import { PinoLoggerModule } from './common/logging/logger.config';
+import { envSchema } from './common/config/env.schema';
 
 @Module({
   imports: [
-    ConfigModule.forRoot({ isGlobal: true }),
+    ConfigModule.forRoot({
+      isGlobal: true,
+      validationSchema: envSchema,
+      validationOptions: { abortEarly: false, allowUnknown: true },
+    }),
+    PinoLoggerModule,
     ScheduleModule.forRoot(),
     ThrottlerModule.forRoot([
       { name: 'short', ttl: 1000, limit: 20 },
@@ -73,8 +81,16 @@ import { CaptureModule } from './capture/capture.module';
         entities: [__dirname + '/**/*.entity{.ts,.js}'],
         synchronize: false,
         migrations: [__dirname + '/database/migrations/*{.ts,.js}'],
-        migrationsRun: true,
+        migrationsRun: config.get<string>('RUN_MIGRATIONS_ON_BOOT', 'true') === 'true',
         logging: config.get('NODE_ENV') !== 'production',
+        extra: {
+          max: parseInt(config.get<string>('DB_POOL_MAX', '30'), 10),
+          min: parseInt(config.get<string>('DB_POOL_MIN', '5'), 10),
+          idleTimeoutMillis: 30_000,
+          connectionTimeoutMillis: 10_000,
+          statement_timeout: 30_000,
+          application_name: 'flowcrm-backend',
+        },
       }),
       inject: [ConfigService],
     }),
@@ -118,6 +134,7 @@ import { CaptureModule } from './capture/capture.module';
     MailModule,
     SummaryModule,
     CaptureModule,
+    HealthModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },
