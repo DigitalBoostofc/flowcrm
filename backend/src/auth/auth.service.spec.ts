@@ -2,7 +2,9 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { AuthService } from './auth.service';
 import { UsersService } from '../users/users.service';
 import { JwtService } from '@nestjs/jwt';
-import { UserRole } from '../users/entities/user.entity';
+import { OtpService } from '../otp/otp.service';
+import { getRepositoryToken } from '@nestjs/typeorm';
+import { User, UserRole } from '../users/entities/user.entity';
 import * as bcrypt from 'bcrypt';
 
 describe('AuthService', () => {
@@ -11,6 +13,7 @@ describe('AuthService', () => {
 
   const mockUser = {
     id: 'uuid-1',
+    workspaceId: 'ws-1',
     email: 'owner@test.com',
     passwordHash: '',
     role: UserRole.OWNER,
@@ -32,6 +35,8 @@ describe('AuthService', () => {
         AuthService,
         { provide: UsersService, useValue: usersService },
         { provide: JwtService, useValue: { sign: jest.fn().mockReturnValue('mock.jwt.token') } },
+        { provide: getRepositoryToken(User), useValue: { findOne: jest.fn(), update: jest.fn() } },
+        { provide: OtpService, useValue: { send: jest.fn(), verify: jest.fn(), consume: jest.fn() } },
       ],
     }).compile();
 

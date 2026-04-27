@@ -2,6 +2,8 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { ContactsService } from './contacts.service';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { Contact } from './entities/contact.entity';
+import { TenantContext } from '../common/tenant/tenant-context.service';
+import { StorageService } from '../storage/storage.service';
 
 describe('ContactsService', () => {
   let service: ContactsService;
@@ -11,13 +13,21 @@ describe('ContactsService', () => {
     create: jest.fn().mockImplementation((d) => d),
     save: jest.fn().mockImplementation((c) => Promise.resolve({ id: 'uuid-c1', ...c })),
   };
+  const mockTenant = { requireWorkspaceId: jest.fn().mockReturnValue('ws-1') } as unknown as TenantContext;
+  const mockStorage = {
+    uploadImage: jest.fn(),
+    delete: jest.fn().mockResolvedValue(undefined),
+  } as unknown as StorageService;
 
   beforeEach(async () => {
     jest.clearAllMocks();
+    mockRepo.findOne.mockResolvedValue(null);
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         ContactsService,
         { provide: getRepositoryToken(Contact), useValue: mockRepo },
+        { provide: TenantContext, useValue: mockTenant },
+        { provide: StorageService, useValue: mockStorage },
       ],
     }).compile();
     service = module.get<ContactsService>(ContactsService);
