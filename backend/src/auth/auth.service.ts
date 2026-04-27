@@ -80,7 +80,7 @@ export class AuthService {
   }
 
   async resetPassword(resetToken: string, newPassword: string): Promise<void> {
-    const payload = this.otp.consume(resetToken, 'pwd_reset');
+    const payload = await this.otp.consume(resetToken, 'pwd_reset');
     const hash = await bcrypt.hash(newPassword, 10);
     await this.userRepo.update(payload.subject, { passwordHash: hash });
   }

@@ -1,4 +1,4 @@
-import { Injectable, InternalServerErrorException, Logger, NotFoundException } from '@nestjs/common';
+import { ForbiddenException, Injectable, InternalServerErrorException, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Brackets, IsNull, Repository } from 'typeorm';
 import { EventEmitter2 } from '@nestjs/event-emitter';
@@ -109,6 +109,30 @@ export class LeadsService {
     return lead;
   }
 
+  /** Read with privacy enforcement; use this from controllers handling :id routes. */
+  async findOneAccessible(id: string, currentUserId?: string, userRole?: string): Promise<Lead> {
+    const lead = await this.findOne(id);
+    this.assertAccessible(lead, currentUserId, userRole);
+    return lead;
+  }
+
+  private assertAccessible(lead: Lead, currentUserId?: string, userRole?: string): void {
+    const privileged = userRole === UserRole.OWNER || userRole === UserRole.MANAGER;
+    if (privileged) return;
+    if (!currentUserId) {
+      throw new ForbiddenException('Usuário não identificado para checagem de privacidade');
+    }
+    const allowed =
+      lead.privacy === 'all' ||
+      lead.createdById === currentUserId ||
+      lead.assignedToId === currentUserId ||
+      (Array.isArray(lead.additionalAccessUserIds) && (lead.additionalAccessUserIds as string[]).includes(currentUserId));
+    if (!allowed) {
+      // 404 to avoid revealing existence
+      throw new NotFoundException('Lead não encontrado');
+    }
+  }
+
   findByContactAndPipeline(contactId: string | null, pipelineId: string): Promise<Lead | null> {
     if (!contactId) return Promise.resolve(null);
     const workspaceId = this.tenant.requireWorkspaceId();
@@ -126,20 +150,19 @@ export class LeadsService {
     });
   }
 
-  async update(id: string, dto: UpdateLeadDto): Promise<Lead> {
-    const lead = await this.findOne(id);
+  async update(id: string, dto: UpdateLeadDto, currentUserId?: string, userRole?: string): Promise<Lead> {
+    const lead = await this.findOneAccessible(id, currentUserId, userRole);
     Object.assign(lead, dto);
     return this.repo.save(lead);
   }
 
-  async updateStatus(id: string, dto: UpdateLeadStatusDto): Promise<Lead> {
+  async updateStatus(id: string, dto: UpdateLeadStatusDto, currentUserId?: string, userRole?: string): Promise<Lead> {
     const workspaceId = this.tenant.requireWorkspaceId();
-    const exists = await this.repo.findOne({ where: { id, workspaceId } });
-    if (!exists) throw new NotFoundException('Lead não encontrado');
+    const lead = await this.findOneAccessible(id, currentUserId, userRole);
 
     try {
       await this.repo.update(
-        { id, workspaceId },
+        { id: lead.id, workspaceId },
         {
           status: dto.status,
           lossReason: dto.status === LeadStatus.LOST ? (dto.lossReason ?? null) as any : null as any,
@@ -149,20 +172,19 @@ export class LeadsService {
       );
     } catch (err: any) {
       this.logger.error('updateStatus DB error', err?.message, err?.stack);
-      throw new InternalServerErrorException(err?.message ?? 'Erro ao atualizar status');
+      throw new InternalServerErrorException('Erro ao atualizar status');
     }
 
     return this.findOne(id);
   }
 
-  async move(id: string, stageId: string): Promise<Lead> {
+  async move(id: string, stageId: string, currentUserId?: string, userRole?: string): Promise<Lead> {
     const workspaceId = this.tenant.requireWorkspaceId();
-    const existing = await this.repo.findOne({ where: { id, workspaceId } });
-    if (!existing) throw new NotFoundException('Lead não encontrado');
+    const existing = await this.findOneAccessible(id, currentUserId, userRole);
     const previousStageId = existing.stageId;
 
     // Busca o pipelineId da etapa destino para atualizar junto
-    const stage = await this.stageRepo.findOne({ where: { id: stageId } });
+    const stage = await this.stageRepo.findOne({ where: { id: stageId, workspaceId } });
     const pipelineId = stage?.pipelineId ?? existing.pipelineId;
 
     await this.repo.update(
@@ -171,12 +193,12 @@ export class LeadsService {
     );
 
     const updated = await this.findOne(id);
-    this.eventEmitter.emit('lead.moved', { lead: updated, previousStageId, newStageId: stageId });
+    this.eventEmitter.emit('lead.moved', { lead: updated, previousStageId, newStageId: stageId, workspaceId });
     return updated;
   }
 
-  async assign(id: string, userId: string): Promise<Lead> {
-    const lead = await this.findOne(id);
+  async assign(id: string, userId: string, currentUserId?: string, userRole?: string): Promise<Lead> {
+    const lead = await this.findOneAccessible(id, currentUserId, userRole);
     lead.assignedToId = userId;
     return this.repo.save(lead);
   }
@@ -187,21 +209,21 @@ export class LeadsService {
     if (result.affected === 0) throw new NotFoundException('Lead não encontrado');
   }
 
-  async archive(id: string): Promise<Lead> {
-    const lead = await this.findOne(id);
+  async archive(id: string, currentUserId?: string, userRole?: string): Promise<Lead> {
+    const lead = await this.findOneAccessible(id, currentUserId, userRole);
     lead.archivedAt = new Date();
     return this.repo.save(lead);
   }
 
-  async unarchive(id: string): Promise<Lead> {
-    const lead = await this.findOne(id);
+  async unarchive(id: string, currentUserId?: string, userRole?: string): Promise<Lead> {
+    const lead = await this.findOneAccessible(id, currentUserId, userRole);
     lead.archivedAt = null;
     return this.repo.save(lead);
   }
 
-  async classify(id: string, dto: ClassifyLeadDto): Promise<Lead> {
+  async classify(id: string, dto: ClassifyLeadDto, currentUserId?: string, userRole?: string): Promise<Lead> {
     const workspaceId = this.tenant.requireWorkspaceId();
-    const lead = await this.findOne(id);
+    const lead = await this.findOneAccessible(id, currentUserId, userRole);
 
     const phone = (dto.phone ?? lead.externalPhone ?? '').trim() || null;
 

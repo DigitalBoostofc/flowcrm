@@ -88,14 +88,14 @@ export class UsersController {
 
   @Patch('me/email')
   async changeEmail(@CurrentUser() user: { id: string }, @Body() dto: ChangeEmailDto) {
-    const payload = this.otp.consume(dto.otpToken, 'email_change');
+    const payload = await this.otp.consume(dto.otpToken, 'email_change');
     if (payload.subject !== user.id) throw new BadRequestException('Token inválido para este usuário.');
     return serialize(await this.usersService.setEmail(user.id, dto.email));
   }
 
   @Patch('me/password')
   async changePassword(@CurrentUser() user: { id: string }, @Body() dto: ChangePasswordDto) {
-    const payload = this.otp.consume(dto.otpToken, 'password_change');
+    const payload = await this.otp.consume(dto.otpToken, 'password_change');
     if (payload.subject !== user.id) throw new BadRequestException('Token inválido para este usuário.');
     await this.usersService.setPassword(user.id, dto.newPassword);
     return { ok: true };

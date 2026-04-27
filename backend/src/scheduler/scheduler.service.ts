@@ -1,10 +1,12 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import { ScheduledMessage } from './entities/scheduled-message.entity';
 import { ScheduleMessageDto } from './dto/schedule-message.dto';
+import { ChannelConfig } from '../channels/entities/channel-config.entity';
+import { Conversation } from '../conversations/entities/conversation.entity';
 import { QUEUE_SCHEDULED } from '../common/queues/queues.module';
 import { TenantContext } from '../common/tenant/tenant-context.service';
 
@@ -12,12 +14,23 @@ import { TenantContext } from '../common/tenant/tenant-context.service';
 export class SchedulerService {
   constructor(
     @InjectRepository(ScheduledMessage) private repo: Repository<ScheduledMessage>,
+    @InjectRepository(ChannelConfig) private channelRepo: Repository<ChannelConfig>,
+    @InjectRepository(Conversation) private conversationRepo: Repository<Conversation>,
     @InjectQueue(QUEUE_SCHEDULED) private queue: Queue,
     private readonly tenant: TenantContext,
   ) {}
 
   async schedule(dto: ScheduleMessageDto, createdById: string): Promise<ScheduledMessage> {
     const workspaceId = this.tenant.requireWorkspaceId();
+
+    // tenant ownership check on referenced records
+    const [conversation, channel] = await Promise.all([
+      this.conversationRepo.findOne({ where: { id: dto.conversationId, workspaceId } }),
+      this.channelRepo.findOne({ where: { id: dto.channelConfigId, workspaceId, active: true } }),
+    ]);
+    if (!conversation) throw new NotFoundException('Conversa não encontrada');
+    if (!channel) throw new BadRequestException('Canal não encontrado ou inativo');
+
     const scheduledAt = new Date(dto.scheduledAt);
     const record = await this.repo.save(
       this.repo.create({

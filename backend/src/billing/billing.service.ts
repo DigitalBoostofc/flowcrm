@@ -141,11 +141,14 @@ export class BillingService {
       throw new BadRequestException('Assinatura inválida');
     }
 
-    const already = await this.wsRepo.query(
-      `SELECT id FROM "stripe_webhook_events" WHERE id = $1 LIMIT 1`,
-      [event.id],
+    // Idempotency lock: insert FIRST. If another concurrent webhook already inserted, abort.
+    // Closes TOCTOU between SELECT and PROCESS that could double-apply side effects under
+    // simultaneous Stripe retries.
+    const inserted = await this.wsRepo.query(
+      `INSERT INTO "stripe_webhook_events" (id, type) VALUES ($1, $2) ON CONFLICT (id) DO NOTHING RETURNING id`,
+      [event.id, event.type],
     );
-    if (already.length > 0) {
+    if (inserted.length === 0) {
       this.logger.log(`Evento já processado, ignorando: ${event.id}`);
       return;
     }
@@ -169,14 +172,11 @@ export class BillingService {
           this.logger.debug(`Evento não tratado: ${event.type}`);
       }
     } catch (err) {
+      // Roll back the lock so the event can be retried by Stripe.
+      await this.wsRepo.query(`DELETE FROM "stripe_webhook_events" WHERE id = $1`, [event.id]);
       this.logger.error(`Erro processando webhook ${event.type}: ${(err as Error).message}`);
       throw err;
     }
-
-    await this.wsRepo.query(
-      `INSERT INTO "stripe_webhook_events" (id, type) VALUES ($1, $2) ON CONFLICT (id) DO NOTHING`,
-      [event.id, event.type],
-    );
   }
 
   private async onCheckoutCompleted(session: any): Promise<void> {

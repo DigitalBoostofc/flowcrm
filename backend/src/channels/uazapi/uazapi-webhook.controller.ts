@@ -1,7 +1,17 @@
 import { Body, Controller, Logger, Param, Post, UnauthorizedException } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { EventEmitter2 } from '@nestjs/event-emitter';
+import * as crypto from 'crypto';
 import { ChannelsService } from '../channels.service';
 import { UazapiAdapter } from './uazapi.adapter';
+
+function timingSafeStringEqual(a: string, b: string): boolean {
+  if (typeof a !== 'string' || typeof b !== 'string') return false;
+  const ba = Buffer.from(a);
+  const bb = Buffer.from(b);
+  if (ba.length !== bb.length) return false;
+  return crypto.timingSafeEqual(ba, bb);
+}
 
 @Controller('webhooks/uazapi')
 export class UazapiWebhookController {
@@ -14,13 +24,14 @@ export class UazapiWebhookController {
   ) {}
 
   @Post(':channelConfigId/:secret')
+  @Throttle({ default: { limit: 60, ttl: 60_000 } })
   async receive(
     @Param('channelConfigId') channelConfigId: string,
     @Param('secret') secret: string,
     @Body() payload: any,
   ) {
     const channel = await this.channels.findByIdUnscoped(channelConfigId);
-    if (!channel || secret !== channel.config.webhookSecret) {
+    if (!channel || !timingSafeStringEqual(secret ?? '', channel.config?.webhookSecret ?? '')) {
       this.logger.warn(`Webhook não autorizado para canal ${channelConfigId}`);
       throw new UnauthorizedException();
     }
@@ -56,7 +67,7 @@ export class UazapiWebhookController {
         const profileName: string = payload?.instance?.profileName ?? payload?.data?.instance?.profileName ?? '';
         if (phone) await this.channels.updateConfig(channelConfigId, { connectedPhone: phone, profileName });
       }
-      this.events.emit('channel.status.changed', { channelConfigId, status });
+      this.events.emit('channel.status.changed', { channelConfigId, status, workspaceId: channel.workspaceId });
       this.logger.log(`Canal ${channelConfigId} → ${status}`);
       return { ok: true };
     }

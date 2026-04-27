@@ -1,7 +1,16 @@
 import { Body, Controller, Get, Logger, Post, Query, UseGuards } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { EventEmitter2 } from '@nestjs/event-emitter';
+import * as crypto from 'crypto';
 import { MetaSignatureGuard } from './meta-signature.guard';
+
+function timingSafeStringEqual(a: string, b: string): boolean {
+  if (typeof a !== 'string' || typeof b !== 'string') return false;
+  const ba = Buffer.from(a);
+  const bb = Buffer.from(b);
+  if (ba.length !== bb.length) return false;
+  return crypto.timingSafeEqual(ba, bb);
+}
 
 @Controller('webhooks/meta')
 export class MetaWebhookController {
@@ -15,7 +24,8 @@ export class MetaWebhookController {
     @Query('hub.verify_token') token: string,
     @Query('hub.challenge') challenge: string,
   ): string {
-    if (mode === 'subscribe' && token === this.config.getOrThrow<string>('META_VERIFY_TOKEN')) {
+    const expected = this.config.getOrThrow<string>('META_VERIFY_TOKEN');
+    if (mode === 'subscribe' && timingSafeStringEqual(token ?? '', expected)) {
       return challenge;
     }
     return '';

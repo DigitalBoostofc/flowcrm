@@ -26,7 +26,8 @@ export class ChannelsService {
   }
 
   async send(opts: SendMessageOptions): Promise<SendMessageResult> {
-    const config = await this.repo.findOne({ where: { id: opts.channelConfigId, active: true } });
+    const workspaceId = this.tenant.requireWorkspaceId();
+    const config = await this.repo.findOne({ where: { id: opts.channelConfigId, workspaceId, active: true } });
     if (!config) throw new NotFoundException('Canal não encontrado ou inativo');
     const adapter = this.adapters.get(config.type);
     if (!adapter) throw new BadRequestException(`Adapter ${config.type} não registrado`);
