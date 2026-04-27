@@ -65,11 +65,19 @@ jobs:
         env:
           NODE_ENV: test
 
+      - name: Run migrations (e2e schema)
+        working-directory: backend
+        run: npm run migration:run
+        env:
+          NODE_ENV: test
+          DATABASE_URL: postgresql://flowcrm:flowcrm@localhost:5432/flowcrm_test
+
       - name: E2E tests
         working-directory: backend
         run: npm run test:e2e -- --passWithNoTests --ci
         env:
           NODE_ENV: test
+          RUN_MIGRATIONS_ON_BOOT: 'false'
           DATABASE_URL: postgresql://flowcrm:flowcrm@localhost:5432/flowcrm_test
           REDIS_URL: redis://localhost:6379
           JWT_SECRET: ci-test-secret-32-bytes-of-random-data
