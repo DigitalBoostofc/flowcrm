@@ -72,6 +72,22 @@ jobs:
           NODE_ENV: test
           DATABASE_URL: postgresql://flowcrm:flowcrm@localhost:5432/flowcrm_test
 
+      - name: Seed owner user (e2e fixture)
+        working-directory: backend
+        run: npm run seed
+        env:
+          NODE_ENV: test
+          RUN_MIGRATIONS_ON_BOOT: 'false'
+          DATABASE_URL: postgresql://flowcrm:flowcrm@localhost:5432/flowcrm_test
+          REDIS_URL: redis://localhost:6379
+          JWT_SECRET: ci-test-secret-32-bytes-of-random-data
+          JWT_EXPIRES_IN: 1h
+          FRONTEND_URL: http://localhost:5173
+          META_APP_SECRET: ci-test
+          META_VERIFY_TOKEN: ci-test
+          OWNER_EMAIL: owner@flowcrm.com
+          OWNER_PASSWORD: flowcrm123
+
       - name: E2E tests
         working-directory: backend
         run: npm run test:e2e -- --passWithNoTests --ci
