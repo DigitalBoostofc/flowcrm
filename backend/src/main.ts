@@ -9,6 +9,7 @@ import { BullMQAdapter } from '@bull-board/api/bullMQAdapter';
 import { Queue, QueueOptions } from 'bullmq';
 import { Logger as PinoLogger } from 'nestjs-pino';
 import { initSentry } from './common/observability/sentry';
+import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
@@ -22,6 +23,7 @@ async function bootstrap() {
   app.set('trust proxy', 1);
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
   app.useGlobalInterceptors(new ClassSerializerInterceptor(app.get(Reflector)));
+  app.useGlobalFilters(new AllExceptionsFilter());
   const allowedOrigin = process.env.FRONTEND_URL || (process.env.NODE_ENV !== 'production' ? '*' : undefined);
   if (!allowedOrigin) throw new Error('FRONTEND_URL env var is required in production');
   app.enableCors({ origin: allowedOrigin });
