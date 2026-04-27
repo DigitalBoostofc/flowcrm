@@ -3,7 +3,8 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { ClsModule } from 'nestjs-cls';
-import { ThrottlerModule } from '@nestjs/throttler';
+import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { APP_GUARD } from '@nestjs/core';
 import { TenantModule } from './common/tenant/tenant.module';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
@@ -52,7 +53,11 @@ import { CaptureModule } from './capture/capture.module';
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     ScheduleModule.forRoot(),
-    ThrottlerModule.forRoot([{ ttl: 60000, limit: 60 }]),
+    ThrottlerModule.forRoot([
+      { name: 'short', ttl: 1000, limit: 20 },
+      { name: 'default', ttl: 60_000, limit: 120 },
+      { name: 'long', ttl: 3_600_000, limit: 2000 },
+    ]),
     EventEmitterModule.forRoot(),
     ClsModule.forRoot({
       global: true,
@@ -68,7 +73,7 @@ import { CaptureModule } from './capture/capture.module';
         entities: [__dirname + '/**/*.entity{.ts,.js}'],
         synchronize: false,
         migrations: [__dirname + '/database/migrations/*{.ts,.js}'],
-        migrationsRun: config.get('NODE_ENV') === 'production',
+        migrationsRun: true,
         logging: config.get('NODE_ENV') !== 'production',
       }),
       inject: [ConfigService],
@@ -113,6 +118,9 @@ import { CaptureModule } from './capture/capture.module';
     MailModule,
     SummaryModule,
     CaptureModule,
+  ],
+  providers: [
+    { provide: APP_GUARD, useClass: ThrottlerGuard },
   ],
 })
 export class AppModule {}

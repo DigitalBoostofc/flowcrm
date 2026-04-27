@@ -5,3 +5,5 @@ coverage/
 *.tsbuildinfo
 .claude/
 package-lock.json
+*.sql
+uploads/

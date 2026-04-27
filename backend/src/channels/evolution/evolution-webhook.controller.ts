@@ -1,7 +1,17 @@
 import { Body, Controller, Logger, Param, Post, UnauthorizedException } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { EventEmitter2 } from '@nestjs/event-emitter';
+import * as crypto from 'crypto';
 import { ChannelsService } from '../channels.service';
 import { EvolutionAdapter } from './evolution.adapter';
+
+function timingSafeStringEqual(a: string, b: string): boolean {
+  if (typeof a !== 'string' || typeof b !== 'string') return false;
+  const ba = Buffer.from(a);
+  const bb = Buffer.from(b);
+  if (ba.length !== bb.length) return false;
+  return crypto.timingSafeEqual(ba, bb);
+}
 
 @Controller('webhooks/evolution')
 export class EvolutionWebhookController {
@@ -14,6 +24,7 @@ export class EvolutionWebhookController {
   ) {}
 
   @Post(':channelConfigId/:secret')
+  @Throttle({ default: { limit: 60, ttl: 60_000 } })
   async receive(
     @Param('channelConfigId') channelConfigId: string,
     @Param('secret') secret: string,
@@ -23,6 +34,7 @@ export class EvolutionWebhookController {
   }
 
   @Post(':channelConfigId/:secret/:event')
+  @Throttle({ default: { limit: 60, ttl: 60_000 } })
   async receiveByEvent(
     @Param('channelConfigId') channelConfigId: string,
     @Param('secret') secret: string,
@@ -33,7 +45,7 @@ export class EvolutionWebhookController {
 
   private async handle(channelConfigId: string, secret: string, payload: any) {
     const channel = await this.channels.findByIdUnscoped(channelConfigId);
-    if (!channel || secret !== channel.config.webhookSecret) {
+    if (!channel || !timingSafeStringEqual(secret ?? '', channel.config?.webhookSecret ?? '')) {
       this.logger.warn(`Unauthorized webhook for channel ${channelConfigId}`);
       throw new UnauthorizedException();
     }
@@ -53,7 +65,7 @@ export class EvolutionWebhookController {
       const state = payload.data?.state;
       const status = state === 'open' ? 'connected' : state === 'close' ? 'disconnected' : 'error';
       await this.channels.updateStatus(channelConfigId, status);
-      this.events.emit('channel.status.changed', { channelConfigId, status });
+      this.events.emit('channel.status.changed', { channelConfigId, status, workspaceId: channel.workspaceId });
       return { ok: true };
     }
 

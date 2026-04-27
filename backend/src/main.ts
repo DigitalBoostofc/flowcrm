@@ -24,7 +24,9 @@ async function bootstrap() {
   app.setGlobalPrefix('api');
 
   const redisUrl = process.env.REDIS_URL;
-  if (redisUrl) {
+  const bullBoardUser = process.env.BULL_BOARD_USER;
+  const bullBoardPass = process.env.BULL_BOARD_PASS;
+  if (redisUrl && bullBoardUser && bullBoardPass) {
     try {
       const serverAdapter = new ExpressAdapter();
       serverAdapter.setBasePath('/admin/queues');
@@ -42,11 +44,44 @@ async function bootstrap() {
         ],
         serverAdapter,
       });
-      app.use('/admin/queues', serverAdapter.getRouter());
-      Logger.log('Bull Board mounted at /admin/queues', 'Bootstrap');
+
+      const basicAuthMiddleware = (req: any, res: any, next: any) => {
+        const header = req.headers['authorization'] ?? '';
+        if (!header.startsWith('Basic ')) {
+          res.set('WWW-Authenticate', 'Basic realm="Bull Board"');
+          return res.status(401).send('Authentication required');
+        }
+        const decoded = Buffer.from(header.slice(6), 'base64').toString('utf8');
+        const sep = decoded.indexOf(':');
+        const user = sep >= 0 ? decoded.slice(0, sep) : '';
+        const pass = sep >= 0 ? decoded.slice(sep + 1) : '';
+        const expectedUser = Buffer.from(bullBoardUser);
+        const expectedPass = Buffer.from(bullBoardPass);
+        const givenUser = Buffer.from(user);
+        const givenPass = Buffer.from(pass);
+        const userOk =
+          givenUser.length === expectedUser.length &&
+          require('crypto').timingSafeEqual(givenUser, expectedUser);
+        const passOk =
+          givenPass.length === expectedPass.length &&
+          require('crypto').timingSafeEqual(givenPass, expectedPass);
+        if (!userOk || !passOk) {
+          res.set('WWW-Authenticate', 'Basic realm="Bull Board"');
+          return res.status(401).send('Invalid credentials');
+        }
+        next();
+      };
+
+      app.use('/admin/queues', basicAuthMiddleware, serverAdapter.getRouter());
+      Logger.log('Bull Board mounted at /admin/queues (basic auth enabled)', 'Bootstrap');
     } catch (err) {
       Logger.warn(`Bull Board setup failed: ${(err as Error).message}`, 'Bootstrap');
     }
+  } else if (redisUrl) {
+    Logger.warn(
+      'Bull Board NÃO foi montado: BULL_BOARD_USER/BULL_BOARD_PASS ausentes (proteção obrigatória).',
+      'Bootstrap',
+    );
   }
 
   const port = process.env.PORT ?? 3001;

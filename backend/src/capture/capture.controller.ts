@@ -1,4 +1,5 @@
 import { Controller, Get, Post, Patch, Param, Body, UseGuards, Req, HttpCode } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { CaptureService } from './capture.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
@@ -23,6 +24,7 @@ export class CaptureController {
   /** Public — no auth required */
   @Post('public/capture/:workspaceId')
   @HttpCode(200)
+  @Throttle({ default: { limit: 3, ttl: 60_000 } })
   capture(
     @Param('workspaceId') workspaceId: string,
     @Body() body: { name: string; phone: string; email?: string; message?: string; contactType?: 'fisica' | 'juridica' },

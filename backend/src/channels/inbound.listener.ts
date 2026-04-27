@@ -89,7 +89,7 @@ export class InboundListener {
               externalPhone: evt.from,
             },
       );
-      this.events.emit('lead.created', { lead, stageId: firstStage.id });
+      this.events.emit('lead.created', { lead, stageId: firstStage.id, workspaceId: channel.workspaceId });
     }
 
     const conv = await this.conversations.findOrCreate(lead.id, evt.channelType, evt.from);
@@ -105,7 +105,7 @@ export class InboundListener {
       return;
     }
 
-    this.events.emit('message.received', { message: saved, lead: { ...lead, contact }, conversation: conv, isNewLead });
+    this.events.emit('message.received', { message: saved, lead: { ...lead, contact }, conversation: conv, isNewLead, workspaceId: channel.workspaceId });
     void channel;
   }
 }

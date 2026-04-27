@@ -92,7 +92,7 @@ export class OtpService {
     return token;
   }
 
-  consume(token: string, purpose: OtpPurpose): any {
+  async consume(token: string, purpose: OtpPurpose): Promise<any> {
     let payload: any;
     try {
       payload = this.jwt.verify(token);
@@ -100,6 +100,14 @@ export class OtpService {
       throw new UnauthorizedException('Token de verificação inválido ou expirado.');
     }
     if (payload?.type !== purpose) throw new UnauthorizedException('Token inválido.');
+
+    // One-shot: mark the JWT id as consumed so the same token cannot be replayed within the
+    // 5-minute JWT TTL window. We key on the full token (cheap and exact).
+    const consumedKey = `otp_consumed:${token}`;
+    const set = await this.redis.set(consumedKey, '1', 'EX', 600, 'NX');
+    if (set === null) {
+      throw new UnauthorizedException('Token já utilizado.');
+    }
     return payload;
   }
 }

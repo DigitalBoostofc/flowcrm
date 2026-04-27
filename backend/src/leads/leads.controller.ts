@@ -33,43 +33,43 @@ export class LeadsController {
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.leadsService.findOne(id);
+  findOne(@Param('id') id: string, @Req() req: any) {
+    return this.leadsService.findOneAccessible(id, req.user?.sub, req.user?.role);
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() dto: UpdateLeadDto) {
-    return this.leadsService.update(id, dto);
+  update(@Param('id') id: string, @Body() dto: UpdateLeadDto, @Req() req: any) {
+    return this.leadsService.update(id, dto, req.user?.sub, req.user?.role);
   }
 
   @Patch(':id/status')
-  updateStatus(@Param('id') id: string, @Body() dto: UpdateLeadStatusDto) {
-    return this.leadsService.updateStatus(id, dto);
+  updateStatus(@Param('id') id: string, @Body() dto: UpdateLeadStatusDto, @Req() req: any) {
+    return this.leadsService.updateStatus(id, dto, req.user?.sub, req.user?.role);
   }
 
   @Patch(':id/move')
-  move(@Param('id') id: string, @Body() dto: MoveLeadDto) {
-    return this.leadsService.move(id, dto.stageId);
+  move(@Param('id') id: string, @Body() dto: MoveLeadDto, @Req() req: any) {
+    return this.leadsService.move(id, dto.stageId, req.user?.sub, req.user?.role);
   }
 
   @Patch(':id/assign/:userId')
-  assign(@Param('id') id: string, @Param('userId') userId: string) {
-    return this.leadsService.assign(id, userId);
+  assign(@Param('id') id: string, @Param('userId') userId: string, @Req() req: any) {
+    return this.leadsService.assign(id, userId, req.user?.sub, req.user?.role);
   }
 
   @Patch(':id/archive')
-  archive(@Param('id', new ParseUUIDPipe()) id: string) {
-    return this.leadsService.archive(id);
+  archive(@Param('id', new ParseUUIDPipe()) id: string, @Req() req: any) {
+    return this.leadsService.archive(id, req.user?.sub, req.user?.role);
   }
 
   @Patch(':id/unarchive')
-  unarchive(@Param('id', new ParseUUIDPipe()) id: string) {
-    return this.leadsService.unarchive(id);
+  unarchive(@Param('id', new ParseUUIDPipe()) id: string, @Req() req: any) {
+    return this.leadsService.unarchive(id, req.user?.sub, req.user?.role);
   }
 
   @Post(':id/classify')
-  classify(@Param('id', new ParseUUIDPipe()) id: string, @Body() dto: ClassifyLeadDto) {
-    return this.leadsService.classify(id, dto);
+  classify(@Param('id', new ParseUUIDPipe()) id: string, @Body() dto: ClassifyLeadDto, @Req() req: any) {
+    return this.leadsService.classify(id, dto, req.user?.sub, req.user?.role);
   }
 
   @Delete(':id')
