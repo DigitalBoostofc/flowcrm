@@ -99,7 +99,9 @@ jobs:
       - name: E2E tests
         working-directory: backend
         timeout-minutes: 10
-        run: npm run test:e2e -- --passWithNoTests --ci --forceExit
+        # --runInBand: serializa specs (mesmo PG/Redis compartilhado entre eles).
+        # Sem isso, auth.e2e e messaging.e2e disputam o pipeline default.
+        run: npm run test:e2e -- --passWithNoTests --ci --forceExit --runInBand
         env:
           NODE_ENV: test
           RUN_MIGRATIONS_ON_BOOT: 'false'
