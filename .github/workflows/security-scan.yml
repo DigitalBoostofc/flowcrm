@@ -1,0 +1,38 @@
+name: Security Scan
+
+on:
+  push:
+    branches: [master]
+  schedule:
+    - cron: '0 6 * * 1'
+
+jobs:
+  npm-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Backend audit
+        working-directory: backend
+        run: npm audit --omit=dev --audit-level=moderate
+        continue-on-error: true
+      - name: Frontend audit
+        working-directory: frontend
+        run: npm audit --omit=dev --audit-level=moderate
+        continue-on-error: true
+
+  trivy-fs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Trivy filesystem scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: fs
+          scan-ref: .
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          format: table
+        continue-on-error: true
