@@ -1,4 +1,4 @@
-FROM node:20-alpine AS builder
+FROM node:25-alpine AS builder
 WORKDIR /app
 ENV NODE_OPTIONS=--max-old-space-size=4096
 RUN apk add --no-cache python3 make g++
@@ -7,7 +7,7 @@ RUN npm ci
 COPY . .
 RUN npm run build && npm prune --omit=dev
 
-FROM node:20-alpine
+FROM node:25-alpine
 LABEL org.opencontainers.image.title="flowcrm-backend"
 LABEL org.opencontainers.image.description="FlowCRM NestJS backend"
 LABEL org.opencontainers.image.source="https://github.com/DigitalBoostofc/flowcrm"
