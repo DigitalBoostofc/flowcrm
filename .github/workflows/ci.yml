@@ -90,7 +90,8 @@ jobs:
 
       - name: E2E tests
         working-directory: backend
-        run: npm run test:e2e -- --passWithNoTests --ci
+        timeout-minutes: 10
+        run: npm run test:e2e -- --passWithNoTests --ci --forceExit
         env:
           NODE_ENV: test
           RUN_MIGRATIONS_ON_BOOT: 'false'
