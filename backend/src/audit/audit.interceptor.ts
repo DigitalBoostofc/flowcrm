@@ -17,38 +17,56 @@ const SKIP_PATH_PREFIXES = [
 ];
 
 interface RequestUser {
-  sub?: string;
+  // Conforms to JwtStrategy.validate() return: { id, email, role, workspaceId }.
+  id?: string;
   workspaceId?: string;
+}
+
+const isUuid = (s?: string) => !!s && /^[0-9a-f-]{36}$/i.test(s);
+
+function safeDecode(s: string): string {
+  try {
+    return decodeURIComponent(s);
+  } catch {
+    return s;
+  }
 }
 
 function inferActionAndResource(req: Request): { action: string; resourceType: string | null; resourceId: string | null } {
   const method = req.method.toUpperCase();
   const path = (req.baseUrl ?? '') + (req.path ?? req.url);
-  const segments = path.replace(/^\/+|\/+$/g, '').split('/').filter((s) => s && s !== 'api');
+  const segments = path
+    .replace(/^\/+|\/+$/g, '')
+    .split('/')
+    .filter((s) => s && s !== 'api')
+    .map(safeDecode);
 
-  // Heuristic: /api/<resource>/<id?>/<action?>
+  // Heuristic: /api/<resource>/<id?>/<sub-action?>...
+  // Build action pieces by skipping UUID segments (they're identifiers, not action names).
   const resource = segments[0] ?? 'unknown';
-  const maybeId = segments[1];
-  const tail = segments.slice(2).join('.');
-  const isUuid = (s?: string) => !!s && /^[0-9a-f-]{36}$/i.test(s);
+  const resourceId = isUuid(segments[1]) ? segments[1] : null;
+  const verbSegments = segments.slice(1).filter((s) => !isUuid(s));
 
-  let action: string;
-  if (tail) {
-    action = `${resource}.${tail}`;
-  } else if (method === 'POST') {
-    action = `${resource}.create`;
-  } else if (method === 'PATCH' || method === 'PUT') {
-    action = `${resource}.update`;
-  } else if (method === 'DELETE') {
-    action = `${resource}.delete`;
-  } else {
-    action = `${resource}.${method.toLowerCase()}`;
-  }
+  const verbFromMethod = (() => {
+    switch (method) {
+      case 'POST': return 'create';
+      case 'PATCH':
+      case 'PUT': return 'update';
+      case 'DELETE': return 'delete';
+      default: return method.toLowerCase();
+    }
+  })();
+
+  // If there are non-id segments after the resource, use them as the action verb chain.
+  // Otherwise fall back to the HTTP-method-derived verb.
+  const action = verbSegments.length > 0
+    ? `${resource}.${verbSegments.join('.')}`
+    : `${resource}.${verbFromMethod}`;
 
   return {
     action,
     resourceType: resource ? capitalize(singularize(resource)) : null,
-    resourceId: isUuid(maybeId) ? maybeId : null,
+    resourceId,
   };
 }
 
@@ -106,7 +124,7 @@ export class AuditInterceptor implements NestInterceptor {
 
           void this.auditService.record({
             workspaceId: req.user?.workspaceId ?? null,
-            userId: req.user?.sub ?? null,
+            userId: req.user?.id ?? null,
             action,
             resourceType,
             resourceId: pathResourceId ?? responseId,
