@@ -62,7 +62,8 @@ export class HealthController {
   // once, confirm the issue lands in Sentry, then unset the var.
   @Get('sentry-test')
   sentryTest() {
-    if (this.config.get<string>('ALLOW_SENTRY_TEST') !== 'true') {
+    // Joi schema coerces the env to boolean, so accept either form here.
+    if (!this.config.get<boolean>('ALLOW_SENTRY_TEST')) {
       return { status: 'disabled', hint: 'set ALLOW_SENTRY_TEST=true to enable' };
     }
     throw new Error(`Sentry pipeline test fired at ${new Date().toISOString()}`);
