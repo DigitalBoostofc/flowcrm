@@ -189,17 +189,67 @@ Subir backend:
 
 Após 1-2 dias confirmando que está estável, dropar o `flowcrm_old_*`.
 
-## Restore drill (teste periódico)
+## Restore drill
 
-**Recomendação**: rodar 1x por trimestre. **Backup que nunca foi restaurado é placebo.**
+**Backup que nunca foi restaurado é placebo.** Por isso temos drill em 2 camadas:
+
+| Camada | Frequência | O que valida |
+|---|---|---|
+| **Automático** (`restore-drill.sh`) | diário 04:30 UTC | que o backup é decifrável, restaurável e tem contagens consistentes |
+| **Manual** (humano) | semestral | inspeção visual de dados (JSONB, blobs, edge cases) que SQL não pega |
 
 ### Drill log
 
-| Data | Backup testado | Counts batidos | Resultado |
+| Data | Backup testado | Tipo | Resultado |
 |---|---|---|---|
-| 2026-04-28 | flowcrm_20260428_031910.sql.gz.gpg | users=7, workspaces=6, leads=55, contacts=35 | ✅ OK |
+| 2026-04-28 | flowcrm_20260428_031910.sql.gz.gpg | manual | ✅ users=7, workspaces=6, leads=55, contacts=35 |
 
-### Procedimento de drill
+> Drills automáticos diários NÃO entram nessa tabela (o cron loga em `/var/log/flowcrm-drill.log` e pinga healthcheck). Só entradas manuais.
+
+### Drill automático (setup)
+
+Script `backend/scripts/restore-drill.sh` no repo. Copiar pra VPS:
+```bash
+cp /caminho/do/repo/backend/scripts/restore-drill.sh /opt/flowcrm/
+chmod +x /opt/flowcrm/restore-drill.sh
+touch /var/log/flowcrm-drill.log && chmod 640 /var/log/flowcrm-drill.log
+```
+
+Cron entry (root):
+```cron
+# Drill automático — diário 04:30 UTC (1h30min após o backup das 06:00 UTC =03:00 BRT;
+# sim, o drill roda ANTES do backup do dia seguinte por design — testa o backup de hoje)
+30 4 * * * set -a; . /etc/flowcrm-backup.env; set +a; /opt/flowcrm/restore-drill.sh >> /var/log/flowcrm-drill.log 2>&1
+```
+
+O que o drill valida:
+- Backup mais recente tem ≤26h (cron de backup não falhou silenciosamente)
+- Decifragem com a passphrase atual funciona
+- gzip íntegro, dump SQL ≥100 linhas
+- Restore em banco temporário (`flowcrm_drill_test`) funciona sem erro
+- Tabelas críticas existem: `users`, `workspaces`, `leads`, `contacts`, `pipelines`, `stages`
+- Contagens do backup ≤ contagens de prod (sanity temporal)
+
+Falha → exit code não-zero + log + healthcheck `/fail` ping (se configurado).
+
+### Drill manual (semestral)
+
+Mesmo procedimento da seção "Restore (procedimento de emergência)" acima, **mas restaurando em banco separado** (`flowcrm_manual_drill`), e com inspeção visual:
+
+```sql
+-- Sample de dados pra olhar
+SELECT id, name, email, role FROM users LIMIT 3;
+SELECT id, name, "subscriptionStatus", "trialEndsAt" FROM workspaces;
+SELECT id, title, value, status FROM leads ORDER BY "createdAt" DESC LIMIT 5;
+
+-- JSONBs e campos complexos
+SELECT id, "widgetConfig" FROM workspaces WHERE "widgetConfig" IS NOT NULL LIMIT 1;
+SELECT id, name, "additionalAccessUserIds" FROM leads WHERE jsonb_array_length(COALESCE("additionalAccessUserIds"::jsonb, '[]'::jsonb)) > 0 LIMIT 3;
+```
+
+Atualizar a tabela "Drill log" acima com a nova entry após cada drill manual.
+
+### Procedimento de drill (manual ad-hoc)
 
 ```bash
 # Em qualquer máquina com docker + rclone + gpg + DATABASE_URL apontando pra um pg de teste:
