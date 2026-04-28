@@ -83,7 +83,10 @@ import { AuditModule } from './audit/audit.module';
         entities: [__dirname + '/**/*.entity{.ts,.js}'],
         synchronize: false,
         migrations: [__dirname + '/database/migrations/*{.ts,.js}'],
-        migrationsRun: config.get<string>('RUN_MIGRATIONS_ON_BOOT', 'true') === 'true',
+        // Joi schema coerces RUN_MIGRATIONS_ON_BOOT to boolean — accept both
+        // boolean (post-Joi) and string (defensive fallback) without false-negatives.
+        migrationsRun: config.get<boolean | string>('RUN_MIGRATIONS_ON_BOOT', true) !== false
+          && config.get<boolean | string>('RUN_MIGRATIONS_ON_BOOT', true) !== 'false',
         logging: config.get('NODE_ENV') !== 'production',
         extra: {
           max: parseInt(config.get<string>('DB_POOL_MAX', '30'), 10),
