@@ -56,4 +56,15 @@ export class HealthController {
   liveness() {
     return { status: 'ok', timestamp: new Date().toISOString() };
   }
+
+  // Deliberately throws to validate the Sentry pipeline end-to-end. Closed by
+  // default; enable with ALLOW_SENTRY_TEST=true on the env, hit the endpoint
+  // once, confirm the issue lands in Sentry, then unset the var.
+  @Get('sentry-test')
+  sentryTest() {
+    if (this.config.get<string>('ALLOW_SENTRY_TEST') !== 'true') {
+      return { status: 'disabled', hint: 'set ALLOW_SENTRY_TEST=true to enable' };
+    }
+    throw new Error(`Sentry pipeline test fired at ${new Date().toISOString()}`);
+  }
 }

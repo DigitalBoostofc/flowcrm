@@ -8,12 +8,13 @@ import {
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { QueryFailedError, EntityNotFoundError } from 'typeorm';
+import { Sentry } from '../observability/sentry';
 
 /**
  * Catches every exception that escapes a controller. NestJS HttpExceptions
  * pass through unchanged; everything else is normalized to a generic 500 so
  * stack traces, TypeORM error messages, or Postgres details never reach the
- * client. Internal context still goes to the structured logger.
+ * client. Internal context still goes to the structured logger and Sentry.
  */
 @Catch()
 export class AllExceptionsFilter implements ExceptionFilter {
@@ -46,6 +47,13 @@ export class AllExceptionsFilter implements ExceptionFilter {
       },
       'Unhandled exception escaped controller',
     );
+
+    // Forward to Sentry only for 5xx-class incidents (non-HttpException).
+    // HttpExceptions are user-facing errors and would pollute the dashboard.
+    Sentry.captureException(exception, {
+      tags: { category: logCategory, method: req.method },
+      extra: { path: req.url },
+    });
 
     res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
       statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
