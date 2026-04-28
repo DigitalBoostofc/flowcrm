@@ -1,0 +1,86 @@
+# Dependabot — abre PRs automáticas pra updates de deps com CVE.
+# Config minimalista por design: separar npm de actions, agrupar patches,
+# limitar PRs abertas pra não virar ruído.
+version: 2
+updates:
+  # Backend NestJS
+  - package-ecosystem: npm
+    directory: /backend
+    schedule:
+      interval: weekly
+      day: monday
+      time: "09:00"
+      timezone: America/Sao_Paulo
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - backend
+    groups:
+      backend-patches:
+        patterns: ["*"]
+        update-types: ["patch"]
+      backend-minor-prod:
+        dependency-type: production
+        update-types: ["minor"]
+    ignore:
+      # NestJS major bumps tem migration manual — abrir só se vier CVE
+      - dependency-name: "@nestjs/*"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "typeorm"
+        update-types: ["version-update:semver-major"]
+
+  # Frontend React/Vite
+  - package-ecosystem: npm
+    directory: /frontend
+    schedule:
+      interval: weekly
+      day: monday
+      time: "09:00"
+      timezone: America/Sao_Paulo
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - frontend
+    groups:
+      frontend-patches:
+        patterns: ["*"]
+        update-types: ["patch"]
+      frontend-minor-prod:
+        dependency-type: production
+        update-types: ["minor"]
+    ignore:
+      - dependency-name: "react"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "vite"
+        update-types: ["version-update:semver-major"]
+
+  # GitHub Actions (workflows do CI)
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 3
+    labels:
+      - dependencies
+      - ci
+
+  # Docker base images
+  - package-ecosystem: docker
+    directory: /backend
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 2
+    labels:
+      - dependencies
+      - docker
+      - backend
+
+  - package-ecosystem: docker
+    directory: /frontend
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 2
+    labels:
+      - dependencies
+      - docker
+      - frontend
