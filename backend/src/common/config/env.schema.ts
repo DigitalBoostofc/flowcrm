@@ -62,4 +62,7 @@ export const envSchema = Joi.object({
   OWNER_PASSWORD: Joi.string().optional().allow(''),
 
   SENTRY_DSN: Joi.string().uri().optional().allow(''),
+  SENTRY_TRACES_SAMPLE_RATE: Joi.number().min(0).max(1).optional(),
+  SENTRY_RELEASE: Joi.string().optional().allow(''),
+  ALLOW_SENTRY_TEST: Joi.boolean().truthy('true').falsy('false').default(false),
 }).unknown(true);
