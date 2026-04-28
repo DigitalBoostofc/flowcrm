@@ -51,6 +51,7 @@ import { CaptureModule } from './capture/capture.module';
 import { HealthModule } from './common/health/health.module';
 import { PinoLoggerModule } from './common/logging/logger.config';
 import { envSchema } from './common/config/env.schema';
+import { AuditModule } from './audit/audit.module';
 
 @Module({
   imports: [
@@ -73,6 +74,7 @@ import { envSchema } from './common/config/env.schema';
     }),
     TenantModule,
     QueuesModule,
+    AuditModule,
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
       useFactory: (config: ConfigService) => ({
