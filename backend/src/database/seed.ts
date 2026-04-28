@@ -40,4 +40,7 @@ async function seed() {
   }
 }
 
-seed();
+seed().finally(() => {
+  // Force exit: BullMQ/Redis/Scheduler keep handles open in the event loop
+  process.exit(process.exitCode ?? 0);
+});
