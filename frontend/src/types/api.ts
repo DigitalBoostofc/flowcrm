@@ -9,6 +9,8 @@ export interface User {
   avatarUrl?: string | null;
   workspaceId?: string;
   isPlatformAdmin?: boolean;
+  /** ISO timestamp quando a exclusão da conta foi agendada (LGPD); null se conta ativa */
+  scheduledDeletionAt?: string | null;
 }
 
 export interface LoginResponse {

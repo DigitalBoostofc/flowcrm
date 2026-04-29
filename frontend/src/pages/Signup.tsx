@@ -15,6 +15,7 @@ const startSchema = z.object({
   email: z.string().email('Email inválido'),
   phone: z.string().regex(/^\d{10,15}$/, 'Apenas dígitos (DDI+DDD+número)'),
   password: z.string().min(6, 'Mínimo 6 caracteres'),
+  consent: z.literal(true, { errorMap: () => ({ message: 'Você precisa aceitar os termos para continuar' }) }),
 });
 type StartForm = z.infer<typeof startSchema>;
 
@@ -51,7 +52,9 @@ export default function Signup() {
   const onStart = async (data: StartForm) => {
     setServerError(null);
     try {
-      const res = await signupStart(data);
+      // `consent` é apenas validação de UI — não vai pro backend.
+      const { consent: _consent, ...payload } = data;
+      const res = await signupStart(payload);
       setOtpId(res.otpId);
       setPhoneMasked(maskPhone(data.phone));
       setStep('otp');
@@ -155,6 +158,33 @@ export default function Signup() {
                   </button>
                 </div>
               </Field>
+
+              <div className="space-y-1.5 pt-1">
+                <label className="flex items-start gap-2.5 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    className="mt-0.5 h-4 w-4 flex-shrink-0 cursor-pointer"
+                    style={{ accentColor: 'var(--brand-500, #635BFF)' }}
+                    {...startForm.register('consent')}
+                  />
+                  <span className="text-xs leading-relaxed" style={{ color: 'var(--ink-2)' }}>
+                    Li e concordo com os{' '}
+                    <Link to="/termos" target="_blank" className="font-medium" style={{ color: 'var(--accent)' }}>
+                      Termos de Uso
+                    </Link>{' '}
+                    e a{' '}
+                    <Link to="/privacidade" target="_blank" className="font-medium" style={{ color: 'var(--accent)' }}>
+                      Política de Privacidade
+                    </Link>
+                    , autorizando o tratamento dos meus dados pessoais conforme a LGPD.
+                  </span>
+                </label>
+                {startForm.formState.errors.consent && (
+                  <p className="text-xs" style={{ color: 'var(--danger)' }}>
+                    {startForm.formState.errors.consent.message}
+                  </p>
+                )}
+              </div>
 
               {serverError && (
                 <div

@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import {
   GitBranch, XCircle, Users2, Tags, Building2, Radio, FileText,
   Zap, User as UserIcon, Puzzle, Server, AlertTriangle, Package, Lock, MessageCircle,
+  Trash2, Shield,
 } from 'lucide-react';
 import { useAuthStore } from '@/store/auth.store';
 import { useWorkspace } from '@/hooks/useWorkspace';
@@ -20,6 +21,8 @@ import SistemaTab from '@/components/settings/SistemaTab';
 import DangerZoneTab from '@/components/settings/DangerZoneTab';
 import ProdutosServicosTab from '@/components/settings/ProdutosServicosTab';
 import PrivacidadeTab from '@/components/settings/PrivacidadeTab';
+import LixeiraTab from '@/components/settings/LixeiraTab';
+import MeusDadosTab from '@/components/settings/MeusDadosTab';
 import WidgetTab from '@/components/settings/WidgetTab';
 import { FeatureLockedScreen } from '@/components/ui/FeatureGate';
 import { useFeatures } from '@/hooks/useFeatures';
@@ -28,7 +31,7 @@ type Tab =
   | 'funis-etapas' | 'motivos-perda' | 'origens-clientes'
   | 'categorias-clientes' | 'setores' | 'produtos-servicos' | 'channels'
   | 'templates' | 'automations' | 'agents' | 'widget' | 'integrations' | 'sistema' | 'danger'
-  | 'privacidade';
+  | 'privacidade' | 'lixeira' | 'meus-dados';
 
 interface NavItem { id: Tab; label: string; icon: typeof GitBranch; ownerOnly?: boolean; platformAdminOnly?: boolean; danger?: boolean; feature?: string }
 interface NavGroup { title: string; items: NavItem[] }
@@ -80,6 +83,13 @@ const GROUPS: NavGroup[] = [
     title: 'Segurança',
     items: [
       { id: 'privacidade',          label: 'Privacidade',           icon: Lock,          ownerOnly: true },
+      { id: 'lixeira',              label: 'Lixeira',               icon: Trash2,        ownerOnly: true },
+    ],
+  },
+  {
+    title: 'Meus dados (LGPD)',
+    items: [
+      { id: 'meus-dados',           label: 'Exportar / Excluir',    icon: Shield },
     ],
   },
   {
@@ -212,6 +222,8 @@ export default function Settings() {
           {tab === 'widget'              && <WidgetTab />}
           {tab === 'integrations'        && <IntegrationsTab />}
           {tab === 'privacidade'         && <PrivacidadeTab />}
+          {tab === 'lixeira'             && <LixeiraTab />}
+          {tab === 'meus-dados'          && <MeusDadosTab />}
           {tab === 'sistema'             && <SistemaTab />}
           {tab === 'danger'              && <DangerZoneTab />}
         </div>
