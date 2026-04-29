@@ -7,6 +7,7 @@ import { CompaniesService } from './companies.service';
 import { CreateCompanyDto } from './dto/create-company.dto';
 import { UpdateCompanyDto } from './dto/update-company.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { PaginationDto } from '../common/pagination/pagination.dto';
 
 @Controller('companies')
 @UseGuards(JwtAuthGuard)
@@ -19,8 +20,8 @@ export class CompaniesController {
   }
 
   @Get()
-  findAll(@Query('search') search?: string) {
-    return this.companiesService.findAll(search);
+  findAll(@Query('search') search: string | undefined, @Query() pagination: PaginationDto) {
+    return this.companiesService.findAll(search, pagination);
   }
 
   @Get(':id')

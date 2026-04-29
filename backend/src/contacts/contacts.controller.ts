@@ -10,6 +10,7 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { UserRole } from '../users/entities/user.entity';
+import { PaginationDto } from '../common/pagination/pagination.dto';
 
 @Controller('contacts')
 @UseGuards(JwtAuthGuard)
@@ -22,8 +23,8 @@ export class ContactsController {
   }
 
   @Get()
-  findAll(@Query('search') search?: string) {
-    return this.contactsService.findAll(search);
+  findAll(@Query('search') search: string | undefined, @Query() pagination: PaginationDto) {
+    return this.contactsService.findAll(search, pagination);
   }
 
   @Post('import')

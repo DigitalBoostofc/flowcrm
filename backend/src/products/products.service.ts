@@ -10,6 +10,7 @@ import { Product } from './entities/product.entity';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { TenantContext } from '../common/tenant/tenant-context.service';
+import { PaginatedResponse, PaginationDto, resolvePagination } from '../common/pagination/pagination.dto';
 
 @Injectable()
 export class ProductsService {
@@ -19,8 +20,9 @@ export class ProductsService {
     private readonly tenant: TenantContext,
   ) {}
 
-  async findAll(onlyActive = false): Promise<Product[]> {
+  async findAll(onlyActive = false, pagination?: PaginationDto): Promise<PaginatedResponse<Product>> {
     const workspaceId = this.tenant.requireWorkspaceId();
+    const { limit, offset } = resolvePagination(pagination);
     const qb = this.repo
       .createQueryBuilder('p')
       .where('p."workspaceId" = :workspaceId', { workspaceId })
@@ -30,7 +32,10 @@ export class ProductsService {
       qb.andWhere('p.active = true');
     }
 
-    return qb.orderBy('p.name', 'ASC').getMany();
+    qb.orderBy('p.name', 'ASC').take(limit).skip(offset);
+
+    const [items, total] = await qb.getManyAndCount();
+    return { items, total, limit, offset };
   }
 
   async findByNames(names: string[]): Promise<Product[]> {

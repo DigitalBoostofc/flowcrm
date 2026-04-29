@@ -6,6 +6,7 @@ import { CreateCompanyDto } from './dto/create-company.dto';
 import { UpdateCompanyDto } from './dto/update-company.dto';
 import { TenantContext } from '../common/tenant/tenant-context.service';
 import { StorageService } from '../storage/storage.service';
+import { PaginatedResponse, PaginationDto, resolvePagination } from '../common/pagination/pagination.dto';
 
 @Injectable()
 export class CompaniesService {
@@ -22,26 +23,27 @@ export class CompaniesService {
     return this.repo.save(company);
   }
 
-  findAll(search?: string): Promise<Company[]> {
+  async findAll(search?: string, pagination?: PaginationDto): Promise<PaginatedResponse<Company>> {
     const workspaceId = this.tenant.requireWorkspaceId();
+    const { limit, offset } = resolvePagination(pagination);
+    let where: any = { workspaceId };
     if (search) {
       const s = `%${search}%`;
-      return this.repo.find({
-        where: [
-          { workspaceId, name: ILike(s) },
-          { workspaceId, razaoSocial: ILike(s) },
-          { workspaceId, cnpj: ILike(s) },
-          { workspaceId, descricao: ILike(s) },
-        ],
-        relations: ['responsible'],
-        order: { createdAt: 'DESC' },
-      });
+      where = [
+        { workspaceId, name: ILike(s) },
+        { workspaceId, razaoSocial: ILike(s) },
+        { workspaceId, cnpj: ILike(s) },
+        { workspaceId, descricao: ILike(s) },
+      ];
     }
-    return this.repo.find({
-      where: { workspaceId },
+    const [items, total] = await this.repo.findAndCount({
+      where,
       relations: ['responsible'],
       order: { createdAt: 'DESC' },
+      take: limit,
+      skip: offset,
     });
+    return { items, total, limit, offset };
   }
 
   async findOne(id: string): Promise<Company> {

@@ -315,6 +315,7 @@ function ContactAutocomplete({
     queryFn: () => listContacts(debounced || undefined),
     enabled: true,
     staleTime: 0,
+    select: (r) => r.items,
   });
 
   const { data: companyResults = [] } = useQuery({
@@ -322,6 +323,7 @@ function ContactAutocomplete({
     queryFn: () => listCompanies(debounced || undefined),
     enabled: true,
     staleTime: 0,
+    select: (r) => r.items,
   });
 
   const handlePickCompany = (co: Company) => {
@@ -455,6 +457,7 @@ function ProductPickerCombo({
   const { data = [] } = useQuery({
     queryKey: ['products', { onlyActive: true }],
     queryFn: () => listProducts({ onlyActive: true }),
+    select: (r) => r.items,
   });
 
   const createMut = useMutation({
@@ -600,6 +603,7 @@ function ProductNameField({
   const { data = [] } = useQuery({
     queryKey: ['products', { onlyActive: true }],
     queryFn: () => listProducts({ onlyActive: true }),
+    select: (r) => r.items,
   });
 
   const createMut = useMutation({

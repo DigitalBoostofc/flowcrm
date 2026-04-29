@@ -1,5 +1,7 @@
 import { api } from './client';
 import type { Contact, ContactPrivacy } from '@/types/api';
+import type { PaginatedResponse, PaginationParams } from './pagination';
+import { buildPaginationQuery } from './pagination';
 
 export interface CreateContactInput {
   name: string;
@@ -39,8 +41,12 @@ export interface CreateContactInput {
   additionalAccessUserIds?: string[];
 }
 
-export async function listContacts(search?: string): Promise<Contact[]> {
-  const res = await api.get<Contact[]>('/contacts', { params: search ? { search } : {} });
+export async function listContacts(
+  search?: string,
+  pagination?: PaginationParams,
+): Promise<PaginatedResponse<Contact>> {
+  const params = { ...(search ? { search } : {}), ...buildPaginationQuery(pagination) };
+  const res = await api.get<PaginatedResponse<Contact>>('/contacts', { params });
   return res.data;
 }
 

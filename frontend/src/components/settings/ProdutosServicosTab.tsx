@@ -32,6 +32,7 @@ export default function ProdutosServicosTab() {
   const { data = [], isLoading } = useQuery({
     queryKey: ['products'],
     queryFn: () => listProducts(),
+    select: (r) => r.items,
   });
 
   const createMut = useMutation({

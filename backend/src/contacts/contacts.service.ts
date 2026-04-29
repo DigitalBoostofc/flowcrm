@@ -6,6 +6,7 @@ import { CreateContactDto } from './dto/create-contact.dto';
 import { UpdateContactDto } from './dto/update-contact.dto';
 import { TenantContext } from '../common/tenant/tenant-context.service';
 import { StorageService } from '../storage/storage.service';
+import { PaginatedResponse, PaginationDto, resolvePagination } from '../common/pagination/pagination.dto';
 
 @Injectable()
 export class ContactsService {
@@ -22,23 +23,23 @@ export class ContactsService {
     return this.repo.save(contact);
   }
 
-  findAll(search?: string): Promise<Contact[]> {
+  async findAll(search?: string, pagination?: PaginationDto): Promise<PaginatedResponse<Contact>> {
     const workspaceId = this.tenant.requireWorkspaceId();
-    if (search) {
-      return this.repo.find({
-        where: [
+    const { limit, offset } = resolvePagination(pagination);
+    const where = search
+      ? [
           { workspaceId, name: ILike(`%${search}%`) },
           { workspaceId, phone: ILike(`%${search}%`) },
-        ],
-        relations: ['leads'],
-        order: { createdAt: 'DESC' },
-      });
-    }
-    return this.repo.find({
-      where: { workspaceId },
+        ]
+      : { workspaceId };
+    const [items, total] = await this.repo.findAndCount({
+      where,
       relations: ['leads'],
       order: { createdAt: 'DESC' },
+      take: limit,
+      skip: offset,
     });
+    return { items, total, limit, offset };
   }
 
   async findOne(id: string): Promise<Contact> {

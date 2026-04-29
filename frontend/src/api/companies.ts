@@ -1,8 +1,14 @@
 import { api } from './client';
 import type { Company } from '@/types/api';
+import type { PaginatedResponse, PaginationParams } from './pagination';
+import { buildPaginationQuery } from './pagination';
 
-export async function listCompanies(search?: string): Promise<Company[]> {
-  const res = await api.get<Company[]>('/companies', { params: search ? { search } : {} });
+export async function listCompanies(
+  search?: string,
+  pagination?: PaginationParams,
+): Promise<PaginatedResponse<Company>> {
+  const params = { ...(search ? { search } : {}), ...buildPaginationQuery(pagination) };
+  const res = await api.get<PaginatedResponse<Company>>('/companies', { params });
   return res.data;
 }
 
