@@ -24,6 +24,16 @@ export class AuthService {
     const valid = await bcrypt.compare(password, user.passwordHash);
     if (!valid) throw new UnauthorizedException('Credenciais inválidas');
 
+    if (user.scheduledDeletionAt) {
+      // Account is in the LGPD 30d grace window. Block login but tell the
+      // client so it can offer the "cancelar exclusão" flow.
+      throw new UnauthorizedException({
+        code: 'ACCOUNT_PENDING_DELETION',
+        message: 'Conta marcada para exclusão. Entre em contato com o suporte para reativar.',
+        scheduledDeletionAt: user.scheduledDeletionAt,
+      });
+    }
+
     const payload = { sub: user.id, email: user.email, role: user.role, workspaceId: user.workspaceId };
     return {
       accessToken: this.jwtService.sign(payload),

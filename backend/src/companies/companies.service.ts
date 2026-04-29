@@ -62,7 +62,7 @@ export class CompaniesService {
 
   async remove(id: string): Promise<void> {
     const workspaceId = this.tenant.requireWorkspaceId();
-    const result = await this.repo.delete({ id, workspaceId });
+    const result = await this.repo.softDelete({ id, workspaceId });
     if (result.affected === 0) throw new NotFoundException('Empresa não encontrada');
   }
 

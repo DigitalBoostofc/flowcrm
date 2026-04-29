@@ -23,7 +23,8 @@ export class ProductsService {
     const workspaceId = this.tenant.requireWorkspaceId();
     const qb = this.repo
       .createQueryBuilder('p')
-      .where('p."workspaceId" = :workspaceId', { workspaceId });
+      .where('p."workspaceId" = :workspaceId', { workspaceId })
+      .andWhere('p."deletedAt" IS NULL');
 
     if (onlyActive) {
       qb.andWhere('p.active = true');
@@ -77,7 +78,7 @@ export class ProductsService {
 
   async remove(id: string): Promise<void> {
     const workspaceId = this.tenant.requireWorkspaceId();
-    const result = await this.repo.delete({ id, workspaceId });
+    const result = await this.repo.softDelete({ id, workspaceId });
     if (result.affected === 0) throw new NotFoundException('Produto/serviço não encontrado');
   }
 }
