@@ -55,12 +55,18 @@ Tabela `audit_logs`:
 
 Campos cujos valores nunca entram no log (substituídos por `[REDACTED]`):
 
-- `password`, `passwordHash`, `passphrase`
-- `secret`, `token`, `authorization`, `jwt`
-- `apiKey`, `api_key`, `webhookSecret`
-- `privateKey`, `private_key`
+- Genéricos: `password`, `passwordHash`, `passphrase`
+- Tokens: `secret`, `token`, `authorization`, `jwt`, `apiKey`, `api_key`, `webhookSecret`, `privateKey`, `private_key`
+- PII brasileiros (LGPD): `cpf`, `cnpj`, `rg`, `cnh`, `passaporte`, `passport`
+- Contato sensível: `telefone`, `celular`, `phone`, `mobile`, `cep`, `postalcode`, `zipcode`
 
-A redação é recursiva (varre objetos aninhados) e por **nome de campo** (substring case-insensitive). Espelha a lista de redact do Pino em `logger.config.ts`.
+Detecção também **por valor** em strings livres (alguém digita CPF no campo `notes`):
+- CPF (`123.456.789-00` ou 11 dígitos seguidos) → `[REDACTED_CPF]`
+- CNPJ (`12.345.678/0001-90` ou 14 dígitos) → `[REDACTED_CNPJ]`
+- Telefone BR formatado (`(11) 91234-5678`) → `[REDACTED_PHONE]`
+- CEP (`01310-100`) → `[REDACTED_CEP]`
+
+A redação por chave é recursiva (varre objetos aninhados) e por **nome de campo** (substring case-insensitive). Espelha a lista de redact do Pino em `logger.config.ts`.
 
 ## Como pular
 
@@ -107,14 +113,14 @@ Isso é **opt-in** por design — não vale o overhead de carregar entidade anti
 
 ## Retenção
 
-90 dias por padrão. `AuditService.pruneOlderThan(days)` apaga rows mais velhas. Hoje **não há cron** que invoque essa função — é follow-up imediato:
+**90 dias por padrão**. Cron `AuditPruneScheduler @Cron(EVERY_DAY_AT_3AM)` chama `AuditService.pruneOlderThan(AUDIT_RETENTION_DAYS)` automaticamente. Configurável via env:
 
-```cron
-# /etc/crontab — domingo 04:00 UTC, prune semanal
-0 4 * * 0 cd /opt/flowcrm && node -e "require('./prune-audit.js')()" >> /var/log/flowcrm-audit-prune.log 2>&1
+```env
+AUDIT_RETENTION_DAYS=90        # default
+AUDIT_PRUNE_ENABLED=true       # set false durante incidentes
 ```
 
-(script utilitário a criar em PR de seguimento)
+Para a matriz completa (audit + lixeira + conta), ver [`retention.md`](./retention.md).
 
 ## Falhas são silenciosas
 
@@ -157,9 +163,16 @@ WHERE action LIKE '%.delete'
 ORDER BY "createdAt" DESC;
 ```
 
+## Integração com a lixeira (Fase 4D2)
+
+A partir da Fase 4D2, soft-delete passa a ser audit-logged como `<resource>.delete` normalmente — o interceptor captura o `DELETE` HTTP independente de ser hard ou soft. Restore (`POST /api/trash/:type/:id/restore`) também é capturado como `trash.type.id.restore`.
+
+Já o cron de purge (`TrashPruneScheduler`) **não** passa pelo interceptor (não é HTTP). Hard-deletes via cron ficam apenas no log Pino do scheduler — backlog é registrar via `AuditService.record()` direto.
+
 ## Próximos passos (follow-up)
 
-- [ ] Endpoint `GET /api/audit-logs?resourceType=&resourceId=` pra UI consumir
-- [ ] Cron de prune (90 dias) pra limpar audit_logs antigos
+- [x] ~~Endpoint pra UI consumir~~ — backlog ainda; UI consome direto via psql/admin hoje
+- [x] ~~Cron de prune (90 dias)~~ — feito (`AuditPruneScheduler` em `EVERY_DAY_AT_3AM`)
 - [ ] Interceptor melhorado: capturar before/after automaticamente em rotas anotadas com `@AuditFullDiff()`
-- [ ] Export LGPD: incluir audit_logs do user no JSON exportado (Fase 4D2)
+- [ ] Export LGPD: incluir audit_logs do user no JSON exportado
+- [ ] Audit log do cron de purge da lixeira (registrar via `AuditService.record()`)
