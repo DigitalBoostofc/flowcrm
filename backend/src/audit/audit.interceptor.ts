@@ -1,4 +1,4 @@
-import { CallHandler, ExecutionContext, Injectable, NestInterceptor } from '@nestjs/common';
+import { CallHandler, ExecutionContext, Injectable, Logger, NestInterceptor } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { Observable, tap } from 'rxjs';
 import type { Request, Response } from 'express';
@@ -89,6 +89,7 @@ function pickIp(req: Request): string | null {
 
 @Injectable()
 export class AuditInterceptor implements NestInterceptor {
+  private readonly logger = new Logger(AuditInterceptor.name);
   constructor(private readonly auditService: AuditService, private readonly reflector: Reflector) {}
 
   intercept(context: ExecutionContext, next: CallHandler): Observable<unknown> {
@@ -122,17 +123,22 @@ export class AuditInterceptor implements NestInterceptor {
           // requires explicit AuditService.record() calls — see AUDIT.md.
           const sanitizedBody = req.body && typeof req.body === 'object' ? (req.body as Record<string, unknown>) : null;
 
-          void this.auditService.record({
-            workspaceId: req.user?.workspaceId ?? null,
-            userId: req.user?.id ?? null,
-            action,
-            resourceType,
-            resourceId: pathResourceId ?? responseId,
-            changes: sanitizedBody,
-            ipAddress: pickIp(req),
-            userAgent: typeof req.headers['user-agent'] === 'string' ? req.headers['user-agent'] : null,
-            requestId: typeof req.headers['x-correlation-id'] === 'string' ? req.headers['x-correlation-id'] : null,
-          });
+          // Defensive: AuditService swallows its own errors, but if anything
+          // ever escapes (e.g. mock in tests, future refactor), do not let an
+          // unhandled rejection take down the response pipeline.
+          this.auditService
+            .record({
+              workspaceId: req.user?.workspaceId ?? null,
+              userId: req.user?.id ?? null,
+              action,
+              resourceType,
+              resourceId: pathResourceId ?? responseId,
+              changes: sanitizedBody,
+              ipAddress: pickIp(req),
+              userAgent: typeof req.headers['user-agent'] === 'string' ? req.headers['user-agent'] : null,
+              requestId: typeof req.headers['x-correlation-id'] === 'string' ? req.headers['x-correlation-id'] : null,
+            })
+            .catch((err) => this.logger.error(`audit record failed: ${(err as Error).message}`));
         },
       }),
     );
