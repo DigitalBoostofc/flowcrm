@@ -38,6 +38,7 @@ export class SearchService {
         .leftJoinAndSelect('lead.stage', 'stage')
         .leftJoinAndSelect('lead.pipeline', 'pipeline')
         .where('lead."workspaceId" = :workspaceId', { workspaceId })
+        .andWhere('lead."deletedAt" IS NULL')
         .andWhere('(contact.name ILIKE :term OR contact.phone ILIKE :term)', { term: `%${term}%` })
         .take(5)
         .getMany(),

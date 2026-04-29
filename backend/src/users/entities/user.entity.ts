@@ -48,6 +48,14 @@ export class User {
   @OneToMany(() => Lead, (lead) => lead.assignedTo)
   leads: Lead[];
 
+  /**
+   * Set when the user requested account deletion via DELETE /api/me/account.
+   * The actual erase happens via cron once now() > scheduledDeletionAt.
+   * While set, login is blocked unless the user calls /api/me/account/restore.
+   */
+  @Column({ type: 'timestamptz', nullable: true })
+  scheduledDeletionAt: Date | null;
+
   @CreateDateColumn()
   createdAt: Date;
 

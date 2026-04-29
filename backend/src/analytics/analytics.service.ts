@@ -23,7 +23,8 @@ export class AnalyticsService {
       .leftJoin('l.assignedTo', 'u')
       .leftJoin('l.pipeline', 'p')
       .where('l.workspaceId = :workspaceId', { workspaceId })
-      .andWhere('l.archivedAt IS NULL');
+      .andWhere('l.archivedAt IS NULL')
+      .andWhere('l.deletedAt IS NULL');
 
     // Funis de gestão nunca entram no analytics
     qb.andWhere("p.kind = 'sale'");

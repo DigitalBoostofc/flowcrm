@@ -68,4 +68,10 @@ export const envSchema = Joi.object({
 
   AUDIT_RETENTION_DAYS: Joi.number().integer().min(1).default(90),
   AUDIT_PRUNE_ENABLED: Joi.boolean().truthy('true').falsy('false').default(true),
+
+  TRASH_RETENTION_DAYS: Joi.number().integer().min(1).default(30),
+  TRASH_PRUNE_ENABLED: Joi.boolean().truthy('true').falsy('false').default(true),
+
+  ACCOUNT_RETENTION_DAYS: Joi.number().integer().min(1).default(30),
+  ACCOUNT_PRUNE_ENABLED: Joi.boolean().truthy('true').falsy('false').default(true),
 }).unknown(true);

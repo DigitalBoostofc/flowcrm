@@ -52,6 +52,8 @@ import { HealthModule } from './common/health/health.module';
 import { PinoLoggerModule } from './common/logging/logger.config';
 import { envSchema } from './common/config/env.schema';
 import { AuditModule } from './audit/audit.module';
+import { TrashModule } from './trash/trash.module';
+import { MeModule } from './me/me.module';
 
 @Module({
   imports: [
@@ -140,6 +142,8 @@ import { AuditModule } from './audit/audit.module';
     SummaryModule,
     CaptureModule,
     HealthModule,
+    TrashModule,
+    MeModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },

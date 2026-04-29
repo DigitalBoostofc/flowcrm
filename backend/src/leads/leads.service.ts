@@ -50,6 +50,7 @@ export class LeadsService {
       .where('lead.pipelineId = :pipelineId', { pipelineId })
       .andWhere('lead.workspaceId = :workspaceId', { workspaceId })
       .andWhere('lead.archivedAt IS NULL')
+      .andWhere('lead.deletedAt IS NULL')
       .orderBy('lead.createdAt', 'ASC');
 
     if (staleDays) {
@@ -84,6 +85,7 @@ export class LeadsService {
       .leftJoinAndSelect('lead.labels', 'labels')
       .where('lead.workspaceId = :workspaceId', { workspaceId })
       .andWhere('lead.archivedAt IS NULL')
+      .andWhere('lead.deletedAt IS NULL')
       .orderBy('lead.createdAt', 'DESC');
 
     const privileged = userRole === UserRole.OWNER || userRole === UserRole.MANAGER;
@@ -205,7 +207,7 @@ export class LeadsService {
 
   async remove(id: string): Promise<void> {
     const workspaceId = this.tenant.requireWorkspaceId();
-    const result = await this.repo.delete({ id, workspaceId });
+    const result = await this.repo.softDelete({ id, workspaceId });
     if (result.affected === 0) throw new NotFoundException('Lead não encontrado');
   }
 
