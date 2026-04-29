@@ -847,6 +847,7 @@ export default function Pessoas() {
   const { data: contacts = [], isLoading } = useQuery({
     queryKey: ['pessoas', debouncedSearch],
     queryFn: () => listContacts(debouncedSearch || undefined),
+    select: (r) => r.items,
   });
 
   useEffect(() => {

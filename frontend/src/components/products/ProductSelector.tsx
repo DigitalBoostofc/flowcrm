@@ -29,6 +29,7 @@ export default function ProductSelector({
   const { data = [] } = useQuery({
     queryKey: ['products', { onlyActive: true }],
     queryFn: () => listProducts({ onlyActive: true }),
+    select: (r) => r.items,
   });
 
   const createMut = useMutation({

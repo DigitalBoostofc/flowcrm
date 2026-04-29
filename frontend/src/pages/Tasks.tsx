@@ -105,6 +105,7 @@ function AddTaskCard({
     queryKey: ['contacts', targetSearch],
     queryFn: () => listContacts(targetSearch || undefined),
     enabled: targetOpen,
+    select: (r) => r.items,
   });
 
   const mutation = useMutation({

@@ -469,6 +469,7 @@ function QuickAddNegocio({ anchorRef, onClose }: QuickPanelProps) {
     queryKey: ['contacts', contactSearch],
     queryFn: () => listContacts(contactSearch || undefined),
     enabled: contactSearch.length >= 1,
+    select: (r) => r.items,
   });
 
   const selectedPipeline = pipelines.find(p => p.id === pipelineId);

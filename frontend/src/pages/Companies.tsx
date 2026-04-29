@@ -236,6 +236,7 @@ function AddCompanyModal({ open, onClose, currentUser, users, company }: AddComp
     queryKey: ['contacts', peopleSearch],
     queryFn: () => listContacts(peopleSearch || undefined),
     enabled: open && peopleSearch.length > 0,
+    select: (r) => r.items,
   });
 
   useEffect(() => {
@@ -831,6 +832,7 @@ export default function Companies() {
   const { data: companies = [], isLoading } = useQuery({
     queryKey: ['companies', debouncedSearch],
     queryFn: () => listCompanies(debouncedSearch || undefined),
+    select: (r) => r.items,
   });
 
   useEffect(() => {
