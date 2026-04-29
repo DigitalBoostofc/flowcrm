@@ -65,4 +65,7 @@ export const envSchema = Joi.object({
   SENTRY_TRACES_SAMPLE_RATE: Joi.number().min(0).max(1).optional(),
   SENTRY_RELEASE: Joi.string().optional().allow(''),
   ALLOW_SENTRY_TEST: Joi.boolean().truthy('true').falsy('false').default(false),
+
+  AUDIT_RETENTION_DAYS: Joi.number().integer().min(1).default(90),
+  AUDIT_PRUNE_ENABLED: Joi.boolean().truthy('true').falsy('false').default(true),
 }).unknown(true);
