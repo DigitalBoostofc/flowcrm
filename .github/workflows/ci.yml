@@ -114,9 +114,10 @@ jobs:
           META_VERIFY_TOKEN: ci-test
 
       - name: NPM audit (production deps)
+        # TODO: voltar para audit-level=high após upgrade NestJS 10→11 (deps com 3 high pendentes:
+        # @nestjs/platform-express, multer, lodash via @nestjs/config — todos resolvem com major bump).
         working-directory: backend
-        run: npm audit --omit=dev --audit-level=high
-        continue-on-error: true
+        run: npm audit --omit=dev --audit-level=critical
 
   frontend:
     name: Frontend (typecheck + build + audit)
@@ -141,7 +142,6 @@ jobs:
       - name: NPM audit (production deps)
         working-directory: frontend
         run: npm audit --omit=dev --audit-level=high
-        continue-on-error: true
 
   docker-build:
     name: Docker images build
