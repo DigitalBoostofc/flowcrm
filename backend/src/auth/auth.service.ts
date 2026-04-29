@@ -24,16 +24,10 @@ export class AuthService {
     const valid = await bcrypt.compare(password, user.passwordHash);
     if (!valid) throw new UnauthorizedException('Credenciais inválidas');
 
-    if (user.scheduledDeletionAt) {
-      // Account is in the LGPD 30d grace window. Block login but tell the
-      // client so it can offer the "cancelar exclusão" flow.
-      throw new UnauthorizedException({
-        code: 'ACCOUNT_PENDING_DELETION',
-        message: 'Conta marcada para exclusão. Entre em contato com o suporte para reativar.',
-        scheduledDeletionAt: user.scheduledDeletionAt,
-      });
-    }
-
+    // Conta com exclusão agendada (LGPD): login segue normal, mas o frontend
+    // recebe `scheduledDeletionAt` no payload do user e exibe banner +
+    // botão de cancelar exclusão. Bloquear login forçaria o usuário a passar
+    // pelo suporte só pra reverter, o que vai contra o direito de retratação.
     const payload = { sub: user.id, email: user.email, role: user.role, workspaceId: user.workspaceId };
     return {
       accessToken: this.jwtService.sign(payload),
@@ -105,6 +99,7 @@ export class AuthService {
       phone: user.phone,
       avatarUrl: user.avatarUrl,
       isPlatformAdmin: isPlatformAdminEmail(user.email),
+      scheduledDeletionAt: user.scheduledDeletionAt ?? null,
     };
   }
 }
