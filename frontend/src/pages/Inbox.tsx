@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { MessageCircle, Send, Search, Phone, Loader2, Sparkles } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
@@ -11,6 +11,7 @@ import { useWs } from '@/hooks/useWebSocket';
 import { useQualificationStore } from '@/store/qualification.store';
 import type { Message } from '@/types/api';
 import Avatar from '@/components/ui/Avatar';
+import { channelMeta, uniqueChannelTypes } from '@/lib/channels';
 
 /* ── helpers ──────────────────────────────────────────── */
 
@@ -25,6 +26,7 @@ function timeAgo(iso: string | null) {
 
 function ConvItem({ item, selected, onClick }: { item: InboxItem; selected: boolean; onClick: () => void }) {
   const pending = item.pendingClassification;
+  const ch = channelMeta(item.channelType);
   return (
     <button
       onClick={onClick}
@@ -42,7 +44,14 @@ function ConvItem({ item, selected, onClick }: { item: InboxItem; selected: bool
           <span className="text-sm font-medium truncate" style={{ color: 'var(--ink-1)' }}>
             {item.contactName ?? item.externalId ?? 'Desconhecido'}
           </span>
-          <span className="text-[10px] flex-shrink-0" style={{ color: 'var(--ink-3)' }}>
+          <span className="text-[10px] flex-shrink-0 flex items-center gap-1.5" style={{ color: 'var(--ink-3)' }}>
+            <span
+              title={ch.label}
+              className="px-1.5 py-0.5 rounded-full font-semibold border"
+              style={{ background: ch.bg, color: ch.fg, borderColor: ch.border, fontSize: 9 }}
+            >
+              {ch.shortLabel}
+            </span>
             {timeAgo(item.lastMessageSentAt ?? item.updatedAt)}
           </span>
         </div>
@@ -249,6 +258,7 @@ export default function Inbox() {
   const qc = useQueryClient();
   const [search, setSearch] = useState('');
   const [tab, setTab] = useState<'todas' | 'pendentes'>('todas');
+  const [channelFilter, setChannelFilter] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const { socket } = useWs();
   const pushQualification = useQualificationStore(s => s.push);
@@ -268,14 +278,18 @@ export default function Inbox() {
   }, [socket, qc]);
 
   const pendingCount = inbox.filter(i => i.pendingClassification).length;
+  const availableChannels = useMemo(() => uniqueChannelTypes(inbox), [inbox]);
   const scoped = tab === 'pendentes' ? inbox.filter(i => i.pendingClassification) : inbox;
+  const channelScoped = channelFilter
+    ? scoped.filter(i => i.channelType?.toLowerCase() === channelFilter)
+    : scoped;
   const filtered = search
-    ? scoped.filter(i =>
+    ? channelScoped.filter(i =>
         (i.contactName ?? '').toLowerCase().includes(search.toLowerCase()) ||
         (i.contactPhone ?? '').includes(search) ||
         (i.lastMessageBody ?? '').toLowerCase().includes(search.toLowerCase())
       )
-    : scoped;
+    : channelScoped;
 
   const selected = inbox.find(i => i.id === selectedId) ?? null;
   const unreadCount = inbox.filter(i => i.unread).length;
@@ -370,6 +384,40 @@ export default function Inbox() {
               style={{ background: 'var(--surface-hover)', border: '1px solid var(--edge)', color: 'var(--ink-1)' }}
             />
           </div>
+
+          {availableChannels.length > 1 && (
+            <div className="flex flex-wrap gap-1 mt-2">
+              <button
+                onClick={() => setChannelFilter(null)}
+                className="px-2 py-0.5 rounded-full border text-[10px] font-semibold transition-colors"
+                style={
+                  channelFilter === null
+                    ? { background: 'var(--brand-500)', color: '#fff', borderColor: 'var(--brand-500)' }
+                    : { background: 'transparent', color: 'var(--ink-3)', borderColor: 'var(--edge)' }
+                }
+              >
+                Todos
+              </button>
+              {availableChannels.map((type) => {
+                const meta = channelMeta(type);
+                const active = channelFilter === type;
+                return (
+                  <button
+                    key={type}
+                    onClick={() => setChannelFilter(active ? null : type)}
+                    className="px-2 py-0.5 rounded-full border text-[10px] font-semibold transition-colors"
+                    style={
+                      active
+                        ? { background: meta.fg, color: '#fff', borderColor: meta.fg }
+                        : { background: meta.bg, color: meta.fg, borderColor: meta.border }
+                    }
+                  >
+                    {meta.shortLabel}
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         {/* List */}
