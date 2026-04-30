@@ -54,6 +54,7 @@ import { envSchema } from './common/config/env.schema';
 import { AuditModule } from './audit/audit.module';
 import { TrashModule } from './trash/trash.module';
 import { MeModule } from './me/me.module';
+import { AppCacheModule } from './common/cache/cache.module';
 
 @Module({
   imports: [
@@ -75,6 +76,7 @@ import { MeModule } from './me/me.module';
       middleware: { mount: true },
     }),
     TenantModule,
+    AppCacheModule,
     QueuesModule,
     AuditModule,
     TypeOrmModule.forRootAsync({
