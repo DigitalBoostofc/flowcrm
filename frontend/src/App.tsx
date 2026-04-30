@@ -1,25 +1,7 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
+import { lazy, Suspense, useEffect } from 'react';
 import Login from '@/pages/Login';
 import Signup from '@/pages/Signup';
-import Assinar from '@/pages/Assinar';
-import BillingSuccess from '@/pages/BillingSuccess';
-import BillingCancel from '@/pages/BillingCancel';
-import Inicio from '@/pages/Inicio';
-import Pessoas from '@/pages/Pessoas';
-import Negocios from '@/pages/Negocios';
-import Funil from '@/pages/Funil';
-import Settings from '@/pages/Settings';
-import Analytics from '@/pages/Analytics';
-import Tasks from '@/pages/Tasks';
-import Companies from '@/pages/Companies';
-import Inbox from '@/pages/Inbox';
-import Calendario from '@/pages/Calendario';
-import WidgetPage from '@/pages/WidgetPage';
-import Admin from '@/pages/Admin';
-import { FeatureLockedScreen } from '@/components/ui/FeatureGate';
-import { useFeatures } from '@/hooks/useFeatures';
-import Perfil from '@/pages/Perfil';
-import NotFound from '@/pages/NotFound';
 import Termos from '@/pages/legal/Termos';
 import Privacidade from '@/pages/legal/Privacidade';
 import Reembolso from '@/pages/legal/Reembolso';
@@ -28,6 +10,8 @@ import AppShell from '@/components/layout/AppShell';
 import ConnectionBanner from '@/components/layout/ConnectionBanner';
 import BroadcastBanner from '@/components/layout/BroadcastBanner';
 import ImpersonationBanner from '@/components/layout/ImpersonationBanner';
+import { FeatureLockedScreen } from '@/components/ui/FeatureGate';
+import { useFeatures } from '@/hooks/useFeatures';
 import { WsProvider } from '@/hooks/useWebSocket';
 import { useInvalidateOnEvent } from '@/hooks/useInvalidateOnEvent';
 import { useNotifications } from '@/hooks/useNotifications';
@@ -36,7 +20,34 @@ import { useAuthStore } from '@/store/auth.store';
 import { usePrefsStore } from '@/store/prefs.store';
 import { useWorkspace } from '@/hooks/useWorkspace';
 import { Loader2 } from 'lucide-react';
-import { useEffect } from 'react';
+
+// Code-splitting por rota: cada page vira um chunk próprio carregado on-demand.
+// Reduz o bundle inicial — login/signup/legal não puxam o peso do app autenticado.
+const Inicio = lazy(() => import('@/pages/Inicio'));
+const Pessoas = lazy(() => import('@/pages/Pessoas'));
+const Negocios = lazy(() => import('@/pages/Negocios'));
+const Funil = lazy(() => import('@/pages/Funil'));
+const Settings = lazy(() => import('@/pages/Settings'));
+const Analytics = lazy(() => import('@/pages/Analytics'));
+const Tasks = lazy(() => import('@/pages/Tasks'));
+const Companies = lazy(() => import('@/pages/Companies'));
+const Inbox = lazy(() => import('@/pages/Inbox'));
+const Calendario = lazy(() => import('@/pages/Calendario'));
+const Perfil = lazy(() => import('@/pages/Perfil'));
+const Admin = lazy(() => import('@/pages/Admin'));
+const Assinar = lazy(() => import('@/pages/Assinar'));
+const BillingSuccess = lazy(() => import('@/pages/BillingSuccess'));
+const BillingCancel = lazy(() => import('@/pages/BillingCancel'));
+const NotFound = lazy(() => import('@/pages/NotFound'));
+const WidgetPage = lazy(() => import('@/pages/WidgetPage'));
+
+function PageFallback() {
+  return (
+    <div className="min-h-[40vh] flex items-center justify-center">
+      <Loader2 className="w-6 h-6 animate-spin" style={{ color: 'var(--ink-3)' }} />
+    </div>
+  );
+}
 
 function AuthedLayout() {
   useInvalidateOnEvent();
@@ -57,7 +68,11 @@ function AuthedLayout() {
   }
 
   if (workspace?.isBlocked) {
-    return <Assinar />;
+    return (
+      <Suspense fallback={<PageFallback />}>
+        <Assinar />
+      </Suspense>
+    );
   }
 
   return (
@@ -65,25 +80,27 @@ function AuthedLayout() {
       <ImpersonationBanner />
       <ConnectionBanner />
       <BroadcastBanner />
-      <Routes>
-        <Route index element={<Navigate to="/funil" replace />} />
-        <Route path="inicio" element={<Inicio />} />
-        <Route path="pessoas" element={<Pessoas />} />
-        <Route path="negocios" element={<Negocios />} />
-        <Route path="funil" element={<Funil />} />
-        <Route path="tasks" element={<GatedTasks />} />
-        <Route path="inbox" element={<GatedInbox />} />
-        <Route path="companies" element={<Companies />} />
-        <Route path="analytics" element={<GatedAnalytics />} />
-        <Route path="calendario" element={<Calendario />} />
-        <Route path="settings" element={<Settings />} />
-        <Route path="perfil" element={<Perfil />} />
-        <Route path="admin" element={<Admin />} />
-        <Route path="assinar" element={<Assinar />} />
-        <Route path="billing/success" element={<BillingSuccess />} />
-        <Route path="billing/cancel" element={<BillingCancel />} />
-        <Route path="*" element={<NotFound />} />
-      </Routes>
+      <Suspense fallback={<PageFallback />}>
+        <Routes>
+          <Route index element={<Navigate to="/funil" replace />} />
+          <Route path="inicio" element={<Inicio />} />
+          <Route path="pessoas" element={<Pessoas />} />
+          <Route path="negocios" element={<Negocios />} />
+          <Route path="funil" element={<Funil />} />
+          <Route path="tasks" element={<GatedTasks />} />
+          <Route path="inbox" element={<GatedInbox />} />
+          <Route path="companies" element={<Companies />} />
+          <Route path="analytics" element={<GatedAnalytics />} />
+          <Route path="calendario" element={<Calendario />} />
+          <Route path="settings" element={<Settings />} />
+          <Route path="perfil" element={<Perfil />} />
+          <Route path="admin" element={<Admin />} />
+          <Route path="assinar" element={<Assinar />} />
+          <Route path="billing/success" element={<BillingSuccess />} />
+          <Route path="billing/cancel" element={<BillingCancel />} />
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+      </Suspense>
     </AppShell>
   );
 }
@@ -120,7 +137,14 @@ export default function App() {
         <Route path="/termos" element={<Termos />} />
         <Route path="/privacidade" element={<Privacidade />} />
         <Route path="/reembolso" element={<Reembolso />} />
-        <Route path="/widget/:workspaceId" element={<WidgetPage />} />
+        <Route
+          path="/widget/:workspaceId"
+          element={
+            <Suspense fallback={<PageFallback />}>
+              <WidgetPage />
+            </Suspense>
+          }
+        />
         <Route
           path="/*"
           element={
