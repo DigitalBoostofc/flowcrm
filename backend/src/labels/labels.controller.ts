@@ -2,6 +2,7 @@ import { Controller, Get, Post, Patch, Delete, Body, Param, Query, HttpCode, Use
 import { LabelsService } from './labels.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { IsString, IsOptional, MaxLength, IsUUID } from 'class-validator';
+import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 
 class CreateLabelDto {
   @IsString() @MaxLength(100) name: string;
@@ -14,6 +15,8 @@ class UpdateLabelDto {
   @IsOptional() @IsString() @MaxLength(20) color?: string;
 }
 
+@ApiTags('labels')
+@ApiBearerAuth('jwt')
 @Controller('labels')
 @UseGuards(JwtAuthGuard)
 export class LabelsController {

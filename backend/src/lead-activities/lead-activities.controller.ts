@@ -5,7 +5,10 @@ import { UpdateLeadActivityDto } from './dto/update-lead-activity.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { User } from '../users/entities/user.entity';
+import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 
+@ApiTags('lead-activities')
+@ApiBearerAuth('jwt')
 @Controller('leads/:leadId/activities')
 @UseGuards(JwtAuthGuard)
 export class LeadActivitiesController {

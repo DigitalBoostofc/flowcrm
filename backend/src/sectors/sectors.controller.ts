@@ -6,7 +6,10 @@ import { UserRole } from '../users/entities/user.entity';
 import { SectorsService } from './sectors.service';
 import { CreateSectorDto } from './dto/create-sector.dto';
 import { UpdateSectorDto } from './dto/update-sector.dto';
+import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 
+@ApiTags('sectors')
+@ApiBearerAuth('jwt')
 @Controller('sectors')
 @UseGuards(JwtAuthGuard)
 export class SectorsController {

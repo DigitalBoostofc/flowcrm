@@ -4,7 +4,10 @@ import { SendMessageDto } from './dto/send-message.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { ChannelsService } from '../channels/channels.service';
 import { ConversationsService } from '../conversations/conversations.service';
+import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 
+@ApiTags('messages')
+@ApiBearerAuth('jwt')
 @Controller('messages')
 @UseGuards(JwtAuthGuard)
 export class MessagesController {

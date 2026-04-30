@@ -1,7 +1,10 @@
 import { Controller, Get, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { PlatformAdminService } from './platform-admin.service';
+import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 
+@ApiTags('broadcasts-public')
+@ApiBearerAuth('jwt')
 @Controller('broadcasts')
 @UseGuards(JwtAuthGuard)
 export class BroadcastsPublicController {

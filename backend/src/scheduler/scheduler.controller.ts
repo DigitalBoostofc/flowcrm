@@ -2,7 +2,10 @@ import { Body, Controller, Delete, Get, Param, Post, Query, Request, UseGuards }
 import { SchedulerService } from './scheduler.service';
 import { ScheduleMessageDto } from './dto/schedule-message.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 
+@ApiTags('scheduler')
+@ApiBearerAuth('jwt')
 @Controller('scheduled-messages')
 @UseGuards(JwtAuthGuard)
 export class SchedulerController {

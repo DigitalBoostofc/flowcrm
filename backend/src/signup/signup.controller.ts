@@ -2,7 +2,9 @@ import { Body, Controller, Post } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { SignupService } from './signup.service';
 import { SignupResendDto, SignupStartDto, SignupVerifyDto } from './dto/signup.dto';
+import { ApiTags } from '@nestjs/swagger';
 
+@ApiTags('signup')
 @Controller('signup')
 export class SignupController {
   constructor(private service: SignupService) {}

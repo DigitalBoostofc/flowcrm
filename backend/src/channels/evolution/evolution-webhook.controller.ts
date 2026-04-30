@@ -4,6 +4,7 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 import * as crypto from 'crypto';
 import { ChannelsService } from '../channels.service';
 import { EvolutionAdapter } from './evolution.adapter';
+import { ApiTags } from '@nestjs/swagger';
 
 function timingSafeStringEqual(a: string, b: string): boolean {
   if (typeof a !== 'string' || typeof b !== 'string') return false;
@@ -13,6 +14,7 @@ function timingSafeStringEqual(a: string, b: string): boolean {
   return crypto.timingSafeEqual(ba, bb);
 }
 
+@ApiTags('evolution-webhook')
 @Controller('webhooks/evolution')
 export class EvolutionWebhookController {
   private logger = new Logger(EvolutionWebhookController.name);

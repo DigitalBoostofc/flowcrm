@@ -8,7 +8,10 @@ import { CreateCompanyDto } from './dto/create-company.dto';
 import { UpdateCompanyDto } from './dto/update-company.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { PaginationDto } from '../common/pagination/pagination.dto';
+import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 
+@ApiTags('companies')
+@ApiBearerAuth('jwt')
 @Controller('companies')
 @UseGuards(JwtAuthGuard)
 export class CompaniesController {

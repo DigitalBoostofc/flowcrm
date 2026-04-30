@@ -5,11 +5,14 @@ import { Roles } from '../auth/roles.decorator';
 import { UserRole } from '../users/entities/user.entity';
 import { WorkspacesService } from './workspaces.service';
 import { isPlatformAdminEmail } from '../common/platform-admin.util';
+import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 
 interface AuthedRequest {
   user: { id: string; email: string; workspaceId: string; role: string };
 }
 
+@ApiTags('workspaces')
+@ApiBearerAuth('jwt')
 @Controller('workspace')
 @UseGuards(JwtAuthGuard)
 export class WorkspacesController {

@@ -2,7 +2,9 @@ import { Controller, Get, Delete, Query, Res, UseGuards, Request, HttpCode } fro
 import { ConfigService } from '@nestjs/config';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { GoogleCalendarService } from './google-calendar.service';
+import { ApiTags } from '@nestjs/swagger';
 
+@ApiTags('integrations')
 @Controller('integrations')
 export class IntegrationsController {
   constructor(

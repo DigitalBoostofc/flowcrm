@@ -6,7 +6,10 @@ import { UserRole } from '../users/entities/user.entity';
 import { CustomerOriginsService } from './customer-origins.service';
 import { CreateCustomerOriginDto } from './dto/create-customer-origin.dto';
 import { UpdateCustomerOriginDto } from './dto/update-customer-origin.dto';
+import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 
+@ApiTags('customer-origins')
+@ApiBearerAuth('jwt')
 @Controller('customer-origins')
 @UseGuards(JwtAuthGuard)
 export class CustomerOriginsController {

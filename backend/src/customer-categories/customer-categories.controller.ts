@@ -6,7 +6,10 @@ import { UserRole } from '../users/entities/user.entity';
 import { CustomerCategoriesService } from './customer-categories.service';
 import { CreateCustomerCategoryDto } from './dto/create-customer-category.dto';
 import { UpdateCustomerCategoryDto } from './dto/update-customer-category.dto';
+import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 
+@ApiTags('customer-categories')
+@ApiBearerAuth('jwt')
 @Controller('customer-categories')
 @UseGuards(JwtAuthGuard)
 export class CustomerCategoriesController {

@@ -8,6 +8,7 @@ import { RolesGuard } from './roles.guard';
 import { Roles } from './roles.decorator';
 import { CurrentUser } from './current-user.decorator';
 import { UserRole } from '../users/entities/user.entity';
+import { ApiTags } from '@nestjs/swagger';
 
 class ForgotPasswordDto {
   @IsEmail() email: string;
@@ -23,6 +24,7 @@ class ResetPasswordDto {
   @IsString() @MinLength(6) newPassword: string;
 }
 
+@ApiTags('auth')
 @Controller('auth')
 export class AuthController {
   constructor(private authService: AuthService) {}

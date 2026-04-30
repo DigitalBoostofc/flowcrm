@@ -11,7 +11,10 @@ import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { UserRole } from '../users/entities/user.entity';
 import { PaginationDto } from '../common/pagination/pagination.dto';
+import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 
+@ApiTags('contacts')
+@ApiBearerAuth('jwt')
 @Controller('contacts')
 @UseGuards(JwtAuthGuard)
 export class ContactsController {

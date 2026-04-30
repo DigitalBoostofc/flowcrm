@@ -10,7 +10,10 @@ import { Roles } from '../auth/roles.decorator';
 import { UserRole } from '../users/entities/user.entity';
 import { FeatureGuard } from '../common/feature-access/feature.guard';
 import { RequireFeature } from '../common/feature-access/require-feature.decorator';
+import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 
+@ApiTags('automations')
+@ApiBearerAuth('jwt')
 @Controller('automations')
 @UseGuards(JwtAuthGuard, RolesGuard, FeatureGuard)
 @Roles(UserRole.OWNER)
