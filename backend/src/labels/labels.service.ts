@@ -4,6 +4,10 @@ import { Repository } from 'typeorm';
 import { Label } from './entities/label.entity';
 import { Lead } from '../leads/entities/lead.entity';
 import { TenantContext } from '../common/tenant/tenant-context.service';
+import { TenantCacheService } from '../common/cache/tenant-cache.service';
+
+const labelsKey = (pipelineId: string | null) => `labels:pipeline:${pipelineId ?? 'global'}`;
+const CATALOG_TTL_MS = 120_000;
 
 @Injectable()
 export class LabelsService {
@@ -11,20 +15,25 @@ export class LabelsService {
     @InjectRepository(Label) private labelRepo: Repository<Label>,
     @InjectRepository(Lead)  private leadRepo:  Repository<Lead>,
     private readonly tenant: TenantContext,
+    private readonly cache: TenantCacheService,
   ) {}
 
   findAll(pipelineId?: string): Promise<Label[]> {
-    const workspaceId = this.tenant.requireWorkspaceId();
-    const where: any = { workspaceId };
-    if (pipelineId) where.pipelineId = pipelineId;
-    else where.pipelineId = null;
-    return this.labelRepo.find({ where, order: { createdAt: 'ASC' } });
+    const scopedPipelineId = pipelineId ?? null;
+    return this.cache.getOrSet(labelsKey(scopedPipelineId), CATALOG_TTL_MS, () => {
+      const workspaceId = this.tenant.requireWorkspaceId();
+      const where: any = { workspaceId, pipelineId: scopedPipelineId };
+      return this.labelRepo.find({ where, order: { createdAt: 'ASC' } });
+    });
   }
 
-  create(data: { name: string; color: string; pipelineId?: string | null }): Promise<Label> {
+  async create(data: { name: string; color: string; pipelineId?: string | null }): Promise<Label> {
     const workspaceId = this.tenant.requireWorkspaceId();
-    const label = this.labelRepo.create({ ...data, workspaceId, pipelineId: data.pipelineId ?? null });
-    return this.labelRepo.save(label);
+    const pipelineId = data.pipelineId ?? null;
+    const label = this.labelRepo.create({ ...data, workspaceId, pipelineId });
+    const saved = await this.labelRepo.save(label);
+    await this.cache.del(labelsKey(pipelineId));
+    return saved;
   }
 
   async update(id: string, data: Partial<{ name: string; color: string }>): Promise<Label> {
@@ -32,12 +41,15 @@ export class LabelsService {
     await this.labelRepo.update({ id, workspaceId }, data);
     const updated = await this.labelRepo.findOne({ where: { id, workspaceId } });
     if (!updated) throw new NotFoundException('Etiqueta não encontrada');
+    await this.cache.del(labelsKey(updated.pipelineId ?? null));
     return updated;
   }
 
   async remove(id: string): Promise<void> {
     const workspaceId = this.tenant.requireWorkspaceId();
+    const existing = await this.labelRepo.findOne({ where: { id, workspaceId } });
     await this.labelRepo.delete({ id, workspaceId });
+    if (existing) await this.cache.del(labelsKey(existing.pipelineId ?? null));
   }
 
   async addToLead(leadId: string, labelId: string): Promise<void> {
