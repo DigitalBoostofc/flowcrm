@@ -28,3 +28,8 @@ export async function listConversations(leadId: string): Promise<Conversation[]>
   const res = await api.get<Conversation[]>('/conversations', { params: { leadId } });
   return res.data;
 }
+
+export async function markConversationRead(id: string): Promise<{ id: string; lastReadAt: string }> {
+  const res = await api.post<{ id: string; lastReadAt: string }>(`/conversations/${id}/read`);
+  return res.data;
+}
