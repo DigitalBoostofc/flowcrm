@@ -5,6 +5,7 @@ import { MoveLeadDto } from './dto/move-lead.dto';
 import { UpdateLeadDto } from './dto/update-lead.dto';
 import { UpdateLeadStatusDto } from './dto/update-lead-status.dto';
 import { ClassifyLeadDto } from './dto/classify-lead.dto';
+import { SetLeadScoreDto } from './dto/set-lead-score.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
@@ -73,6 +74,16 @@ export class LeadsController {
   @Post(':id/classify')
   classify(@Param('id', new ParseUUIDPipe()) id: string, @Body() dto: ClassifyLeadDto, @Req() req: any) {
     return this.leadsService.classify(id, dto, req.user?.sub, req.user?.role);
+  }
+
+  @Patch(':id/score')
+  setScore(@Param('id', new ParseUUIDPipe()) id: string, @Body() dto: SetLeadScoreDto, @Req() req: any) {
+    return this.leadsService.setScore(id, dto.score, req.user?.sub, req.user?.role);
+  }
+
+  @Post(':id/score/recalculate')
+  recalculateScore(@Param('id', new ParseUUIDPipe()) id: string, @Req() req: any) {
+    return this.leadsService.recalculateScore(id, req.user?.sub, req.user?.role);
   }
 
   @Delete(':id')

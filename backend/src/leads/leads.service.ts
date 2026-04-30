@@ -11,6 +11,7 @@ import { UpdateLeadStatusDto } from './dto/update-lead-status.dto';
 import { ClassifyLeadDto } from './dto/classify-lead.dto';
 import { TenantContext } from '../common/tenant/tenant-context.service';
 import { LeadVisibilityPolicy } from './policies/lead-visibility.policy';
+import { LeadScoringService, ScoringResult } from './scoring/lead-scoring.service';
 
 @Injectable()
 export class LeadsService {
@@ -24,6 +25,7 @@ export class LeadsService {
     private contactRepo: Repository<Contact>,
     private eventEmitter: EventEmitter2,
     private readonly tenant: TenantContext,
+    private readonly scoring: LeadScoringService,
   ) {}
 
   create(dto: CreateLeadDto, createdById?: string): Promise<Lead> {
@@ -182,6 +184,24 @@ export class LeadsService {
     const lead = await this.findOneAccessible(id, currentUserId, userRole);
     lead.assignedToId = userId;
     return this.repo.save(lead);
+  }
+
+  async setScore(id: string, score: number, currentUserId?: string, userRole?: string): Promise<Lead> {
+    const lead = await this.findOneAccessible(id, currentUserId, userRole);
+    lead.score = score;
+    return this.repo.save(lead);
+  }
+
+  async recalculateScore(
+    id: string,
+    currentUserId?: string,
+    userRole?: string,
+  ): Promise<{ lead: Lead; result: ScoringResult }> {
+    const lead = await this.findOneAccessible(id, currentUserId, userRole);
+    const result = this.scoring.calculate(lead);
+    lead.score = result.score;
+    const saved = await this.repo.save(lead);
+    return { lead: saved, result };
   }
 
   async remove(id: string): Promise<void> {
