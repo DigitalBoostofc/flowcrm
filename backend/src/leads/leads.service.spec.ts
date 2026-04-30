@@ -95,4 +95,37 @@ describe('LeadsService', () => {
       expect(out.result.factors).toEqual({ base: 50, value: 15, ranking: 0, freshness: 10, status: 0 });
     });
   });
+
+  describe('recalculateScoreSystem', () => {
+    it('persists computed score and returns result', async () => {
+      const result = await service.recalculateScoreSystem('lead-1');
+      expect(mockScoring.calculate).toHaveBeenCalled();
+      expect(mockRepo.save).toHaveBeenCalledWith(expect.objectContaining({ score: 73 }));
+      expect(result?.score).toBe(73);
+    });
+
+    it('returns null when lead not found', async () => {
+      mockRepo.findOne.mockResolvedValueOnce(null);
+      const result = await service.recalculateScoreSystem('lead-x');
+      expect(result).toBeNull();
+      expect(mockRepo.save).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('updateStatus event emission', () => {
+    it('emits lead.statusChanged when status differs', async () => {
+      mockRepo.findOne.mockResolvedValue({ ...mockLead, status: 'active' });
+      await service.updateStatus('lead-1', { status: 'won' } as any, 'user-1', UserRole.OWNER);
+      expect(mockEmitter.emit).toHaveBeenCalledWith(
+        'lead.statusChanged',
+        expect.objectContaining({ leadId: 'lead-1', newStatus: 'won', previousStatus: 'active', workspaceId: 'ws-1' }),
+      );
+    });
+
+    it('does not emit when status is unchanged', async () => {
+      mockRepo.findOne.mockResolvedValue({ ...mockLead, status: 'active' });
+      await service.updateStatus('lead-1', { status: 'active' } as any, 'user-1', UserRole.OWNER);
+      expect(mockEmitter.emit).not.toHaveBeenCalledWith('lead.statusChanged', expect.anything());
+    });
+  });
 });
