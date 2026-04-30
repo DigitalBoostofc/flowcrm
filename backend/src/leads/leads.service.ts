@@ -143,6 +143,7 @@ export class LeadsService {
     const workspaceId = this.tenant.requireWorkspaceId();
     const lead = await this.findOneAccessible(id, currentUserId, userRole);
 
+    const previousStatus = lead.status;
     try {
       await this.repo.update(
         { id: lead.id, workspaceId },
@@ -158,7 +159,16 @@ export class LeadsService {
       throw new InternalServerErrorException('Erro ao atualizar status');
     }
 
-    return this.findOne(id);
+    const updated = await this.findOne(id);
+    if (previousStatus !== dto.status) {
+      this.eventEmitter.emit('lead.statusChanged', {
+        leadId: updated.id,
+        workspaceId,
+        previousStatus,
+        newStatus: dto.status,
+      });
+    }
+    return updated;
   }
 
   async move(id: string, stageId: string, currentUserId?: string, userRole?: string): Promise<Lead> {
@@ -202,6 +212,16 @@ export class LeadsService {
     lead.score = result.score;
     const saved = await this.repo.save(lead);
     return { lead: saved, result };
+  }
+
+  /** Recálculo automático em event handlers — bypassa privacy check (chamada do sistema). */
+  async recalculateScoreSystem(id: string): Promise<ScoringResult | null> {
+    const lead = await this.repo.findOne({ where: { id, workspaceId: this.tenant.requireWorkspaceId() } });
+    if (!lead) return null;
+    const result = this.scoring.calculate(lead);
+    lead.score = result.score;
+    await this.repo.save(lead);
+    return result;
   }
 
   async remove(id: string): Promise<void> {

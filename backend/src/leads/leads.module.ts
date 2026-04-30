@@ -7,11 +7,12 @@ import { Stage } from '../stages/entities/stage.entity';
 import { Contact } from '../contacts/entities/contact.entity';
 import { CustomerOrigin } from '../customer-origins/entities/customer-origin.entity';
 import { LeadScoringService } from './scoring/lead-scoring.service';
+import { LeadScoreRecalculator } from './scoring/lead-score-recalculator';
 
 @Module({
   imports: [TypeOrmModule.forFeature([Lead, Stage, Contact, CustomerOrigin])],
   controllers: [LeadsController],
-  providers: [LeadsService, LeadScoringService],
+  providers: [LeadsService, LeadScoringService, LeadScoreRecalculator],
   exports: [LeadsService, LeadScoringService],
 })
 export class LeadsModule {}
