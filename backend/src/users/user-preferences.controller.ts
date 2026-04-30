@@ -2,9 +2,12 @@ import { Body, Controller, Delete, Get, Param, Put, UseGuards, BadRequestExcepti
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { UserPreferencesService } from './user-preferences.service';
+import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 
 const KEY_REGEX = /^[a-zA-Z0-9._:-]{1,120}$/;
 
+@ApiTags('user-preferences')
+@ApiBearerAuth('jwt')
 @Controller('me/preferences')
 @UseGuards(JwtAuthGuard)
 export class UserPreferencesController {

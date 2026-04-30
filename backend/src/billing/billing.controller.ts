@@ -15,12 +15,14 @@ import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { UserRole } from '../users/entities/user.entity';
 import { BillingService } from './billing.service';
+import { ApiTags } from '@nestjs/swagger';
 
 class CheckoutDto {
   @IsString()
   planSlug: string;
 }
 
+@ApiTags('billing')
 @Controller('billing')
 export class BillingController {
   constructor(private readonly service: BillingService) {}

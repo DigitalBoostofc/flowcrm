@@ -9,7 +9,10 @@ import { UserRole } from '../users/entities/user.entity';
 import { StagesService } from '../stages/stages.service';
 import { CreateStageDto } from '../stages/dto/create-stage.dto';
 import { UpdateStageDto } from '../stages/dto/update-stage.dto';
+import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 
+@ApiTags('pipelines')
+@ApiBearerAuth('jwt')
 @Controller('pipelines')
 @UseGuards(JwtAuthGuard)
 export class PipelinesController {

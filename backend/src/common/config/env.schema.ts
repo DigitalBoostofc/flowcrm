@@ -29,6 +29,10 @@ export const envSchema = Joi.object({
   BULL_BOARD_USER: Joi.string().optional().allow(''),
   BULL_BOARD_PASS: Joi.string().optional().allow(''),
 
+  SWAGGER_ENABLED: Joi.boolean().truthy('true').falsy('false').default(false),
+  SWAGGER_USER: Joi.string().optional().allow(''),
+  SWAGGER_PASS: Joi.string().optional().allow(''),
+
   EVOLUTION_API_URL: Joi.string().uri().optional().allow(''),
   EVOLUTION_API_KEY: Joi.string().optional().allow(''),
 

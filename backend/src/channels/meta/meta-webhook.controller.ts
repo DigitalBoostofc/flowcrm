@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import * as crypto from 'crypto';
 import { MetaSignatureGuard } from './meta-signature.guard';
+import { ApiTags } from '@nestjs/swagger';
 
 function timingSafeStringEqual(a: string, b: string): boolean {
   if (typeof a !== 'string' || typeof b !== 'string') return false;
@@ -12,6 +13,7 @@ function timingSafeStringEqual(a: string, b: string): boolean {
   return crypto.timingSafeEqual(ba, bb);
 }
 
+@ApiTags('meta-webhook')
 @Controller('webhooks/meta')
 export class MetaWebhookController {
   private logger = new Logger(MetaWebhookController.name);

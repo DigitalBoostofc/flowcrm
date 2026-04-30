@@ -4,7 +4,10 @@ import { CreateTemplateDto } from './dto/create-template.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { FeatureGuard } from '../common/feature-access/feature.guard';
 import { RequireFeature } from '../common/feature-access/require-feature.decorator';
+import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 
+@ApiTags('templates')
+@ApiBearerAuth('jwt')
 @Controller('templates')
 @UseGuards(JwtAuthGuard, FeatureGuard)
 @RequireFeature('automation_templates')

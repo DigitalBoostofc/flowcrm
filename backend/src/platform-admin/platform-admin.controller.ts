@@ -6,6 +6,7 @@ import { CurrentUser } from '../auth/current-user.decorator';
 import { PlatformAdminService } from './platform-admin.service';
 import type { SubscriptionStatus } from '../workspaces/entities/workspace.entity';
 import type { BroadcastSeverity } from './entities/platform-broadcast.entity';
+import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 
 class UpdateWorkspaceDto {
   @IsOptional() @IsString() @Length(1, 120) name?: string;
@@ -44,6 +45,8 @@ class AuditQueryDto {
   @IsOptional() @IsInt() @Min(0) offset?: number;
 }
 
+@ApiTags('platform-admin')
+@ApiBearerAuth('jwt')
 @Controller('platform')
 @UseGuards(JwtAuthGuard, PlatformAdminGuard)
 export class PlatformAdminController {

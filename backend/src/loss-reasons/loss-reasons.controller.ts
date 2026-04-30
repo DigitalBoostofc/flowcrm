@@ -6,7 +6,10 @@ import { UserRole } from '../users/entities/user.entity';
 import { LossReasonsService } from './loss-reasons.service';
 import { CreateLossReasonDto } from './dto/create-loss-reason.dto';
 import { UpdateLossReasonDto } from './dto/update-loss-reason.dto';
+import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 
+@ApiTags('loss-reasons')
+@ApiBearerAuth('jwt')
 @Controller('loss-reasons')
 @UseGuards(JwtAuthGuard)
 export class LossReasonsController {

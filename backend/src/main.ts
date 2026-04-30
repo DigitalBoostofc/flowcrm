@@ -8,6 +8,7 @@ import { createBullBoard } from '@bull-board/api';
 import { BullMQAdapter } from '@bull-board/api/bullMQAdapter';
 import { Queue, QueueOptions } from 'bullmq';
 import { Logger as PinoLogger } from 'nestjs-pino';
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { initSentry } from './common/observability/sentry';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import { AppModule } from './app.module';
@@ -28,6 +29,8 @@ async function bootstrap() {
   if (!allowedOrigin) throw new Error('FRONTEND_URL env var is required in production');
   app.enableCors({ origin: allowedOrigin });
   app.setGlobalPrefix('api');
+
+  setupSwagger(app);
 
   const redisUrl = process.env.REDIS_URL;
   const bullBoardUser = process.env.BULL_BOARD_USER;
@@ -123,4 +126,69 @@ async function bootstrap() {
   process.on('SIGTERM', () => shutdown('SIGTERM'));
   process.on('SIGINT', () => shutdown('SIGINT'));
 }
+
+function setupSwagger(app: NestExpressApplication): void {
+  const isProd = process.env.NODE_ENV === 'production';
+  const enabledEnv = String(process.env.SWAGGER_ENABLED ?? '').toLowerCase() === 'true';
+  if (isProd && !enabledEnv) {
+    Logger.log('Swagger desabilitado em produção (defina SWAGGER_ENABLED=true para habilitar)', 'Bootstrap');
+    return;
+  }
+
+  const config = new DocumentBuilder()
+    .setTitle('FlowCRM API')
+    .setDescription('API REST do FlowCRM. Endpoints sob `/api/*` protegidos por JWT salvo onde indicado.')
+    .setVersion('1.0')
+    .addBearerAuth(
+      { type: 'http', scheme: 'bearer', bearerFormat: 'JWT', name: 'Authorization', in: 'header' },
+      'jwt',
+    )
+    .build();
+
+  const document = SwaggerModule.createDocument(app, config);
+
+  if (isProd) {
+    const user = process.env.SWAGGER_USER;
+    const pass = process.env.SWAGGER_PASS;
+    if (!user || !pass) {
+      Logger.warn(
+        'SWAGGER_ENABLED=true em prod mas SWAGGER_USER/SWAGGER_PASS ausentes — Swagger NÃO foi montado por segurança.',
+        'Bootstrap',
+      );
+      return;
+    }
+    const basicAuth = (req: any, res: any, next: any) => {
+      const header = req.headers['authorization'] ?? '';
+      if (!header.startsWith('Basic ')) {
+        res.set('WWW-Authenticate', 'Basic realm="Swagger"');
+        return res.status(401).send('Authentication required');
+      }
+      const decoded = Buffer.from(header.slice(6), 'base64').toString('utf8');
+      const sep = decoded.indexOf(':');
+      const givenUser = Buffer.from(sep >= 0 ? decoded.slice(0, sep) : '');
+      const givenPass = Buffer.from(sep >= 0 ? decoded.slice(sep + 1) : '');
+      const expectedUser = Buffer.from(user);
+      const expectedPass = Buffer.from(pass);
+      const userOk =
+        givenUser.length === expectedUser.length &&
+        require('crypto').timingSafeEqual(givenUser, expectedUser);
+      const passOk =
+        givenPass.length === expectedPass.length &&
+        require('crypto').timingSafeEqual(givenPass, expectedPass);
+      if (!userOk || !passOk) {
+        res.set('WWW-Authenticate', 'Basic realm="Swagger"');
+        return res.status(401).send('Invalid credentials');
+      }
+      next();
+    };
+    app.use(['/api/docs', '/api/docs-json'], basicAuth);
+  }
+
+  SwaggerModule.setup('api/docs', app, document, {
+    swaggerOptions: { persistAuthorization: true },
+    customSiteTitle: 'FlowCRM API',
+  });
+  Logger.log(`Swagger UI disponível em /api/docs${isProd ? ' (basic auth)' : ''}`, 'Bootstrap');
+}
+
 bootstrap();

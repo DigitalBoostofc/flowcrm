@@ -6,7 +6,10 @@ import { UserRole } from '../users/entities/user.entity';
 import { StageRequiredFieldsService } from './stage-required-fields.service';
 import { CreateStageRequiredFieldDto } from './dto/create-stage-required-field.dto';
 import { UpdateStageRequiredFieldDto } from './dto/update-stage-required-field.dto';
+import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 
+@ApiTags('stage-required-fields')
+@ApiBearerAuth('jwt')
 @Controller('stages/:stageId/required-fields')
 @UseGuards(JwtAuthGuard)
 export class StageRequiredFieldsController {

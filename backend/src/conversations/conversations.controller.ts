@@ -3,7 +3,10 @@ import { ConversationsService } from './conversations.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { FeatureGuard } from '../common/feature-access/feature.guard';
 import { RequireFeature } from '../common/feature-access/require-feature.decorator';
+import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 
+@ApiTags('conversations')
+@ApiBearerAuth('jwt')
 @Controller('conversations')
 @UseGuards(JwtAuthGuard)
 export class ConversationsController {

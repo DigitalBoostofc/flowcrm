@@ -16,7 +16,10 @@ import { CreateTaskDto } from './dto/create-task.dto';
 import { UpdateTaskDto } from './dto/update-task.dto';
 import { QueryTasksDto } from './dto/query-tasks.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 
+@ApiTags('tasks')
+@ApiBearerAuth('jwt')
 @Controller('tasks')
 @UseGuards(JwtAuthGuard)
 export class TasksController {

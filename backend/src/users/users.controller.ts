@@ -25,12 +25,15 @@ import { Roles } from '../auth/roles.decorator';
 import { UserRole } from './entities/user.entity';
 import { OtpService } from '../otp/otp.service';
 import { CurrentUser } from '../auth/current-user.decorator';
+import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 
 function serialize(user: any) {
   const { passwordHash, ...rest } = user ?? {};
   return rest;
 }
 
+@ApiTags('users')
+@ApiBearerAuth('jwt')
 @Controller('users')
 @UseGuards(JwtAuthGuard)
 export class UsersController {

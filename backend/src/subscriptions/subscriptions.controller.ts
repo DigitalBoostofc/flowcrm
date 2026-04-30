@@ -8,6 +8,7 @@ import { Roles } from '../auth/roles.decorator';
 import { UserRole } from '../users/entities/user.entity';
 import { PlatformAdminGuard } from '../common/platform-admin.guard';
 import { SubscriptionsService } from './subscriptions.service';
+import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 
 class SubscribeDto {
   @IsString()
@@ -49,6 +50,8 @@ class UpdatePlanDto {
   @IsOptional() @IsString() @Length(0, 120) stripeProductId?: string | null;
 }
 
+@ApiTags('subscriptions')
+@ApiBearerAuth('jwt')
 @Controller('subscriptions')
 @UseGuards(JwtAuthGuard)
 export class SubscriptionsController {

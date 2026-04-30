@@ -7,7 +7,9 @@ import { Roles } from '../auth/roles.decorator';
 import { UserRole } from '../users/entities/user.entity';
 import { WidgetConfig } from '../workspaces/entities/workspace.entity';
 import { TenantContext } from '../common/tenant/tenant-context.service';
+import { ApiTags } from '@nestjs/swagger';
 
+@ApiTags('capture')
 @Controller()
 export class CaptureController {
   constructor(

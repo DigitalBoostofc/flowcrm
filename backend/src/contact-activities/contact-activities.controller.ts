@@ -5,7 +5,10 @@ import { UpdateContactActivityDto } from './dto/update-contact-activity.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { User } from '../users/entities/user.entity';
+import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 
+@ApiTags('contact-activities')
+@ApiBearerAuth('jwt')
 @Controller()
 @UseGuards(JwtAuthGuard)
 export class ContactActivitiesController {

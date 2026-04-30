@@ -3,6 +3,7 @@ import { IsBoolean, IsInt, IsOptional, IsUUID, Max, Min } from 'class-validator'
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { PlatformAdminGuard } from '../common/platform-admin.guard';
 import { AppSettingsService } from './app-settings.service';
+import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 
 class UpdateAppSettingsDto {
   @IsOptional()
@@ -20,6 +21,8 @@ class UpdateAppSettingsDto {
   trialDays?: number;
 }
 
+@ApiTags('app-settings')
+@ApiBearerAuth('jwt')
 @Controller('app-settings')
 @UseGuards(JwtAuthGuard, PlatformAdminGuard)
 export class AppSettingsController {
