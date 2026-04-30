@@ -10,6 +10,7 @@ import { OtpModule } from '../otp/otp.module';
 import { ContactsModule } from '../contacts/contacts.module';
 import { LeadsModule } from '../leads/leads.module';
 import { PipelinesModule } from '../pipelines/pipelines.module';
+import { OutboundModule } from '../messaging/outbound/outbound.module';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { PipelinesModule } from '../pipelines/pipelines.module';
     ContactsModule,
     LeadsModule,
     PipelinesModule,
+    OutboundModule,
   ],
   controllers: [SignupController],
   providers: [SignupService],

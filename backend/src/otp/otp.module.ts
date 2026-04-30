@@ -7,11 +7,13 @@ import { PlatformChannelService } from './platform-channel.service';
 import { User } from '../users/entities/user.entity';
 import { ChannelConfig } from '../channels/entities/channel-config.entity';
 import { ChannelsModule } from '../channels/channels.module';
+import { OutboundModule } from '../messaging/outbound/outbound.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([User, ChannelConfig]),
     ChannelsModule,
+    OutboundModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
       useFactory: (config: ConfigService) => ({

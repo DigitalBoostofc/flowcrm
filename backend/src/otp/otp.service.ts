@@ -5,6 +5,7 @@ import { JwtService } from '@nestjs/jwt';
 import Redis from 'ioredis';
 import { ChannelsService } from '../channels/channels.service';
 import { PlatformChannelService } from './platform-channel.service';
+import { OutboundDispatcherService } from '../messaging/outbound/outbound-dispatcher.service';
 
 const MAX_ATTEMPTS = 5;
 
@@ -20,6 +21,7 @@ export class OtpService {
     private readonly jwt: JwtService,
     private readonly channels: ChannelsService,
     private readonly platform: PlatformChannelService,
+    private readonly dispatcher: OutboundDispatcherService,
   ) {
     this.redis = new Redis(this.config.getOrThrow<string>('REDIS_URL'));
   }
@@ -57,11 +59,22 @@ export class OtpService {
 
     const channel = await this.platform.requireOwnerChannel();
     const body = this.buildBody(params.purpose, code, params.name);
-    try {
-      const res = await this.channels.send({ channelConfigId: channel.id, to: cleanPhone, body });
-      if (res.status === 'failed') throw new Error(res.error ?? 'send failed');
-    } catch (err: any) {
-      this.logger.error(`OTP send failed (${params.purpose}/${params.subject}): ${err.message}`);
+
+    // Dispatch async via QUEUE_OUTBOUND. If the enqueue fails (Redis off),
+    // dispatcher transparently falls back to a sync send so the caller
+    // still gets the message out. Only a "sync-fallback-failed" result
+    // surfaces an error — enqueue success returns immediately and the
+    // worker takes over.
+    const result = await this.dispatcher.dispatch({
+      workspaceId: channel.workspaceId,
+      channelConfigId: channel.id,
+      to: cleanPhone,
+      body,
+      reason: `otp:${params.purpose}`,
+    });
+
+    if (result.mode === 'sync-fallback-failed') {
+      this.logger.error(`OTP send failed (${params.purpose}/${params.subject}): ${result.error}`);
       throw new BadRequestException('Falha ao enviar código pelo WhatsApp. Tente novamente.');
     }
   }

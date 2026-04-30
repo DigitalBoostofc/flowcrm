@@ -55,6 +55,7 @@ import { AuditModule } from './audit/audit.module';
 import { TrashModule } from './trash/trash.module';
 import { MeModule } from './me/me.module';
 import { AppCacheModule } from './common/cache/cache.module';
+import { OutboundModule } from './messaging/outbound/outbound.module';
 
 @Module({
   imports: [
@@ -146,6 +147,7 @@ import { AppCacheModule } from './common/cache/cache.module';
     HealthModule,
     TrashModule,
     MeModule,
+    OutboundModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },

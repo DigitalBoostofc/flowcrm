@@ -22,6 +22,8 @@ import { ContactsService } from '../contacts/contacts.service';
 import { LeadsService } from '../leads/leads.service';
 import { PipelinesService } from '../pipelines/pipelines.service';
 import { TenantContext } from '../common/tenant/tenant-context.service';
+import { OutboundDispatcherService } from '../messaging/outbound/outbound-dispatcher.service';
+import { ChannelConfig } from '../channels/entities/channel-config.entity';
 import { SignupStartDto } from './dto/signup.dto';
 
 const OTP_TTL_MINUTES = 10;
@@ -44,6 +46,7 @@ export class SignupService {
     private readonly pipelines: PipelinesService,
     private readonly tenant: TenantContext,
     private readonly jwt: JwtService,
+    private readonly dispatcher: OutboundDispatcherService,
   ) {}
 
   async start(dto: SignupStartDto): Promise<{ otpId: string; expiresAt: Date }> {
@@ -52,7 +55,7 @@ export class SignupService {
       throw new ServiceUnavailableException('Cadastro público desativado');
     }
 
-    const channelConfigId = await this.resolveOtpChannelId();
+    const channel = await this.resolveOtpChannel();
 
     const existing = await this.userRepo.findOne({ where: { email: dto.email.toLowerCase() } });
     if (existing) throw new ConflictException('Email já cadastrado');
@@ -77,13 +80,13 @@ export class SignupService {
     });
     await this.otpRepo.save(otp);
 
-    await this.sendOtpMessage(channelConfigId, phone, code);
+    await this.sendOtpMessage(channel, phone, code);
 
     return { otpId: otp.id, expiresAt };
   }
 
   async resend(otpId: string): Promise<{ expiresAt: Date }> {
-    const channelConfigId = await this.resolveOtpChannelId();
+    const channel = await this.resolveOtpChannel();
 
     const otp = await this.otpRepo.findOne({ where: { id: otpId } });
     if (!otp || otp.consumedAt) throw new BadRequestException('Código inválido');
@@ -100,16 +103,19 @@ export class SignupService {
     otp.createdAt = new Date();
     await this.otpRepo.save(otp);
 
-    await this.sendOtpMessage(channelConfigId, otp.phone, code);
+    await this.sendOtpMessage(channel, otp.phone, code);
 
     return { expiresAt: otp.expiresAt };
   }
 
-  private async resolveOtpChannelId(): Promise<string> {
+  private async resolveOtpChannel(): Promise<ChannelConfig> {
     const ownerChannel = await this.platformChannel.findOwnerChannel();
-    if (ownerChannel) return ownerChannel.id;
+    if (ownerChannel) return ownerChannel;
     const settings = await this.appSettings.get();
-    if (settings.systemChannelConfigId) return settings.systemChannelConfigId;
+    if (settings.systemChannelConfigId) {
+      const fallback = await this.channels.findByIdUnscoped(settings.systemChannelConfigId);
+      if (fallback) return fallback;
+    }
     throw new ServiceUnavailableException(
       'Canal de envio de código não configurado. Conecte a instância WhatsApp do owner.',
     );
@@ -271,12 +277,17 @@ export class SignupService {
     return Math.floor(100000 + Math.random() * 900000).toString();
   }
 
-  private async sendOtpMessage(channelConfigId: string, phone: string, code: string): Promise<void> {
+  private async sendOtpMessage(channel: ChannelConfig, phone: string, code: string): Promise<void> {
     const body = `Seu código de verificação AppexCRM é: ${code}\n\nExpira em ${OTP_TTL_MINUTES} minutos.`;
-    try {
-      await this.channels.send({ channelConfigId, to: phone, body });
-    } catch (err) {
-      this.logger.error(`Falha ao enviar OTP para ${phone}`, err as Error);
+    const result = await this.dispatcher.dispatch({
+      workspaceId: channel.workspaceId,
+      channelConfigId: channel.id,
+      to: phone,
+      body,
+      reason: 'signup:otp',
+    });
+    if (result.mode === 'sync-fallback-failed') {
+      this.logger.error(`Falha ao enviar OTP para ${phone}: ${result.error}`);
       throw new ServiceUnavailableException('Não foi possível enviar o código. Tente novamente.');
     }
   }
