@@ -129,6 +129,9 @@ export class Lead {
   @Column({ type: 'enum', enum: LeadPrivacy, default: LeadPrivacy.ALL })
   privacy: LeadPrivacy;
 
+  @Column({ type: 'integer', nullable: true })
+  score: number | null;
+
   @Column({ type: 'jsonb', default: () => `'[]'` })
   additionalAccessUserIds: string[];
 

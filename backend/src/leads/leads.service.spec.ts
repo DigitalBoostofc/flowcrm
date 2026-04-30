@@ -7,6 +7,7 @@ import { Contact } from '../contacts/entities/contact.entity';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { TenantContext } from '../common/tenant/tenant-context.service';
 import { UserRole } from '../users/entities/user.entity';
+import { LeadScoringService } from './scoring/lead-scoring.service';
 
 describe('LeadsService', () => {
   let service: LeadsService;
@@ -39,6 +40,9 @@ describe('LeadsService', () => {
   };
   const mockEmitter = { emit: jest.fn() };
   const mockTenant = { requireWorkspaceId: jest.fn().mockReturnValue('ws-1') } as unknown as TenantContext;
+  const mockScoring = {
+    calculate: jest.fn().mockReturnValue({ score: 73, factors: { base: 50, value: 15, ranking: 0, freshness: 10, status: 0 } }),
+  } as unknown as LeadScoringService;
 
   beforeEach(async () => {
     jest.clearAllMocks();
@@ -51,6 +55,7 @@ describe('LeadsService', () => {
         { provide: getRepositoryToken(Contact), useValue: mockContactRepo },
         { provide: EventEmitter2, useValue: mockEmitter },
         { provide: TenantContext, useValue: mockTenant },
+        { provide: LeadScoringService, useValue: mockScoring },
       ],
     }).compile();
     service = module.get<LeadsService>(LeadsService);
@@ -71,5 +76,23 @@ describe('LeadsService', () => {
     mockRepo.create.mockReturnValueOnce(dto);
     const lead = await service.create(dto);
     expect(lead.id).toBe('lead-1');
+  });
+
+  describe('setScore', () => {
+    it('persists score after privacy check', async () => {
+      const result = await service.setScore('lead-1', 80, 'user-1', UserRole.OWNER);
+      expect(mockRepo.save).toHaveBeenCalledWith(expect.objectContaining({ score: 80 }));
+      expect(result.score).toBe(80);
+    });
+  });
+
+  describe('recalculateScore', () => {
+    it('runs scoring service and persists computed score', async () => {
+      const out = await service.recalculateScore('lead-1', 'user-1', UserRole.OWNER);
+      expect(mockScoring.calculate).toHaveBeenCalled();
+      expect(mockRepo.save).toHaveBeenCalledWith(expect.objectContaining({ score: 73 }));
+      expect(out.result.score).toBe(73);
+      expect(out.result.factors).toEqual({ base: 50, value: 15, ranking: 0, freshness: 10, status: 0 });
+    });
   });
 });
