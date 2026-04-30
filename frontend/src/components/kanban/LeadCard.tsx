@@ -3,6 +3,7 @@ import { CSS } from '@dnd-kit/utilities';
 import { MessageSquare, User as UserIcon, Trophy, XCircle, Clock, Snowflake } from 'lucide-react';
 import type { Lead } from '@/types/api';
 import { formatBRL } from '@/lib/format';
+import { scoreVisual } from '@/lib/score';
 import { usePanelStore } from '@/store/panel.store';
 
 interface Props { lead: Lead; }
@@ -34,6 +35,7 @@ export default function LeadCard({ lead }: Props) {
 
   const badge = STATUS_BADGE[lead.status ?? 'active'];
   const displayName = lead.title || lead.contact?.name || 'Contato';
+  const score = scoreVisual(lead.score);
 
   const isStale = lead.status === 'active' && lead.updatedAt
     ? daysSinceUpdate(lead.updatedAt) >= 7
@@ -107,7 +109,7 @@ export default function LeadCard({ lead }: Props) {
         )}
       </div>
 
-      {(lead.value || lead.assignedTo || isStale) && (
+      {(lead.value || lead.assignedTo || isStale || score) && (
         <div className="mt-2 flex items-center justify-between gap-2">
           <div className="flex items-center gap-1.5 min-w-0">
             {lead.value ? (
@@ -115,6 +117,15 @@ export default function LeadCard({ lead }: Props) {
                 {formatBRL(lead.value)}
               </span>
             ) : null}
+            {score && (
+              <span
+                title={`${score.label} · score ${lead.score}/100`}
+                className="flex items-center text-[10px] font-semibold px-1.5 py-0.5 rounded-full border"
+                style={{ background: score.bg, color: score.fg, borderColor: score.border }}
+              >
+                {lead.score}
+              </span>
+            )}
             {isStale && (
               <span
                 className="flex items-center gap-0.5 text-[10px] font-medium px-1.5 py-0.5 rounded-full"

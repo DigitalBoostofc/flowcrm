@@ -98,3 +98,26 @@ export async function classifyLead(
   const res = await api.post<Lead>(`/leads/${id}/classify`, data);
   return res.data;
 }
+
+export async function setLeadScore(id: string, score: number): Promise<Lead> {
+  const res = await api.patch<Lead>(`/leads/${id}/score`, { score });
+  return res.data;
+}
+
+export interface ScoringFactors {
+  base: number;
+  value: number;
+  ranking: number;
+  freshness: number;
+  status: number;
+}
+
+export interface RecalculateScoreResponse {
+  lead: Lead;
+  result: { score: number; factors: ScoringFactors };
+}
+
+export async function recalculateLeadScore(id: string): Promise<RecalculateScoreResponse> {
+  const res = await api.post<RecalculateScoreResponse>(`/leads/${id}/score/recalculate`);
+  return res.data;
+}
