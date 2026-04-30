@@ -1,9 +1,8 @@
 import { ForbiddenException, Injectable, InternalServerErrorException, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Brackets, IsNull, Repository } from 'typeorm';
+import { IsNull, Repository } from 'typeorm';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { Lead, LeadStatus } from './entities/lead.entity';
-import { UserRole } from '../users/entities/user.entity';
 import { Stage } from '../stages/entities/stage.entity';
 import { Contact } from '../contacts/entities/contact.entity';
 import { CreateLeadDto } from './dto/create-lead.dto';
@@ -11,6 +10,7 @@ import { UpdateLeadDto } from './dto/update-lead.dto';
 import { UpdateLeadStatusDto } from './dto/update-lead-status.dto';
 import { ClassifyLeadDto } from './dto/classify-lead.dto';
 import { TenantContext } from '../common/tenant/tenant-context.service';
+import { LeadVisibilityPolicy } from './policies/lead-visibility.policy';
 
 @Injectable()
 export class LeadsService {
@@ -60,15 +60,7 @@ export class LeadsService {
         .andWhere('lead.status = :status', { status: LeadStatus.ACTIVE });
     }
 
-    const privileged = userRole === UserRole.OWNER || userRole === UserRole.MANAGER;
-    if (currentUserId && !privileged) {
-      qb.andWhere(new Brackets(qb2 => {
-        qb2.where('lead.privacy = :all', { all: 'all' })
-          .orWhere('lead.createdById = :uid', { uid: currentUserId })
-          .orWhere('lead.assignedToId = :uid2', { uid2: currentUserId })
-          .orWhere(`lead.additionalAccessUserIds @> :uidJson::jsonb`, { uidJson: JSON.stringify([currentUserId]) });
-      }));
-    }
+    LeadVisibilityPolicy.applyToQueryBuilder(qb, 'lead', { userId: currentUserId, role: userRole, workspaceId });
 
     return qb.getMany();
   }
@@ -88,15 +80,7 @@ export class LeadsService {
       .andWhere('lead.deletedAt IS NULL')
       .orderBy('lead.createdAt', 'DESC');
 
-    const privileged = userRole === UserRole.OWNER || userRole === UserRole.MANAGER;
-    if (currentUserId && !privileged) {
-      qb.andWhere(new Brackets(qb2 => {
-        qb2.where('lead.privacy = :all', { all: 'all' })
-          .orWhere('lead.createdById = :uid', { uid: currentUserId })
-          .orWhere('lead.assignedToId = :uid2', { uid2: currentUserId })
-          .orWhere(`lead.additionalAccessUserIds @> :uidJson::jsonb`, { uidJson: JSON.stringify([currentUserId]) });
-      }));
-    }
+    LeadVisibilityPolicy.applyToQueryBuilder(qb, 'lead', { userId: currentUserId, role: userRole, workspaceId });
 
     return qb.getMany();
   }
@@ -119,17 +103,12 @@ export class LeadsService {
   }
 
   private assertAccessible(lead: Lead, currentUserId?: string, userRole?: string): void {
-    const privileged = userRole === UserRole.OWNER || userRole === UserRole.MANAGER;
-    if (privileged) return;
+    if (LeadVisibilityPolicy.isPrivileged(userRole)) return;
     if (!currentUserId) {
       throw new ForbiddenException('Usuário não identificado para checagem de privacidade');
     }
-    const allowed =
-      lead.privacy === 'all' ||
-      lead.createdById === currentUserId ||
-      lead.assignedToId === currentUserId ||
-      (Array.isArray(lead.additionalAccessUserIds) && (lead.additionalAccessUserIds as string[]).includes(currentUserId));
-    if (!allowed) {
+    const ctx = { userId: currentUserId, role: userRole, workspaceId: lead.workspaceId };
+    if (!LeadVisibilityPolicy.canRead(lead, ctx)) {
       // 404 to avoid revealing existence
       throw new NotFoundException('Lead não encontrado');
     }
