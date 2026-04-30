@@ -125,6 +125,7 @@ export interface Lead {
   stageEnteredAt: string;
   value?: number | null;
   ranking?: number | null;
+  score?: number | null;
   notes?: string | null;
   archivedAt?: string | null;
   createdAt: string;

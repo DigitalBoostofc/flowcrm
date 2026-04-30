@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Phone, Mail, DollarSign, Users, MapPin, Calendar, Edit2, Check, X, Archive, ArchiveRestore } from 'lucide-react';
-import { getLead, updateLead, archiveLead, unarchiveLead } from '@/api/leads';
+import { Phone, Mail, DollarSign, Users, MapPin, Calendar, Edit2, Check, X, Archive, ArchiveRestore, Sparkles, RefreshCw } from 'lucide-react';
+import { getLead, updateLead, archiveLead, unarchiveLead, setLeadScore, recalculateLeadScore } from '@/api/leads';
 import { formatBRL } from '@/lib/format';
+import { scoreVisual } from '@/lib/score';
 import StageProgress from './StageProgress';
 import StatusToggle from './StatusToggle';
 import { LeadInfoSkeleton } from '@/components/ui/Skeleton';
@@ -100,6 +101,22 @@ export default function LeadInfo({ leadId, stages = [] }: Props) {
   const archiveMutation = useMutation({
     mutationFn: () => lead?.archivedAt ? unarchiveLead(leadId) : archiveLead(leadId),
     onSuccess: (updated) => {
+      qc.setQueryData<Lead>(['lead', leadId], updated);
+      qc.invalidateQueries({ queryKey: ['leads'] });
+    },
+  });
+
+  const scoreMutation = useMutation({
+    mutationFn: (score: number) => setLeadScore(leadId, score),
+    onSuccess: (updated) => {
+      qc.setQueryData<Lead>(['lead', leadId], updated);
+      qc.invalidateQueries({ queryKey: ['leads'] });
+    },
+  });
+
+  const recalcMutation = useMutation({
+    mutationFn: () => recalculateLeadScore(leadId),
+    onSuccess: ({ lead: updated }) => {
       qc.setQueryData<Lead>(['lead', leadId], updated);
       qc.invalidateQueries({ queryKey: ['leads'] });
     },
@@ -216,7 +233,70 @@ export default function LeadInfo({ leadId, stages = [] }: Props) {
         )}
         {row(<MapPin className="w-4 h-4" />, 'Origem', lead.contact?.origin)}
         {row(<Users className="w-4 h-4" />, 'Agente responsável', lead.assignedTo?.name)}
+        {row(
+          <Sparkles className="w-4 h-4" />,
+          'Score',
+          <ScoreRow
+            lead={lead}
+            onSet={(v) => scoreMutation.mutate(v)}
+            onRecalc={() => recalcMutation.mutate()}
+            recalcPending={recalcMutation.isPending}
+          />,
+        )}
       </div>
+    </div>
+  );
+}
+
+function ScoreRow({
+  lead,
+  onSet,
+  onRecalc,
+  recalcPending,
+}: {
+  lead: Lead;
+  onSet: (score: number) => void;
+  onRecalc: () => void;
+  recalcPending: boolean;
+}) {
+  const visual = scoreVisual(lead.score);
+  return (
+    <div className="flex items-center gap-2 flex-wrap">
+      {visual ? (
+        <span
+          className="flex items-center text-xs font-semibold px-2 py-0.5 rounded-full border"
+          style={{ background: visual.bg, color: visual.fg, borderColor: visual.border }}
+        >
+          {lead.score} · {visual.label}
+        </span>
+      ) : (
+        <span className="text-xs italic" style={{ color: 'var(--ink-3)' }}>sem score</span>
+      )}
+      <InlineEdit
+        value={lead.score != null ? String(lead.score) : ''}
+        placeholder="0-100"
+        type="number"
+        onSave={(v) => {
+          const n = parseInt(v, 10);
+          if (Number.isFinite(n) && n >= 0 && n <= 100) onSet(n);
+        }}
+      />
+      <button
+        onClick={onRecalc}
+        disabled={recalcPending}
+        title="Recalcular automaticamente"
+        className="flex items-center gap-1 text-xs px-2 py-1 rounded-md border transition-all duration-150 disabled:opacity-50"
+        style={{ color: 'var(--ink-3)', borderColor: 'var(--panel-border)', background: 'transparent' }}
+        onMouseEnter={(e) => {
+          if (!recalcPending) (e.currentTarget as HTMLButtonElement).style.color = 'var(--ink-2)';
+        }}
+        onMouseLeave={(e) => {
+          (e.currentTarget as HTMLButtonElement).style.color = 'var(--ink-3)';
+        }}
+      >
+        <RefreshCw className={`w-3 h-3 ${recalcPending ? 'animate-spin' : ''}`} />
+        Recalcular
+      </button>
     </div>
   );
 }
