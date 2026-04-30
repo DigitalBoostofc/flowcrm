@@ -28,6 +28,9 @@ export class Conversation {
   @OneToMany(() => Message, (m) => m.conversation)
   messages: Message[];
 
+  @Column({ type: 'timestamptz', nullable: true })
+  lastReadAt: Date | null;
+
   @CreateDateColumn()
   createdAt: Date;
 

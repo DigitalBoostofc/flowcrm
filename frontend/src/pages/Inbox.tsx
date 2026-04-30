@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { MessageCircle, Send, Search, Phone, Loader2, Sparkles } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { listInbox, type InboxItem } from '@/api/conversations';
+import { listInbox, markConversationRead, type InboxItem } from '@/api/conversations';
 import { listMessages, sendMessage } from '@/api/messages';
 import { listChannels } from '@/api/channels';
 import { getLead } from '@/api/leads';
@@ -315,6 +315,14 @@ export default function Inbox() {
 
   function handleSelect(item: InboxItem) {
     setSelectedId(item.id);
+    if (item.unread) {
+      qc.setQueryData<InboxItem[]>(['inbox'], (prev) =>
+        prev ? prev.map((i) => (i.id === item.id ? { ...i, unread: false } : i)) : prev,
+      );
+      markConversationRead(item.id).catch(() => {
+        qc.invalidateQueries({ queryKey: ['inbox'] });
+      });
+    }
   }
 
   return (

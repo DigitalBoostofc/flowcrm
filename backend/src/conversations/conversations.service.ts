@@ -64,6 +64,7 @@ export class ConversationsService {
         c."channelType",
         c."externalId",
         c."updatedAt",
+        c."lastReadAt",
         contact.id                                                  AS "contactId",
         COALESCE(contact.name, l."externalName")                    AS "contactName",
         COALESCE(contact.whatsapp, contact.celular, contact.phone, l."externalPhone") AS "contactPhone",
@@ -99,9 +100,30 @@ export class ConversationsService {
       lastMessageBody: r.lastMessageBody,
       lastMessageDirection: r.lastMessageDirection,
       lastMessageSentAt: r.lastMessageSentAt,
-      unread: r.lastMessageDirection === 'inbound',
+      unread: ConversationsService.computeUnread(r.lastMessageDirection, r.lastMessageSentAt, r.lastReadAt),
       updatedAt: r.updatedAt,
       pendingClassification: !r.contactId,
     }));
+  }
+
+  static computeUnread(
+    direction: string | null,
+    lastMessageSentAt: Date | string | null,
+    lastReadAt: Date | string | null,
+  ): boolean {
+    if (direction !== 'inbound') return false;
+    if (!lastMessageSentAt) return false;
+    if (!lastReadAt) return true;
+    const msgTime = lastMessageSentAt instanceof Date ? lastMessageSentAt.getTime() : new Date(lastMessageSentAt).getTime();
+    const readTime = lastReadAt instanceof Date ? lastReadAt.getTime() : new Date(lastReadAt).getTime();
+    return msgTime > readTime;
+  }
+
+  async markAsRead(id: string): Promise<{ id: string; lastReadAt: Date }> {
+    const workspaceId = this.tenant.requireWorkspaceId();
+    const now = new Date();
+    const result = await this.repo.update({ id, workspaceId }, { lastReadAt: now });
+    if (!result.affected) throw new NotFoundException('Conversa não encontrada');
+    return { id, lastReadAt: now };
   }
 }
