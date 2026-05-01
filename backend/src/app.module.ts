@@ -56,6 +56,7 @@ import { TrashModule } from './trash/trash.module';
 import { MeModule } from './me/me.module';
 import { AppCacheModule } from './common/cache/cache.module';
 import { OutboundModule } from './messaging/outbound/outbound.module';
+import { AiModule } from './ai/ai.module';
 
 @Module({
   imports: [
@@ -148,6 +149,7 @@ import { OutboundModule } from './messaging/outbound/outbound.module';
     TrashModule,
     MeModule,
     OutboundModule,
+    AiModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },

@@ -78,4 +78,8 @@ export const envSchema = Joi.object({
 
   ACCOUNT_RETENTION_DAYS: Joi.number().integer().min(1).default(30),
   ACCOUNT_PRUNE_ENABLED: Joi.boolean().truthy('true').falsy('false').default(true),
+
+  OPENROUTER_API_KEY: Joi.string().optional().allow(''),
+  AI_MODEL_SUMMARY: Joi.string().default('google/gemini-2.5-flash-lite'),
+  AI_DEFAULT_MONTHLY_BUDGET_TOKENS: Joi.number().integer().min(0).default(1_000_000),
 }).unknown(true);

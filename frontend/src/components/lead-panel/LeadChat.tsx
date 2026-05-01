@@ -7,6 +7,7 @@ import { listChannels } from '@/api/channels';
 import { channelMeta } from '@/lib/channels';
 import MessageComposer from './MessageComposer';
 import ScheduledMessagesList from './ScheduledMessagesList';
+import ConversationSummaryButton from './ConversationSummary';
 import type { Conversation, Message } from '@/types/api';
 
 export default function LeadChat({ leadId }: { leadId: string }) {
@@ -71,6 +72,7 @@ export default function LeadChat({ leadId }: { leadId: string }) {
           onSelect={setSelectedId}
         />
       )}
+      <ConversationSummaryButton conversationId={conversation.id} />
       <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-2">
         {orderedMessages.map((m: Message) => {
           const outbound = m.direction === 'outbound';
