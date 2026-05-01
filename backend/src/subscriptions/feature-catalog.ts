@@ -35,11 +35,6 @@ export const FEATURE_CATALOG: Record<string, FeatureDef> = {
     label: 'Canais WhatsApp',
     description: 'Conecte números de WhatsApp para enviar e receber mensagens.',
   },
-  ai_agents: {
-    key: 'ai_agents',
-    label: 'Agentes IA',
-    description: 'Agentes de IA que conversam com leads pelo WhatsApp, qualificam B2B/B2C e movem o funil de vendas automaticamente. Disponível no plano AI Enterprise.',
-  },
 };
 
 export const FEATURE_KEYS = Object.keys(FEATURE_CATALOG);
