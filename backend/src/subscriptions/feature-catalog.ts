@@ -35,6 +35,11 @@ export const FEATURE_CATALOG: Record<string, FeatureDef> = {
     label: 'Canais WhatsApp',
     description: 'Conecte números de WhatsApp para enviar e receber mensagens.',
   },
+  ai_assist: {
+    key: 'ai_assist',
+    label: 'Assistente IA',
+    description: 'Resumo automático de conversas e outras ações assistidas por IA.',
+  },
 };
 
 export const FEATURE_KEYS = Object.keys(FEATURE_CATALOG);
