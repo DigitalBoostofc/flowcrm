@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import {
   GitBranch, XCircle, Users2, Tags, Building2, Radio, FileText,
   Zap, User as UserIcon, Puzzle, Server, AlertTriangle, Package, Lock, MessageCircle,
-  Trash2, Shield,
+  Trash2, Shield, Sparkles,
 } from 'lucide-react';
 import { useAuthStore } from '@/store/auth.store';
 import { useWorkspace } from '@/hooks/useWorkspace';
@@ -24,13 +24,14 @@ import PrivacidadeTab from '@/components/settings/PrivacidadeTab';
 import LixeiraTab from '@/components/settings/LixeiraTab';
 import MeusDadosTab from '@/components/settings/MeusDadosTab';
 import WidgetTab from '@/components/settings/WidgetTab';
+import AiAgentsTab from '@/components/settings/AiAgentsTab';
 import { FeatureLockedScreen } from '@/components/ui/FeatureGate';
 import { useFeatures } from '@/hooks/useFeatures';
 
 type Tab =
   | 'funis-etapas' | 'motivos-perda' | 'origens-clientes'
   | 'categorias-clientes' | 'setores' | 'produtos-servicos' | 'channels'
-  | 'templates' | 'automations' | 'agents' | 'widget' | 'integrations' | 'sistema' | 'danger'
+  | 'templates' | 'automations' | 'agents' | 'ai-agents' | 'widget' | 'integrations' | 'sistema' | 'danger'
   | 'privacidade' | 'lixeira' | 'meus-dados';
 
 interface NavItem { id: Tab; label: string; icon: typeof GitBranch; ownerOnly?: boolean; platformAdminOnly?: boolean; danger?: boolean; feature?: string }
@@ -64,6 +65,7 @@ const GROUPS: NavGroup[] = [
       { id: 'channels',             label: 'Canais WhatsApp',       icon: Radio,      ownerOnly: true, feature: 'whatsapp_channels' },
       { id: 'templates',            label: 'Templates',             icon: FileText,   ownerOnly: true, feature: 'automation_templates' },
       { id: 'automations',          label: 'Automações',            icon: Zap,        ownerOnly: true, feature: 'automations' },
+      { id: 'ai-agents',            label: 'Agentes IA',            icon: Sparkles,   ownerOnly: true, feature: 'ai_agents' },
     ],
   },
   {
@@ -219,6 +221,7 @@ export default function Settings() {
           {tab === 'templates'           && (has('automation_templates') ? <TemplatesTab /> : <FeatureLockedScreen feature="automation_templates" />)}
           {tab === 'automations'         && (has('automations') ? <AutomationsTab /> : <FeatureLockedScreen feature="automations" />)}
           {tab === 'agents'              && <AgentsTab />}
+          {tab === 'ai-agents'           && (has('ai_agents') ? <AiAgentsTab /> : <FeatureLockedScreen feature="ai_agents" />)}
           {tab === 'widget'              && <WidgetTab />}
           {tab === 'integrations'        && <IntegrationsTab />}
           {tab === 'privacidade'         && <PrivacidadeTab />}

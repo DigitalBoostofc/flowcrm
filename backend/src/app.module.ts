@@ -39,6 +39,7 @@ import { SignupModule } from './signup/signup.module';
 import { SubscriptionsModule } from './subscriptions/subscriptions.module';
 import { SubscriptionModule } from './common/subscription/subscription.module';
 import { FeatureAccessModule } from './common/feature-access/feature-access.module';
+import { AgentsModule } from './agents/agents.module';
 import { PlatformAdminModule } from './platform-admin/platform-admin.module';
 import { StorageModule } from './storage/storage.module';
 import { OtpModule } from './otp/otp.module';
@@ -148,6 +149,7 @@ import { OutboundModule } from './messaging/outbound/outbound.module';
     TrashModule,
     MeModule,
     OutboundModule,
+    AgentsModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },
