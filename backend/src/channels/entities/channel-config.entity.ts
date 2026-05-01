@@ -1,6 +1,6 @@
 import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, Index } from 'typeorm';
 
-export type ChannelType = 'evolution' | 'uazapi' | 'meta';
+export type ChannelType = 'evolution' | 'uazapi' | 'meta' | 'telegram';
 export type ChannelStatus = 'connected' | 'disconnected' | 'error';
 
 @Entity('channel_configs')

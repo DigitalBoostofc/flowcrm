@@ -10,6 +10,8 @@ import { UazapiWebhookController } from './uazapi/uazapi-webhook.controller';
 import { MetaAdapter } from './meta/meta.adapter';
 import { MetaWebhookController } from './meta/meta-webhook.controller';
 import { MetaSignatureGuard } from './meta/meta-signature.guard';
+import { TelegramAdapter } from './telegram/telegram.adapter';
+import { TelegramWebhookController } from './telegram/telegram-webhook.controller';
 import { InboundListener } from './inbound.listener';
 import { ContactsModule } from '../contacts/contacts.module';
 import { LeadsModule } from '../leads/leads.module';
@@ -26,8 +28,8 @@ import { MessagesModule } from '../messages/messages.module';
     ConversationsModule,
     forwardRef(() => MessagesModule),
   ],
-  controllers: [ChannelsController, EvolutionWebhookController, UazapiWebhookController, MetaWebhookController],
-  providers: [ChannelsService, EvolutionAdapter, UazapiAdapter, MetaAdapter, MetaSignatureGuard, InboundListener],
+  controllers: [ChannelsController, EvolutionWebhookController, UazapiWebhookController, MetaWebhookController, TelegramWebhookController],
+  providers: [ChannelsService, EvolutionAdapter, UazapiAdapter, MetaAdapter, MetaSignatureGuard, TelegramAdapter, InboundListener],
   exports: [ChannelsService],
 })
 export class ChannelsModule {}

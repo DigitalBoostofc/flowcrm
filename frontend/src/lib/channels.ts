@@ -1,4 +1,4 @@
-export type KnownChannelType = 'evolution' | 'uazapi' | 'meta';
+export type KnownChannelType = 'evolution' | 'uazapi' | 'meta' | 'telegram';
 
 export interface ChannelMeta {
   type: string;
@@ -30,6 +30,13 @@ const REGISTRY: Record<KnownChannelType, Omit<ChannelMeta, 'type'>> = {
     fg: '#1d4ed8',
     bg: 'rgba(59,130,246,0.10)',
     border: 'rgba(59,130,246,0.28)',
+  },
+  telegram: {
+    label: 'Telegram',
+    shortLabel: 'Telegram',
+    fg: '#0284c7',
+    bg: 'rgba(14,165,233,0.10)',
+    border: 'rgba(14,165,233,0.28)',
   },
 };
 

@@ -6,6 +6,7 @@ describe('channelMeta', () => {
     ['evolution', 'WhatsApp (Evolution)'],
     ['uazapi', 'WhatsApp (uazapGO)'],
     ['meta', 'Meta / Facebook'],
+    ['telegram', 'Telegram'],
   ])('returns label for %s', (type, expected) => {
     expect(channelMeta(type).label).toBe(expected);
   });
@@ -15,9 +16,9 @@ describe('channelMeta', () => {
   });
 
   it('returns fallback for unknown type', () => {
-    const meta = channelMeta('telegram');
+    const meta = channelMeta('signal');
     expect(meta.label).toBe('Outro');
-    expect(meta.type).toBe('telegram');
+    expect(meta.type).toBe('signal');
   });
 
   it('returns fallback for null/undefined/empty', () => {
@@ -28,7 +29,7 @@ describe('channelMeta', () => {
   });
 
   it('all known types have non-empty visual props', () => {
-    (['evolution', 'uazapi', 'meta'] as const).forEach((t) => {
+    (['evolution', 'uazapi', 'meta', 'telegram'] as const).forEach((t) => {
       const m = channelMeta(t);
       expect(m.shortLabel).toBeTruthy();
       expect(m.fg).toMatch(/^#/);
