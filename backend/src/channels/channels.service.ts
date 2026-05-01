@@ -7,6 +7,7 @@ import { CreateChannelDto } from './dto/create-channel.dto';
 import { EvolutionAdapter } from './evolution/evolution.adapter';
 import { UazapiAdapter } from './uazapi/uazapi.adapter';
 import { MetaAdapter } from './meta/meta.adapter';
+import { TelegramAdapter } from './telegram/telegram.adapter';
 import { TenantContext } from '../common/tenant/tenant-context.service';
 
 @Injectable()
@@ -19,10 +20,12 @@ export class ChannelsService {
     evolution: EvolutionAdapter,
     uazapi: UazapiAdapter,
     meta: MetaAdapter,
+    telegram: TelegramAdapter,
   ) {
     this.adapters.set('evolution', evolution);
     this.adapters.set('uazapi', uazapi);
     this.adapters.set('meta', meta);
+    this.adapters.set('telegram', telegram);
   }
 
   async send(opts: SendMessageOptions): Promise<SendMessageResult> {

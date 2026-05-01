@@ -20,6 +20,6 @@ export interface NormalizedInbound {
 }
 
 export interface ChannelAdapter {
-  readonly type: 'evolution' | 'uazapi' | 'meta';
+  readonly type: 'evolution' | 'uazapi' | 'meta' | 'telegram';
   sendMessage(opts: SendMessageOptions): Promise<SendMessageResult>;
 }
