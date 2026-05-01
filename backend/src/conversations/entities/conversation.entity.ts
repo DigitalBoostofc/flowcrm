@@ -1,9 +1,8 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, OneToMany, CreateDateColumn, UpdateDateColumn, JoinColumn, Index, Unique } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, OneToMany, CreateDateColumn, UpdateDateColumn, JoinColumn, Index } from 'typeorm';
 import { Lead } from '../../leads/entities/lead.entity';
 import { Message } from '../../messages/entities/message.entity';
 
 @Entity('conversations')
-@Unique(['leadId', 'channelType'])
 export class Conversation {
   @PrimaryGeneratedColumn('uuid')
   id: string;

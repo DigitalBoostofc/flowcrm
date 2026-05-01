@@ -89,6 +89,69 @@ describe('ConversationsService', () => {
     });
   });
 
+  describe('findOrCreate', () => {
+    let service: ConversationsService;
+    const mockRepo = {
+      findOne: jest.fn(),
+      create: jest.fn().mockImplementation((d) => d),
+      save: jest.fn().mockImplementation((c) => Promise.resolve({ id: 'new-conv', ...c })),
+    };
+    const mockTenant = { requireWorkspaceId: jest.fn().mockReturnValue('ws-1') } as unknown as TenantContext;
+
+    beforeEach(async () => {
+      jest.clearAllMocks();
+      const module: TestingModule = await Test.createTestingModule({
+        providers: [
+          ConversationsService,
+          { provide: getRepositoryToken(Conversation), useValue: mockRepo },
+          { provide: TenantContext, useValue: mockTenant },
+        ],
+      }).compile();
+      service = module.get<ConversationsService>(ConversationsService);
+    });
+
+    it('returns existing conversation when externalId matches', async () => {
+      const existing = { id: 'conv-1', leadId: 'l-1', channelType: 'evolution', externalId: '5511999', workspaceId: 'ws-1' };
+      mockRepo.findOne.mockResolvedValueOnce(existing);
+      const result = await service.findOrCreate('l-1', 'evolution', '5511999');
+      expect(mockRepo.findOne).toHaveBeenCalledWith({
+        where: { leadId: 'l-1', channelType: 'evolution', externalId: '5511999', workspaceId: 'ws-1' },
+      });
+      expect(result).toBe(existing);
+      expect(mockRepo.save).not.toHaveBeenCalled();
+    });
+
+    it('creates new conversation when externalId is different (lead trocou de número)', async () => {
+      mockRepo.findOne.mockResolvedValueOnce(null);
+      const result = await service.findOrCreate('l-1', 'evolution', '5511BBB');
+      expect(mockRepo.findOne).toHaveBeenCalledWith({
+        where: { leadId: 'l-1', channelType: 'evolution', externalId: '5511BBB', workspaceId: 'ws-1' },
+      });
+      expect(mockRepo.create).toHaveBeenCalledWith(expect.objectContaining({
+        leadId: 'l-1', channelType: 'evolution', externalId: '5511BBB', workspaceId: 'ws-1',
+      }));
+      expect(result.id).toBe('new-conv');
+    });
+
+    it('falls back to legacy lookup (leadId + channelType) when externalId not provided', async () => {
+      const existing = { id: 'conv-legacy', leadId: 'l-1', channelType: 'meta', externalId: null, workspaceId: 'ws-1' };
+      mockRepo.findOne.mockResolvedValueOnce(existing);
+      const result = await service.findOrCreate('l-1', 'meta');
+      expect(mockRepo.findOne).toHaveBeenCalledWith({
+        where: { leadId: 'l-1', channelType: 'meta', workspaceId: 'ws-1' },
+      });
+      expect(result).toBe(existing);
+    });
+
+    it('legacy lookup also creates when nothing found', async () => {
+      mockRepo.findOne.mockResolvedValueOnce(null);
+      await service.findOrCreate('l-1', 'meta');
+      expect(mockRepo.create).toHaveBeenCalledWith(
+        expect.objectContaining({ leadId: 'l-1', channelType: 'meta', workspaceId: 'ws-1', externalId: undefined }),
+      );
+    });
+  });
+
   describe('findInbox pagination', () => {
     let service: ConversationsService;
     const mockRepo = {

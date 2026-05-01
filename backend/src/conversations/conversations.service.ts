@@ -44,7 +44,13 @@ export class ConversationsService {
 
   async findOrCreate(leadId: string, channelType: string, externalId?: string): Promise<Conversation> {
     const workspaceId = this.tenant.requireWorkspaceId();
-    const existing = await this.repo.findOne({ where: { leadId, channelType, workspaceId } });
+    // Quando o webhook traz um externalId (telefone/JID/etc), busca exato:
+    // o cliente pode trocar de número e queremos preservar o histórico anterior.
+    // Sem externalId, comportamento legacy: 1 conversa por (lead, canal).
+    const where = externalId
+      ? { leadId, channelType, externalId, workspaceId }
+      : { leadId, channelType, workspaceId };
+    const existing = await this.repo.findOne({ where });
     if (existing) return existing;
     const conv = this.repo.create({ leadId, channelType, externalId, workspaceId });
     return this.repo.save(conv);
