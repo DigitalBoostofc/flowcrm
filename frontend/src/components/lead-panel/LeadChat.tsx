@@ -1,12 +1,13 @@
 import { useQuery } from '@tanstack/react-query';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { format } from 'date-fns';
 import { listConversations } from '@/api/conversations';
 import { listMessages } from '@/api/messages';
 import { listChannels } from '@/api/channels';
+import { channelMeta } from '@/lib/channels';
 import MessageComposer from './MessageComposer';
 import ScheduledMessagesList from './ScheduledMessagesList';
-import type { Message } from '@/types/api';
+import type { Conversation, Message } from '@/types/api';
 
 export default function LeadChat({ leadId }: { leadId: string }) {
   const { data: conversations = [] } = useQuery({
@@ -14,7 +15,21 @@ export default function LeadChat({ leadId }: { leadId: string }) {
     queryFn: () => listConversations(leadId),
   });
 
-  const conversation = conversations[0];
+  const sortedConversations = [...conversations].sort((a, b) =>
+    new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
+  );
+
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  useEffect(() => {
+    if (!selectedId && sortedConversations[0]) {
+      setSelectedId(sortedConversations[0].id);
+    }
+    if (selectedId && !sortedConversations.some((c) => c.id === selectedId) && sortedConversations[0]) {
+      setSelectedId(sortedConversations[0].id);
+    }
+  }, [sortedConversations, selectedId]);
+
+  const conversation = sortedConversations.find((c) => c.id === selectedId) ?? sortedConversations[0];
 
   const { data: messages = [] } = useQuery({
     queryKey: ['messages', conversation?.id ?? 'none'],
@@ -32,7 +47,7 @@ export default function LeadChat({ leadId }: { leadId: string }) {
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight });
-  }, [messages.length]);
+  }, [messages.length, conversation?.id]);
 
   if (!conversation) {
     return (
@@ -49,6 +64,13 @@ export default function LeadChat({ leadId }: { leadId: string }) {
 
   return (
     <div className="flex flex-col h-full" style={{ background: 'var(--canvas)' }}>
+      {sortedConversations.length > 1 && (
+        <ConversationTabs
+          conversations={sortedConversations}
+          selectedId={conversation.id}
+          onSelect={setSelectedId}
+        />
+      )}
       <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-2">
         {orderedMessages.map((m: Message) => {
           const outbound = m.direction === 'outbound';
@@ -80,4 +102,51 @@ export default function LeadChat({ leadId }: { leadId: string }) {
       <MessageComposer conversationId={conversation.id} channels={activeChannels} />
     </div>
   );
+}
+
+function ConversationTabs({
+  conversations,
+  selectedId,
+  onSelect,
+}: {
+  conversations: Conversation[];
+  selectedId: string;
+  onSelect: (id: string) => void;
+}) {
+  return (
+    <div
+      className="flex gap-1 px-2 py-2 overflow-x-auto flex-shrink-0"
+      style={{ borderBottom: '1px solid var(--edge)', background: 'var(--surface)' }}
+    >
+      {conversations.map((c) => {
+        const meta = channelMeta(c.channelType);
+        const active = c.id === selectedId;
+        return (
+          <button
+            key={c.id}
+            onClick={() => onSelect(c.id)}
+            title={c.externalId ? `${meta.label} · ${c.externalId}` : meta.label}
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium border whitespace-nowrap transition-colors"
+            style={
+              active
+                ? { background: meta.fg, color: '#fff', borderColor: meta.fg }
+                : { background: meta.bg, color: meta.fg, borderColor: meta.border }
+            }
+          >
+            <span>{meta.shortLabel}</span>
+            {c.externalId && (
+              <span className="font-mono opacity-80" style={{ fontSize: 10 }}>
+                {formatExternalId(c.externalId)}
+              </span>
+            )}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function formatExternalId(raw: string): string {
+  if (raw.length <= 6) return raw;
+  return `…${raw.slice(-4)}`;
 }
