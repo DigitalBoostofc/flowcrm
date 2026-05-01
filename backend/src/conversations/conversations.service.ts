@@ -23,6 +23,18 @@ export interface InboxItem {
   pendingClassification: boolean;
 }
 
+export interface InboxPage {
+  items: InboxItem[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+export interface InboxQuery {
+  page?: number;
+  pageSize?: number;
+}
+
 @Injectable()
 export class ConversationsService {
   constructor(
@@ -54,8 +66,17 @@ export class ConversationsService {
     return c;
   }
 
-  async findInbox(): Promise<InboxItem[]> {
+  async findInbox(query: InboxQuery = {}): Promise<InboxPage> {
     const workspaceId = this.tenant.requireWorkspaceId();
+    const page = Math.max(1, query.page ?? 1);
+    const pageSize = Math.min(100, Math.max(1, query.pageSize ?? 50));
+    const offset = (page - 1) * pageSize;
+
+    const totalRows: any[] = await this.repo.query(
+      `SELECT COUNT(*)::int AS total FROM conversations WHERE "workspaceId" = $1`,
+      [workspaceId],
+    );
+    const total: number = totalRows[0]?.total ?? 0;
 
     const rows: any[] = await this.repo.query(`
       SELECT
@@ -84,10 +105,11 @@ export class ConversationsService {
         LIMIT 1
       ) lm ON true
       WHERE c."workspaceId" = $1
-      ORDER BY COALESCE(lm."sentAt", c."updatedAt") DESC
-    `, [workspaceId]);
+      ORDER BY COALESCE(lm."sentAt", c."updatedAt") DESC, c.id DESC
+      LIMIT $2 OFFSET $3
+    `, [workspaceId, pageSize, offset]);
 
-    return rows.map(r => ({
+    const items: InboxItem[] = rows.map(r => ({
       id: r.id,
       leadId: r.leadId,
       channelType: r.channelType,
@@ -104,6 +126,8 @@ export class ConversationsService {
       updatedAt: r.updatedAt,
       pendingClassification: !r.contactId,
     }));
+
+    return { items, total, page, pageSize };
   }
 
   static computeUnread(

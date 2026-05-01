@@ -4,6 +4,7 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { FeatureGuard } from '../common/feature-access/feature.guard';
 import { RequireFeature } from '../common/feature-access/require-feature.decorator';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
+import { InboxQueryDto } from './dto/inbox-query.dto';
 
 @ApiTags('conversations')
 @ApiBearerAuth('jwt')
@@ -15,8 +16,8 @@ export class ConversationsController {
   @Get('inbox')
   @UseGuards(FeatureGuard)
   @RequireFeature('inbox')
-  findInbox() {
-    return this.service.findInbox();
+  findInbox(@Query() query: InboxQueryDto) {
+    return this.service.findInbox(query);
   }
 
   @Get()

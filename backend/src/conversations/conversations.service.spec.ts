@@ -88,4 +88,68 @@ describe('ConversationsService', () => {
       expect(call.workspaceId).toBe('ws-1');
     });
   });
+
+  describe('findInbox pagination', () => {
+    let service: ConversationsService;
+    const mockRepo = {
+      query: jest.fn(),
+    };
+    const mockTenant = { requireWorkspaceId: jest.fn().mockReturnValue('ws-1') } as unknown as TenantContext;
+
+    beforeEach(async () => {
+      jest.clearAllMocks();
+      const module: TestingModule = await Test.createTestingModule({
+        providers: [
+          ConversationsService,
+          { provide: getRepositoryToken(Conversation), useValue: mockRepo },
+          { provide: TenantContext, useValue: mockTenant },
+        ],
+      }).compile();
+      service = module.get<ConversationsService>(ConversationsService);
+      mockRepo.query.mockReset();
+      // First call: COUNT; second: SELECT
+      mockRepo.query
+        .mockResolvedValueOnce([{ total: 137 }])
+        .mockResolvedValueOnce([]);
+    });
+
+    it('uses default page=1, pageSize=50 and passes them to LIMIT/OFFSET', async () => {
+      const result = await service.findInbox();
+      expect(result.page).toBe(1);
+      expect(result.pageSize).toBe(50);
+      expect(result.total).toBe(137);
+      const selectCall = mockRepo.query.mock.calls[1];
+      expect(selectCall[1]).toEqual(['ws-1', 50, 0]);
+    });
+
+    it('honors custom page+pageSize and computes offset correctly', async () => {
+      mockRepo.query.mockReset();
+      mockRepo.query
+        .mockResolvedValueOnce([{ total: 200 }])
+        .mockResolvedValueOnce([]);
+      const result = await service.findInbox({ page: 3, pageSize: 25 });
+      expect(result.page).toBe(3);
+      expect(result.pageSize).toBe(25);
+      const selectCall = mockRepo.query.mock.calls[1];
+      expect(selectCall[1]).toEqual(['ws-1', 25, 50]);
+    });
+
+    it('clamps pageSize > 100 to 100', async () => {
+      mockRepo.query.mockReset();
+      mockRepo.query
+        .mockResolvedValueOnce([{ total: 0 }])
+        .mockResolvedValueOnce([]);
+      const result = await service.findInbox({ page: 1, pageSize: 500 });
+      expect(result.pageSize).toBe(100);
+    });
+
+    it('clamps page < 1 to 1', async () => {
+      mockRepo.query.mockReset();
+      mockRepo.query
+        .mockResolvedValueOnce([{ total: 0 }])
+        .mockResolvedValueOnce([]);
+      const result = await service.findInbox({ page: 0, pageSize: 10 });
+      expect(result.page).toBe(1);
+    });
+  });
 });
