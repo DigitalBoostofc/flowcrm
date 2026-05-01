@@ -1,9 +1,9 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { MessageCircle, Send, Search, Phone, Loader2, Sparkles } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { listInbox, markConversationRead, type InboxItem } from '@/api/conversations';
+import { listInbox, markConversationRead, type InboxItem, type InboxPage } from '@/api/conversations';
 import { listMessages, sendMessage } from '@/api/messages';
 import { listChannels } from '@/api/channels';
 import { getLead } from '@/api/leads';
@@ -263,11 +263,23 @@ export default function Inbox() {
   const { socket } = useWs();
   const pushQualification = useQualificationStore(s => s.push);
 
-  const { data: inbox = [], isLoading } = useQuery({
+  const PAGE_SIZE = 50;
+  const inboxQuery = useInfiniteQuery({
     queryKey: ['inbox'],
-    queryFn: listInbox,
+    queryFn: ({ pageParam = 1 }) => listInbox({ page: pageParam, pageSize: PAGE_SIZE }),
+    initialPageParam: 1,
+    getNextPageParam: (last) => {
+      const loaded = last.page * last.pageSize;
+      return loaded < last.total ? last.page + 1 : undefined;
+    },
     refetchInterval: 30000,
   });
+  const inbox: InboxItem[] = useMemo(
+    () => inboxQuery.data?.pages.flatMap((p) => p.items) ?? [],
+    [inboxQuery.data],
+  );
+  const total = inboxQuery.data?.pages[0]?.total ?? 0;
+  const isLoading = inboxQuery.isLoading;
 
   // Atualiza inbox em tempo real
   useEffect(() => {
@@ -316,9 +328,16 @@ export default function Inbox() {
   function handleSelect(item: InboxItem) {
     setSelectedId(item.id);
     if (item.unread) {
-      qc.setQueryData<InboxItem[]>(['inbox'], (prev) =>
-        prev ? prev.map((i) => (i.id === item.id ? { ...i, unread: false } : i)) : prev,
-      );
+      qc.setQueryData<{ pages: InboxPage[]; pageParams: unknown[] }>(['inbox'], (prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          pages: prev.pages.map((p) => ({
+            ...p,
+            items: p.items.map((i) => (i.id === item.id ? { ...i, unread: false } : i)),
+          })),
+        };
+      });
       markConversationRead(item.id).catch(() => {
         qc.invalidateQueries({ queryKey: ['inbox'] });
       });
@@ -454,14 +473,32 @@ export default function Inbox() {
               </div>
             </div>
           ) : (
-            filtered.map(item => (
-              <ConvItem
-                key={item.id}
-                item={item}
-                selected={item.id === selectedId}
-                onClick={() => handleSelect(item)}
-              />
-            ))
+            <>
+              {filtered.map(item => (
+                <ConvItem
+                  key={item.id}
+                  item={item}
+                  selected={item.id === selectedId}
+                  onClick={() => handleSelect(item)}
+                />
+              ))}
+              {inboxQuery.hasNextPage && !channelFilter && tab === 'todas' && !search && (
+                <div className="flex justify-center py-3">
+                  <button
+                    onClick={() => inboxQuery.fetchNextPage()}
+                    disabled={inboxQuery.isFetchingNextPage}
+                    className="text-xs px-3 py-1.5 rounded-lg border transition-colors disabled:opacity-50"
+                    style={{ color: 'var(--ink-2)', borderColor: 'var(--edge)', background: 'var(--surface-hover)' }}
+                  >
+                    {inboxQuery.isFetchingNextPage ? (
+                      <span className="flex items-center gap-1.5"><Loader2 className="w-3 h-3 animate-spin" /> Carregando...</span>
+                    ) : (
+                      `Carregar mais (${inbox.length}/${total})`
+                    )}
+                  </button>
+                </div>
+              )}
+            </>
           )}
         </div>
       </div>

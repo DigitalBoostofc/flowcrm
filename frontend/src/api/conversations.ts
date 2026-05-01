@@ -19,8 +19,15 @@ export interface InboxItem {
   pendingClassification: boolean;
 }
 
-export async function listInbox(): Promise<InboxItem[]> {
-  const res = await api.get<InboxItem[]>('/conversations/inbox');
+export interface InboxPage {
+  items: InboxItem[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+export async function listInbox(params: { page?: number; pageSize?: number } = {}): Promise<InboxPage> {
+  const res = await api.get<InboxPage>('/conversations/inbox', { params });
   return res.data;
 }
 
