@@ -19,7 +19,7 @@ const NAV_ITEMS: NavItem[] = [
   { to: '/inicio',     icon: Home,          label: 'Início' },
   { to: '/analytics',  icon: BarChart2,     label: 'Analytics',     feature: 'analytics' },
   { to: '/tasks',      icon: CheckSquare,   label: 'Tarefas',       feature: 'tasks' },
-  { to: '/calendario', icon: CalendarDays,  label: 'Calendário' },
+  { to: '/calendario', icon: CalendarDays,  label: 'Agenda' },
   { to: '/inbox',      icon: MessageCircle, label: 'Inbox',         feature: 'inbox' },
   { to: '/pessoas',    icon: Users,         label: 'Pessoas' },
   { to: '/companies',  icon: Building2,     label: 'Empresas' },
