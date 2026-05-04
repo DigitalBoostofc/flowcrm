@@ -23,6 +23,7 @@ import { NotificationsModule } from './notifications/notifications.module';
 import { LeadActivitiesModule } from './lead-activities/lead-activities.module';
 import { ContactActivitiesModule } from './contact-activities/contact-activities.module';
 import { LossReasonsModule } from './loss-reasons/loss-reasons.module';
+import { AgendasModule } from './agendas/agendas.module';
 import { AnalyticsModule } from './analytics/analytics.module';
 import { SearchModule } from './search/search.module';
 import { TasksModule } from './tasks/tasks.module';
@@ -106,6 +107,7 @@ import { QuickRepliesModule } from './quick-replies/quick-replies.module';
       }),
       inject: [ConfigService],
     }),
+    AgendasModule,
     AuthModule,
     UsersModule,
     ContactsModule,
