@@ -713,6 +713,7 @@ export default function Funil() {
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [selectedPipelineId, setSelectedPipelineId] = useState<string>(() => searchParams.get('pipeline') ?? '');
   const [selectedLeadId, setSelectedLeadId] = useState<string | null>(() => searchParams.get('lead'));
+  const [autoOpenEditLeadId, setAutoOpenEditLeadId] = useState<string | null>(() => searchParams.get('lead'));
   const [personalizarOpen, setPersonalizarOpen] = useState(false);
   const [editingStagesPipelineId, setEditingStagesPipelineId] = useState<string | null>(null);
 
@@ -1172,6 +1173,7 @@ export default function Funil() {
             pipelines={pipelines}
             onClose={() => setSelectedLeadId(null)}
             onPipelineMoved={(newPipelineId) => setSelectedPipelineId(newPipelineId)}
+            autoOpenEdit={autoOpenEditLeadId === sel.id}
           />
         );
       })()}

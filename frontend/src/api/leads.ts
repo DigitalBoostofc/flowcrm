@@ -66,6 +66,8 @@ export async function updateLead(
     ranking?: number | null;
     notes?: string;
     customerOriginId?: string | null;
+    privacy?: 'all' | 'restricted';
+    additionalAccessUserIds?: string[];
   },
 ): Promise<Lead> {
   const res = await api.patch<Lead>(`/leads/${id}`, data);

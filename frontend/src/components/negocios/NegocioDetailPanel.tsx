@@ -2,7 +2,7 @@ import { useState, useMemo, useRef, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import {
-  X, Star, MoreHorizontal, Plus, Mail, Phone, MessageSquare, FileText,
+  X, Star, MoreHorizontal, Mail, Phone, MessageSquare, FileText,
   PhoneCall, Users as UsersIcon, MapPin, StickyNote, Clock, Check,
   Copy, Pin, HelpCircle, ChevronRight, ChevronDown, Tag, Trash2, Pencil,
 } from 'lucide-react';
@@ -199,9 +199,10 @@ export interface NegocioDetailPanelProps {
   pipelines: Pipeline[];
   onClose: () => void;
   onPipelineMoved?: (newPipelineId: string) => void;
+  autoOpenEdit?: boolean;
 }
 
-export default function NegocioDetailPanel({ lead, currentUser, users, pipelines, onClose, onPipelineMoved }: NegocioDetailPanelProps) {
+export default function NegocioDetailPanel({ lead, currentUser, users, pipelines, onClose, onPipelineMoved, autoOpenEdit }: NegocioDetailPanelProps) {
   const qc = useQueryClient();
   const navigate = useNavigate();
   const [composerType, setComposerType] = useState<ComposerType>('note');
@@ -216,6 +217,10 @@ export default function NegocioDetailPanel({ lead, currentUser, users, pipelines
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
   const moreBtnRef = useRef<HTMLButtonElement>(null);
   const [editLeadOpen, setEditLeadOpen] = useState(false);
+
+  useEffect(() => {
+    if (autoOpenEdit) setEditLeadOpen(true);
+  }, []);
 
   /* ESC to close */
   useEffect(() => {
@@ -789,21 +794,17 @@ export default function NegocioDetailPanel({ lead, currentUser, users, pipelines
             </SidebarCard>
 
             {/* Valor do negócio */}
-            <SidebarCard title="Valor do negócio">
+            <SidebarCard title="Valor do negócio" action={
+              <button
+                onClick={() => setEditLeadOpen(true)}
+                className="flex items-center gap-1 btn-ghost"
+                style={{ height: 22, padding: '0 6px', fontSize: 11, color: 'var(--brand-500)' }}
+              >
+                <Pencil size={11} /> Editar
+              </button>
+            }>
               <div className="text-xl font-bold" style={{ color: 'var(--ink-1)' }}>
                 {formatBRL(Number(lead.value ?? 0))}
-              </div>
-              <div className="mt-3">
-                <div className="text-xs font-medium mb-1" style={{ color: 'var(--ink-2)' }}>Produtos e serviços</div>
-                <div className="text-xs" style={{ color: 'var(--ink-3)' }}>
-                  Nenhum produto ou serviço foi adicionado a este negócio
-                </div>
-                <button
-                  className="mt-2 w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-md text-xs font-medium transition-colors hover:bg-[var(--surface-hover)]"
-                  style={{ color: 'var(--brand-500, #6366f1)', border: '1px dashed var(--edge)' }}
-                >
-                  <Plus className="w-3.5 h-3.5" /> Adicionar produtos/serviços
-                </button>
               </div>
             </SidebarCard>
 
@@ -1000,6 +1001,7 @@ export default function NegocioDetailPanel({ lead, currentUser, users, pipelines
         lead={lead}
         pipelines={pipelines}
         users={users}
+        currentUser={currentUser}
         open={editLeadOpen}
         onClose={() => setEditLeadOpen(false)}
       />

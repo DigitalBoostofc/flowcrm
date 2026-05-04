@@ -127,6 +127,8 @@ export interface Lead {
   ranking?: number | null;
   score?: number | null;
   notes?: string | null;
+  privacy?: 'all' | 'restricted';
+  additionalAccessUserIds?: string[];
   archivedAt?: string | null;
   createdAt: string;
   updatedAt: string;

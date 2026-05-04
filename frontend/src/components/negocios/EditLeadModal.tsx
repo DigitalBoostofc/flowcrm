@@ -1,13 +1,19 @@
 import { useState, useEffect } from 'react';
 import { useQueryClient, useMutation } from '@tanstack/react-query';
-import { X } from 'lucide-react';
+import { X, Users as UsersIcon, Lock, Plus } from 'lucide-react';
 import type { Lead, Pipeline, User } from '@/types/api';
 import { updateLead, moveLead } from '@/api/leads';
 import Avatar from '@/components/ui/Avatar';
 
+type Privacy = 'all' | 'restricted';
+
+function SectionTitle({ title }: { title: string }) {
+  return <h3 className="text-sm font-semibold mb-3" style={{ color: 'var(--ink-1)' }}>{title}</h3>;
+}
+
 function Label({ children, required }: { children: React.ReactNode; required?: boolean }) {
   return (
-    <label className="block text-sm font-medium mb-1.5" style={{ color: 'var(--ink-2)' }}>
+    <label className="block text-xs font-semibold mb-1" style={{ color: 'var(--ink-2)' }}>
       {children}
       {required && <span className="ml-1" style={{ color: 'var(--danger, #ef4444)' }}>*</span>}
     </label>
@@ -33,11 +39,12 @@ interface Props {
   lead: Lead;
   pipelines: Pipeline[];
   users: User[];
+  currentUser?: User | null;
   open: boolean;
   onClose: () => void;
 }
 
-export default function EditLeadModal({ lead, pipelines, users, open, onClose }: Props) {
+export default function EditLeadModal({ lead, pipelines, users, currentUser, open, onClose }: Props) {
   const qc = useQueryClient();
 
   const [title, setTitle] = useState('');
@@ -47,6 +54,8 @@ export default function EditLeadModal({ lead, pipelines, users, open, onClose }:
   const [startDate, setStartDate] = useState('');
   const [conclusionDate, setConclusionDate] = useState('');
   const [notes, setNotes] = useState('');
+  const [privacy, setPrivacy] = useState<Privacy>('all');
+  const [additionalAccess, setAdditionalAccess] = useState<string[]>([]);
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -58,6 +67,8 @@ export default function EditLeadModal({ lead, pipelines, users, open, onClose }:
     setStartDate(lead.startDate ? String(lead.startDate).slice(0, 10) : '');
     setConclusionDate(lead.conclusionDate ? String(lead.conclusionDate).slice(0, 10) : '');
     setNotes(lead.notes ?? '');
+    setPrivacy(lead.privacy ?? 'all');
+    setAdditionalAccess(lead.additionalAccessUserIds ?? []);
     setError('');
   }, [open, lead]);
 
@@ -73,6 +84,8 @@ export default function EditLeadModal({ lead, pipelines, users, open, onClose }:
           startDate: startDate || null,
           conclusionDate: conclusionDate || null,
           notes: notes.trim() || undefined,
+          privacy,
+          additionalAccessUserIds: privacy === 'restricted' ? additionalAccess : [],
         }),
       ];
 
@@ -107,7 +120,7 @@ export default function EditLeadModal({ lead, pipelines, users, open, onClose }:
       onClick={onClose}
     >
       <div
-        className="glass-raised rounded-xl shadow-2xl max-w-3xl w-full my-8 animate-fade-up"
+        className="glass-raised rounded-xl shadow-2xl w-full sm:max-w-3xl my-4 sm:my-8 animate-fade-up"
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
@@ -133,12 +146,11 @@ export default function EditLeadModal({ lead, pipelines, users, open, onClose }:
 
         <form
           onSubmit={(e) => { e.preventDefault(); mutation.mutate(); }}
-          className="px-6 py-5 space-y-6"
+          className="px-6 py-5 space-y-8"
         >
+          {/* Dados básicos */}
           <section>
-            <p className="text-xs font-semibold uppercase tracking-wide mb-4" style={{ color: 'var(--ink-3)' }}>
-              Dados básicos
-            </p>
+            <SectionTitle title="Dados básicos" />
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* Empresa / Pessoa — read-only */}
               <div>
@@ -152,7 +164,6 @@ export default function EditLeadModal({ lead, pipelines, users, open, onClose }:
                 </div>
               </div>
 
-              {/* Nome do negócio */}
               <div>
                 <Label required>Nome do negócio</Label>
                 <FieldInput
@@ -163,7 +174,6 @@ export default function EditLeadModal({ lead, pipelines, users, open, onClose }:
                 />
               </div>
 
-              {/* Responsável */}
               <div>
                 <Label>Responsável</Label>
                 <select
@@ -178,12 +188,13 @@ export default function EditLeadModal({ lead, pipelines, users, open, onClose }:
                 >
                   <option value="">Sem responsável</option>
                   {users.map((u) => (
-                    <option key={u.id} value={u.id}>{u.name}</option>
+                    <option key={u.id} value={u.id}>
+                      {currentUser && u.id === currentUser.id ? `Eu (${u.name})` : u.name}
+                    </option>
                   ))}
                 </select>
               </div>
 
-              {/* Valor total */}
               <div>
                 <Label>Valor total</Label>
                 <FieldInput
@@ -196,7 +207,6 @@ export default function EditLeadModal({ lead, pipelines, users, open, onClose }:
                 />
               </div>
 
-              {/* Funil */}
               <div>
                 <Label>Funil</Label>
                 <select
@@ -216,7 +226,6 @@ export default function EditLeadModal({ lead, pipelines, users, open, onClose }:
                 </select>
               </div>
 
-              {/* Datas */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label>Data de início</Label>
@@ -236,7 +245,6 @@ export default function EditLeadModal({ lead, pipelines, users, open, onClose }:
                 </div>
               </div>
 
-              {/* Descrição */}
               <div className="md:col-span-2">
                 <Label>Descrição</Label>
                 <textarea
@@ -253,6 +261,121 @@ export default function EditLeadModal({ lead, pipelines, users, open, onClose }:
                 />
               </div>
             </div>
+          </section>
+
+          <div style={{ borderTop: '1px solid var(--edge)' }} />
+
+          {/* Privacidade */}
+          <section>
+            <SectionTitle title="Privacidade" />
+            <p className="text-xs mb-3" style={{ color: 'var(--ink-3)' }}>Quem pode ver o histórico e editar esse negócio?</p>
+
+            <div className="space-y-2">
+              <button
+                type="button"
+                onClick={() => setPrivacy('all')}
+                className="w-full flex items-start gap-3 p-3 rounded-lg text-left transition-colors"
+                style={{
+                  border: `1px solid ${privacy === 'all' ? 'var(--brand-500, #6366f1)' : 'var(--edge)'}`,
+                  background: privacy === 'all' ? 'rgba(99,102,241,0.06)' : 'var(--surface)',
+                }}
+              >
+                <span
+                  className="mt-0.5 w-4 h-4 rounded-full flex items-center justify-center flex-shrink-0"
+                  style={{
+                    border: `2px solid ${privacy === 'all' ? 'var(--brand-500, #6366f1)' : 'var(--edge-strong, var(--edge))'}`,
+                    background: privacy === 'all' ? 'var(--brand-500, #6366f1)' : 'transparent',
+                  }}
+                >
+                  {privacy === 'all' && <span className="w-1.5 h-1.5 rounded-full bg-white" />}
+                </span>
+                <div>
+                  <div className="flex items-center gap-1.5 text-sm font-medium" style={{ color: 'var(--ink-1)' }}>
+                    <UsersIcon className="w-3.5 h-3.5" /> Todos
+                  </div>
+                  <div className="text-xs mt-0.5" style={{ color: 'var(--ink-3)' }}>
+                    Todos os usuários da conta terão acesso.
+                  </div>
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setPrivacy('restricted')}
+                className="w-full flex items-start gap-3 p-3 rounded-lg text-left transition-colors"
+                style={{
+                  border: `1px solid ${privacy === 'restricted' ? 'var(--brand-500, #6366f1)' : 'var(--edge)'}`,
+                  background: privacy === 'restricted' ? 'rgba(99,102,241,0.06)' : 'var(--surface)',
+                }}
+              >
+                <span
+                  className="mt-0.5 w-4 h-4 rounded-full flex items-center justify-center flex-shrink-0"
+                  style={{
+                    border: `2px solid ${privacy === 'restricted' ? 'var(--brand-500, #6366f1)' : 'var(--edge-strong, var(--edge))'}`,
+                    background: privacy === 'restricted' ? 'var(--brand-500, #6366f1)' : 'transparent',
+                  }}
+                >
+                  {privacy === 'restricted' && <span className="w-1.5 h-1.5 rounded-full bg-white" />}
+                </span>
+                <div>
+                  <div className="flex items-center gap-1.5 text-sm font-medium" style={{ color: 'var(--ink-1)' }}>
+                    <Lock className="w-3.5 h-3.5" /> Acesso restrito
+                  </div>
+                  <div className="text-xs mt-0.5" style={{ color: 'var(--ink-3)' }}>
+                    O responsável, seus líderes e os administradores da conta sempre terão acesso. Você também pode conceder acesso a outros usuários.
+                  </div>
+                </div>
+              </button>
+            </div>
+
+            {privacy === 'restricted' && (
+              <div className="mt-4">
+                <Label>Acessos adicionais</Label>
+                <div
+                  className="rounded-lg p-2 min-h-[42px] flex flex-wrap gap-1.5"
+                  style={{ background: 'var(--surface)', border: '1px solid var(--edge)' }}
+                >
+                  {additionalAccess.length === 0 && (
+                    <span className="text-sm" style={{ color: 'var(--ink-3)' }}>Selecionar...</span>
+                  )}
+                  {additionalAccess.map((id) => {
+                    const u = users.find((x) => x.id === id);
+                    if (!u) return null;
+                    return (
+                      <span
+                        key={id}
+                        className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs"
+                        style={{ background: 'var(--surface-hover)', color: 'var(--ink-1)' }}
+                      >
+                        {u.name}
+                        <button
+                          type="button"
+                          onClick={() => setAdditionalAccess((prev) => prev.filter((x) => x !== id))}
+                          className="hover:opacity-70"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </span>
+                    );
+                  })}
+                </div>
+                <div className="flex flex-wrap gap-1.5 mt-2">
+                  {users
+                    .filter((u) => !additionalAccess.includes(u.id) && (!currentUser || u.id !== currentUser.id))
+                    .map((u) => (
+                      <button
+                        key={u.id}
+                        type="button"
+                        onClick={() => setAdditionalAccess((prev) => [...prev, u.id])}
+                        className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs hover:bg-[var(--surface-hover)]"
+                        style={{ border: '1px solid var(--edge)', color: 'var(--ink-2)' }}
+                      >
+                        <Plus className="w-3 h-3" /> {u.name}
+                      </button>
+                    ))}
+                </div>
+              </div>
+            )}
           </section>
 
           {error && (
