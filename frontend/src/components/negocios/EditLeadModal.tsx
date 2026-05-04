@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useQueryClient, useMutation } from '@tanstack/react-query';
-import { X, Users as UsersIcon, Lock, Plus } from 'lucide-react';
+import { X, Users as UsersIcon, Lock, Plus, Trash2 } from 'lucide-react';
 import type { Lead, Pipeline, User } from '@/types/api';
-import { updateLead, moveLead } from '@/api/leads';
+import { updateLead, moveLead, LeadItemInput } from '@/api/leads';
 import Avatar from '@/components/ui/Avatar';
+import { ProductDraft, emptyProductDraft, ProductNameField, ProductPickerCombo } from '@/pages/Negocios';
+import { formatBRL } from '@/lib/format';
 
 type Privacy = 'all' | 'restricted';
 
@@ -56,6 +58,7 @@ export default function EditLeadModal({ lead, pipelines, users, currentUser, ope
   const [notes, setNotes] = useState('');
   const [privacy, setPrivacy] = useState<Privacy>('all');
   const [additionalAccess, setAdditionalAccess] = useState<string[]>([]);
+  const [products, setProducts] = useState<ProductDraft[]>([]);
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -69,12 +72,31 @@ export default function EditLeadModal({ lead, pipelines, users, currentUser, ope
     setNotes(lead.notes ?? '');
     setPrivacy(lead.privacy ?? 'all');
     setAdditionalAccess(lead.additionalAccessUserIds ?? []);
+    setProducts(
+      (lead.items ?? []).map((it) => ({
+        productName: it.productName,
+        unitPrice: String(it.unitPrice),
+        quantity: String(it.quantity),
+        discount: String(it.discount),
+        discountType: it.discountType,
+      })),
+    );
     setError('');
   }, [open, lead]);
 
   const mutation = useMutation({
     mutationFn: async () => {
       if (!title.trim()) throw new Error('title');
+
+      const items: LeadItemInput[] = products
+        .filter((p) => p.productName.trim())
+        .map((p) => ({
+          productName: p.productName.trim(),
+          unitPrice: Number(p.unitPrice) || 0,
+          quantity: Number(p.quantity) || 1,
+          discount: Number(p.discount) || 0,
+          discountType: p.discountType,
+        }));
 
       const updates: Promise<unknown>[] = [
         updateLead(lead.id, {
@@ -86,6 +108,7 @@ export default function EditLeadModal({ lead, pipelines, users, currentUser, ope
           notes: notes.trim() || undefined,
           privacy,
           additionalAccessUserIds: privacy === 'restricted' ? additionalAccess : [],
+          items,
         }),
       ];
 
@@ -107,6 +130,16 @@ export default function EditLeadModal({ lead, pipelines, users, currentUser, ope
       setError(err?.response?.data?.message ?? 'Erro ao salvar negócio.');
     },
   });
+
+  const updateProduct = (idx: number, patch: Partial<ProductDraft>) =>
+    setProducts((prev) => prev.map((p, i) => (i === idx ? { ...p, ...patch } : p)));
+  const removeProduct = (idx: number) => setProducts((prev) => prev.filter((_, i) => i !== idx));
+  const productTotal = (p: ProductDraft) => {
+    const subtotal = (Number(p.unitPrice) || 0) * (Number(p.quantity) || 1);
+    const disc = Number(p.discount) || 0;
+    return p.discountType === 'percent' ? subtotal * (1 - disc / 100) : subtotal - disc;
+  };
+  const productsTotal = products.reduce((s, p) => s + productTotal(p), 0);
 
   if (!open) return null;
 
@@ -376,6 +409,89 @@ export default function EditLeadModal({ lead, pipelines, users, currentUser, ope
                 </div>
               </div>
             )}
+          </section>
+
+          <div style={{ borderTop: '1px solid var(--edge)' }} />
+
+          {/* Produtos e serviços */}
+          <section>
+            <SectionTitle title="Produtos e serviços" />
+            <p className="text-xs mb-3" style={{ color: 'var(--ink-3)' }}>
+              Adicione produtos ou serviços com valor e quantidade na sua oportunidade de venda.
+            </p>
+
+            {products.length > 0 && (
+              <div className="space-y-2 mb-3">
+                {products.map((p, idx) => (
+                  <div
+                    key={idx}
+                    className="rounded-lg p-3 grid gap-2"
+                    style={{
+                      background: 'var(--surface)',
+                      border: '1px solid var(--edge)',
+                      gridTemplateColumns: '2fr 1fr 80px 1fr 32px',
+                    }}
+                  >
+                    <ProductNameField
+                      productName={p.productName}
+                      onUpdate={(patch) => updateProduct(idx, patch)}
+                    />
+                    <input
+                      type="number"
+                      placeholder="Valor unit."
+                      value={p.unitPrice}
+                      onChange={(e) => updateProduct(idx, { unitPrice: e.target.value })}
+                      className="px-2 py-1.5 rounded-md outline-none text-sm"
+                      style={{ background: 'var(--surface-raised)', border: '1px solid var(--edge)', color: 'var(--ink-1)' }}
+                    />
+                    <input
+                      type="number"
+                      placeholder="Qtd."
+                      value={p.quantity}
+                      onChange={(e) => updateProduct(idx, { quantity: e.target.value })}
+                      className="px-2 py-1.5 rounded-md outline-none text-sm"
+                      style={{ background: 'var(--surface-raised)', border: '1px solid var(--edge)', color: 'var(--ink-1)' }}
+                    />
+                    <div className="flex gap-1">
+                      <input
+                        type="number"
+                        placeholder="Desc."
+                        value={p.discount}
+                        onChange={(e) => updateProduct(idx, { discount: e.target.value })}
+                        className="w-full px-2 py-1.5 rounded-md outline-none text-sm"
+                        style={{ background: 'var(--surface-raised)', border: '1px solid var(--edge)', color: 'var(--ink-1)' }}
+                      />
+                      <select
+                        value={p.discountType}
+                        onChange={(e) => updateProduct(idx, { discountType: e.target.value as 'value' | 'percent' })}
+                        className="px-1 py-1.5 rounded-md outline-none text-xs"
+                        style={{ background: 'var(--surface-raised)', border: '1px solid var(--edge)', color: 'var(--ink-1)' }}
+                      >
+                        <option value="value">R$</option>
+                        <option value="percent">%</option>
+                      </select>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => removeProduct(idx)}
+                      className="p-1.5 rounded-md hover:bg-red-500/10 hover:text-red-500"
+                      style={{ color: 'var(--ink-3)' }}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                ))}
+                <div className="flex justify-end text-xs" style={{ color: 'var(--ink-3)' }}>
+                  Total produtos: <span className="ml-2 font-semibold" style={{ color: 'var(--ink-1)' }}>{formatBRL(productsTotal)}</span>
+                </div>
+              </div>
+            )}
+
+            <ProductPickerCombo
+              onPick={(patch) =>
+                setProducts((prev) => [...prev, { ...emptyProductDraft(), ...patch }])
+              }
+            />
           </section>
 
           {error && (
