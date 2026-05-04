@@ -1,6 +1,7 @@
 import { Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import axios from 'axios';
+import FormData from 'form-data';
 
 @Injectable()
 export class AudioTranscriptionService {
@@ -9,68 +10,48 @@ export class AudioTranscriptionService {
   constructor(private readonly config: ConfigService) {}
 
   async transcribe(audioUrl: string): Promise<string> {
-    const apiKey = this.config.get<string>('OPENROUTER_API_KEY');
+    const apiKey = this.config.get<string>('OPENAI_API_KEY');
     if (!apiKey) {
-      throw new ServiceUnavailableException('Transcrição não configurada (OPENROUTER_API_KEY ausente).');
+      throw new ServiceUnavailableException('Transcrição não configurada (OPENAI_API_KEY ausente).');
     }
 
-    // Download audio and convert to base64
-    let base64: string;
+    // Download audio buffer
+    let audioBuffer: Buffer;
     let mimeType: string;
     try {
       const resp = await axios.get(audioUrl, { responseType: 'arraybuffer', timeout: 30_000 });
-      base64 = Buffer.from(resp.data as ArrayBuffer).toString('base64');
-      mimeType = (resp.headers['content-type'] as string | undefined) ?? 'audio/ogg';
-      // Normalize to supported format
-      if (mimeType.includes('ogg')) mimeType = 'audio/ogg';
-      else if (mimeType.includes('mp4') || mimeType.includes('m4a')) mimeType = 'audio/mp4';
-      else if (mimeType.includes('wav')) mimeType = 'audio/wav';
-      else if (mimeType.includes('mpeg') || mimeType.includes('mp3')) mimeType = 'audio/mp3';
+      audioBuffer = Buffer.from(resp.data as ArrayBuffer);
+      const ct = (resp.headers['content-type'] as string | undefined) ?? '';
+      if (ct.includes('mp4') || ct.includes('m4a')) mimeType = 'audio/mp4';
+      else if (ct.includes('wav')) mimeType = 'audio/wav';
+      else if (ct.includes('mpeg') || ct.includes('mp3')) mimeType = 'audio/mp3';
+      else if (ct.includes('webm')) mimeType = 'audio/webm';
       else mimeType = 'audio/ogg';
     } catch (err) {
       this.logger.error(`Falha ao baixar áudio: ${(err as Error).message}`);
       throw new ServiceUnavailableException('Não foi possível baixar o áudio para transcrição.');
     }
 
-    const model = this.config.get<string>('AI_MODEL_SUMMARY') ?? 'google/gemini-2.5-flash-lite';
-
-    const payload = {
-      model,
-      messages: [
-        {
-          role: 'user',
-          content: [
-            {
-              type: 'text',
-              text: 'Transcreva o áudio a seguir em português. Retorne apenas o texto transcrito, sem comentários, sem formatação extra.',
-            },
-            {
-              type: 'input_audio',
-              input_audio: { data: base64, format: mimeType.split('/')[1] },
-            },
-          ],
-        },
-      ],
-      max_tokens: 1000,
-      temperature: 0,
-    };
+    const ext = mimeType.split('/')[1];
+    const form = new FormData();
+    form.append('file', audioBuffer, { filename: `audio.${ext}`, contentType: mimeType });
+    form.append('model', 'whisper-1');
+    form.append('language', 'pt');
 
     try {
-      const res = await axios.post('https://openrouter.ai/api/v1/chat/completions', payload, {
+      const res = await axios.post('https://api.openai.com/v1/audio/transcriptions', form, {
         headers: {
           Authorization: `Bearer ${apiKey}`,
-          'Content-Type': 'application/json',
-          'HTTP-Referer': this.config.get<string>('FRONTEND_URL') ?? 'https://flowcrm.app',
-          'X-Title': 'FlowCRM',
+          ...form.getHeaders(),
         },
         timeout: 60_000,
       });
-      const text = (res.data as any)?.choices?.[0]?.message?.content?.trim() ?? '';
-      if (!text) throw new Error('Resposta vazia do modelo.');
+      const text = (res.data as { text?: string })?.text?.trim() ?? '';
+      if (!text) throw new Error('Resposta vazia do Whisper.');
       return text;
     } catch (err) {
       const msg = axios.isAxiosError(err)
-        ? `OpenRouter ${err.response?.status}: ${JSON.stringify(err.response?.data).slice(0, 200)}`
+        ? `OpenAI Whisper ${err.response?.status}: ${JSON.stringify(err.response?.data).slice(0, 200)}`
         : (err as Error).message;
       this.logger.error(`Transcrição falhou: ${msg}`);
       throw new ServiceUnavailableException('Falha ao transcrever áudio. Tente novamente.');
