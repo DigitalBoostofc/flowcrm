@@ -110,7 +110,7 @@ export class UazapiWebhookController {
 
     if (eventType === 'messages' || eventType === 'message') {
       // Log do payload bruto para diagnóstico (truncado para não poluir)
-      this.logger.debug(`webhook payload: ${JSON.stringify(payload).slice(0, 600)}`);
+      this.logger.log(`[diag] payload keys=${Object.keys(payload ?? {}).join(',')} msgKeys=${Object.keys(payload?.message ?? payload?.data ?? {}).join(',') || 'n/a'}`);
 
       // uazapGO pode mandar os dados em payload.message, payload.data, ou direto na raiz
       const nested = payload?.message ?? payload?.data ?? null;
@@ -129,9 +129,11 @@ export class UazapiWebhookController {
         payload?.type ?? payload?.messageType ??
         'conversation';
 
+      this.logger.log(`[diag] rawMsgType=${rawMsgType} fromMe=${msg?.fromMe ?? msg?.key?.fromMe ?? payload?.fromMe ?? false} msgid=${msg?.messageid ?? msg?.key?.id ?? payload?.messageid ?? payload?.id ?? 'none'}`);
+
       // Ignorar tipos sem conteúdo exibível (reações, protocolos, etc.)
       if (IGNORED_TYPES.has(rawMsgType)) {
-        this.logger.debug(`Ignorando tipo ${rawMsgType}`);
+        this.logger.log(`[diag] dropped IGNORED_TYPE=${rawMsgType}`);
         return { ok: true };
       }
 
@@ -158,7 +160,7 @@ export class UazapiWebhookController {
         (mediaType ? `[${normalizedType}]` : (BODY_PLACEHOLDER[rawMsgType] ?? ''));
 
       if (!body) {
-        this.logger.debug(`Ignorando mensagem sem conteúdo (type=${rawMsgType})`);
+        this.logger.warn(`[diag] dropped empty body type=${rawMsgType} mediaType=${mediaType ?? 'none'} text="${text}" msgKeys=${Object.keys(msg ?? {}).join(',')}`);
         return { ok: true };
       }
 
