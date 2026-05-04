@@ -41,7 +41,20 @@ export async function markConversationRead(id: string): Promise<{ id: string; la
   return res.data;
 }
 
-export async function qualifyConversation(id: string, name: string): Promise<{ leadId: string }> {
-  const res = await api.post<{ leadId: string }>(`/conversations/${id}/qualify`, { name });
+export interface QualifyPayload {
+  name: string;
+  type?: 'person' | 'company';
+  pipelineId?: string;
+  stageId?: string;
+}
+
+export async function qualifyConversation(
+  id: string,
+  payload: QualifyPayload,
+): Promise<{ leadId: string; pipelineId: string; stageId: string }> {
+  const res = await api.post<{ leadId: string; pipelineId: string; stageId: string }>(
+    `/conversations/${id}/qualify`,
+    payload,
+  );
   return res.data;
 }

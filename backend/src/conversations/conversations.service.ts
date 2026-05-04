@@ -7,6 +7,7 @@ import { TenantContext } from '../common/tenant/tenant-context.service';
 import { ContactsService } from '../contacts/contacts.service';
 import { LeadsService } from '../leads/leads.service';
 import { PipelinesService } from '../pipelines/pipelines.service';
+import { CompaniesService } from '../companies/companies.service';
 
 export interface InboxItem {
   id: string;
@@ -46,6 +47,7 @@ export class ConversationsService {
     private readonly contacts: ContactsService,
     private readonly leads: LeadsService,
     private readonly pipelines: PipelinesService,
+    private readonly companies: CompaniesService,
   ) {}
 
   async findOrCreate(leadId: string, channelType: string, externalId?: string): Promise<Conversation> {
@@ -84,33 +86,57 @@ export class ConversationsService {
     return c;
   }
 
-  async qualify(id: string, dto: { name: string }): Promise<{ leadId: string }> {
+  async qualify(
+    id: string,
+    dto: { name: string; type?: 'person' | 'company'; pipelineId?: string; stageId?: string },
+  ): Promise<{ leadId: string; pipelineId: string; stageId: string }> {
     const workspaceId = this.tenant.requireWorkspaceId();
     const conv = await this.repo.findOne({ where: { id, workspaceId } });
     if (!conv) throw new NotFoundException('Conversa não encontrada');
-    if (conv.leadId) return { leadId: conv.leadId };
-
-    const contactName = dto.name?.trim() || conv.externalId || 'Desconhecido';
-    const contact = await this.contacts.create({
-      name: contactName,
-      phone: conv.externalId ?? undefined,
-      whatsapp: conv.externalId ?? undefined,
-    } as any);
-
-    const pipeline = await this.pipelines.findDefault();
-    if (!pipeline || !pipeline.stages?.length) {
-      throw new BadRequestException('Nenhum funil padrão com etapas configurado');
+    if (conv.leadId) {
+      const existing = await this.leads.findOne(conv.leadId);
+      return { leadId: conv.leadId, pipelineId: existing.pipelineId, stageId: existing.stageId };
     }
-    const firstStage = [...pipeline.stages].sort((a, b) => a.position - b.position)[0];
+
+    const displayName = dto.name?.trim() || conv.externalId || 'Desconhecido';
+
+    // Resolve pipeline + stage
+    let targetPipelineId = dto.pipelineId;
+    let targetStageId = dto.stageId;
+    if (!targetPipelineId || !targetStageId) {
+      const pipeline = await this.pipelines.findDefault();
+      if (!pipeline || !pipeline.stages?.length) {
+        throw new BadRequestException('Nenhum funil padrão com etapas configurado');
+      }
+      const sortedStages = [...pipeline.stages].sort((a, b) => a.position - b.position);
+      targetPipelineId = pipeline.id;
+      targetStageId = sortedStages[0].id;
+    }
+
+    let contactId: string | undefined;
+    let companyId: string | undefined;
+
+    if (dto.type === 'company') {
+      const company = await this.companies.create({ name: displayName } as any);
+      companyId = company.id;
+    } else {
+      const contact = await this.contacts.create({
+        name: displayName,
+        phone: conv.externalId ?? undefined,
+        whatsapp: conv.externalId ?? undefined,
+      } as any);
+      contactId = contact.id;
+    }
 
     const lead = await this.leads.create({
-      contactId: contact.id,
-      pipelineId: pipeline.id,
-      stageId: firstStage.id,
+      contactId,
+      companyId,
+      pipelineId: targetPipelineId,
+      stageId: targetStageId,
     } as any);
 
     await this.repo.update({ id, workspaceId }, { leadId: lead.id });
-    return { leadId: lead.id };
+    return { leadId: lead.id, pipelineId: targetPipelineId, stageId: targetStageId };
   }
 
   async findInbox(query: InboxQuery = {}): Promise<InboxPage> {

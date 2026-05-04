@@ -1,5 +1,5 @@
 import { Body, Controller, Get, Param, ParseUUIDPipe, Post, Query, UseGuards } from '@nestjs/common';
-import { IsOptional, IsString } from 'class-validator';
+import { IsEnum, IsOptional, IsString, IsUUID } from 'class-validator';
 import { ConversationsService } from './conversations.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { FeatureGuard } from '../common/feature-access/feature.guard';
@@ -11,6 +11,18 @@ class QualifyDto {
   @IsOptional()
   @IsString()
   name?: string;
+
+  @IsOptional()
+  @IsEnum(['person', 'company'])
+  type?: 'person' | 'company';
+
+  @IsOptional()
+  @IsUUID()
+  pipelineId?: string;
+
+  @IsOptional()
+  @IsUUID()
+  stageId?: string;
 }
 
 @ApiTags('conversations')
@@ -44,6 +56,11 @@ export class ConversationsController {
 
   @Post(':id/qualify')
   qualify(@Param('id', new ParseUUIDPipe()) id: string, @Body() dto: QualifyDto) {
-    return this.service.qualify(id, { name: dto.name ?? '' });
+    return this.service.qualify(id, {
+      name: dto.name ?? '',
+      type: dto.type,
+      pipelineId: dto.pipelineId,
+      stageId: dto.stageId,
+    });
   }
 }
