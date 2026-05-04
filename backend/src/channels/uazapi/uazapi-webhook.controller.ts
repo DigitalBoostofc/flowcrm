@@ -192,9 +192,9 @@ export class UazapiWebhookController {
         Date.now();
       const receivedAt = new Date(rawTs > 1e12 ? rawTs : rawTs * 1000);
 
-      // URL de mídia — url direta ou campos aninhados por tipo
-      const mediaUrl: string | undefined =
-        msg?.url ?? msg?.mediaUrl ?? msg?.fileUrl ??
+      // URL de mídia — fileURL (campo oficial da API) ou campos aninhados por tipo
+      let mediaUrl: string | undefined =
+        msg?.url ?? msg?.mediaUrl ?? msg?.fileUrl ?? msg?.fileURL ??
         msg?.message?.imageMessage?.url ??
         msg?.message?.videoMessage?.url ??
         msg?.message?.audioMessage?.url ??
@@ -203,7 +203,7 @@ export class UazapiWebhookController {
         msg?.message?.pttMessage?.url ??
         undefined;
 
-      const mediaMimeType: string | undefined =
+      let mediaMimeType: string | undefined =
         msg?.mimetype ?? msg?.mimeType ??
         msg?.message?.imageMessage?.mimetype ??
         msg?.message?.videoMessage?.mimetype ??
@@ -216,6 +216,18 @@ export class UazapiWebhookController {
         msg?.fileName ?? msg?.filename ??
         msg?.message?.documentMessage?.fileName ??
         undefined;
+
+      // Para mensagens de mídia sem URL, acionar download no uazapGO para obter URL hospedada
+      if (mediaType && !mediaUrl && !externalMessageId.startsWith('uza-')) {
+        const downloaded = await this.uazapi.downloadMedia(channelConfigId, externalMessageId);
+        if (downloaded.fileURL) {
+          mediaUrl = downloaded.fileURL;
+          mediaMimeType = mediaMimeType ?? downloaded.mimetype;
+          this.logger.log(`Mídia baixada para ${externalMessageId}: ${mediaUrl}`);
+        } else {
+          this.logger.warn(`Sem URL de mídia para ${rawMsgType} id=${externalMessageId} from=${from}`);
+        }
+      }
 
       const eventPayload = {
         channelConfigId,
