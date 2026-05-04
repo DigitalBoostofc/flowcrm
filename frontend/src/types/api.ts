@@ -129,6 +129,7 @@ export interface Lead {
   notes?: string | null;
   privacy?: 'all' | 'restricted';
   additionalAccessUserIds?: string[];
+  items?: { productName: string; unitPrice: number; quantity: number; discount: number; discountType: 'value' | 'percent' }[];
   archivedAt?: string | null;
   createdAt: string;
   updatedAt: string;
