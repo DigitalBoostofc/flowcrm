@@ -66,6 +66,9 @@ export class Task {
   @Column({ type: 'varchar', nullable: true })
   targetLabel: string | null;
 
+  @Column({ type: 'varchar', nullable: true })
+  location: string | null;
+
   @Column({ type: 'jsonb', default: () => `'[]'` })
   attachments: { name: string; url: string }[];
 

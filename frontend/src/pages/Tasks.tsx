@@ -96,6 +96,7 @@ function AddTaskCard({
     const d = new Date();
     return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
   });
+  const [location, setLocation] = useState('');
   const [attachments, setAttachments] = useState<{ name: string; url: string }[]>([]);
   const [responsibleOpen, setResponsibleOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -119,6 +120,7 @@ function AddTaskCard({
         targetType: targetId ? 'contact' : undefined,
         targetId: targetId ?? undefined,
         targetLabel: targetLabel || undefined,
+        location: selectedType === 'visit' ? location.trim() || undefined : undefined,
         attachments,
       });
     },
@@ -361,6 +363,27 @@ function AddTaskCard({
         </div>
       </div>
 
+      {/* Endereço — apenas para Visita */}
+      {selectedType === 'visit' && (
+        <div className="px-4 py-3" style={{ borderTop: '1px solid var(--edge)' }}>
+          <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--ink-2)' }}>
+            Endereço da visita
+          </label>
+          <input
+            value={location}
+            onChange={(e) => setLocation(e.target.value)}
+            placeholder="Rua, número, bairro, cidade..."
+            className="w-full px-2 py-1.5 rounded-lg outline-none text-sm"
+            style={{
+              background: 'var(--surface)',
+              border: '1px solid var(--edge)',
+              color: 'var(--ink-1)',
+              height: '38px',
+            }}
+          />
+        </div>
+      )}
+
       {/* Footer */}
       <div
         className="flex items-center justify-between px-4 py-3"
@@ -469,6 +492,12 @@ function TaskRow({ task, users }: { task: Task; users: User[] }) {
             <Clock className="w-3 h-3" />
             {formatTaskDate(task.dueDate)}
           </span>
+          {task.location && (
+            <span className="inline-flex items-center gap-1 text-xs" style={{ color: 'var(--ink-3)' }}>
+              <MapPin className="w-3 h-3" />
+              {task.location}
+            </span>
+          )}
           {responsibles.map((r) => (
             <span
               key={r.id}

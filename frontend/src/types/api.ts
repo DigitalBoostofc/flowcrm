@@ -261,6 +261,7 @@ export interface Task {
   targetType: TaskTargetType | null;
   targetId: string | null;
   targetLabel: string | null;
+  location: string | null;
   attachments: TaskAttachment[];
   createdById: string | null;
   completedAt: string | null;

@@ -30,6 +30,7 @@ export interface CreateTaskInput {
   targetType?: TaskTargetType;
   targetId?: string;
   targetLabel?: string;
+  location?: string;
   attachments?: TaskAttachment[];
 }
 
