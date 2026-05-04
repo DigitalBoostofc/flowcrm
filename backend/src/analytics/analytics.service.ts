@@ -72,15 +72,15 @@ export class AnalyticsService {
           .addSelect('COUNT(*)', 'count')
           .andWhere('l.status = :lostStatus', { lostStatus: LeadStatus.LOST })
           .groupBy('l.lossReason')
-          .orderBy('count', 'DESC')
+          .orderBy('COUNT(*)', 'DESC')
           .limit(5)
           .getRawMany(),
 
-        // leads created per day (last 30 days)
+        // leads created per day (last 14 days)
         qb.clone()
           .select("TO_CHAR(l.createdAt, 'YYYY-MM-DD')", 'day')
           .addSelect('COUNT(*)', 'count')
-          .andWhere("l.createdAt >= NOW() - INTERVAL '30 days'")
+          .andWhere("l.createdAt >= NOW() - INTERVAL '14 days'")
           .groupBy("TO_CHAR(l.createdAt, 'YYYY-MM-DD')")
           .getRawMany(),
 
@@ -105,11 +105,10 @@ export class AnalyticsService {
         // neglected leads (active, no update in 14+ days)
         qb.clone()
           .leftJoin('l.contact', 'c')
-          .leftJoin('l.assignedTo', 'au')
           .select('l.id', 'id')
           .addSelect('l.title', 'title')
           .addSelect('c.name', 'contactName')
-          .addSelect("COALESCE(au.name, 'Sem responsável')", 'assignedTo')
+          .addSelect("COALESCE(u.name, 'Sem responsável')", 'assignedTo')
           .addSelect('l.updatedAt', 'updatedAt')
           .addSelect('EXTRACT(DAY FROM NOW() - l.updatedAt)', 'daysSinceUpdate')
           .andWhere('l.status = :activeStatus2', { activeStatus2: LeadStatus.ACTIVE })
@@ -154,7 +153,7 @@ export class AnalyticsService {
       if (r.status === 'active' || r.status === 'won' || r.status === 'lost' || r.status === 'frozen') {
         agentMap[key][r.status as 'active' | 'won' | 'lost' | 'frozen'] += parseInt(r.count, 10);
       }
-      agentMap[key].value += parseFloat(r.value);
+      if (r.status === LeadStatus.WON) agentMap[key].value += parseFloat(r.value);
     }
     const byAgent = Object.entries(agentMap).map(([agentId, data]) => ({ agentId, ...data }));
 
