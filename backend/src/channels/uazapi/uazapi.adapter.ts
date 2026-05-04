@@ -315,4 +315,22 @@ export class UazapiAdapter implements ChannelAdapter {
     channel.config = { ...channel.config, lastQrCode: base64, lastQrAt: new Date().toISOString() };
     await this.repo.save(channel);
   }
+
+  async getChatDetails(channelConfigId: string, phone: string): Promise<{ name?: string; image?: string }> {
+    try {
+      const token = await this.ensureToken(channelConfigId);
+      const res = await axios.post(
+        `${this.baseUrl}/chat/details`,
+        { number: phone, preview: true },
+        { headers: this.instanceHeaders(token), timeout: 10000 },
+      );
+      return {
+        name: res.data?.wa_name ?? res.data?.name ?? undefined,
+        image: res.data?.imagePreview ?? res.data?.image ?? undefined,
+      };
+    } catch (err: any) {
+      this.logger.warn(`getChatDetails failed for ${phone}: ${err.message}`);
+      return {};
+    }
+  }
 }
