@@ -35,8 +35,9 @@ export class AgendasController {
   }
 
   @Get()
-  findAll(@Query('active') active?: string) {
-    return this.service.findAll(active === 'true');
+  findAll(@Query('active') active?: string, @Req() req?: any) {
+    const user = req?.user ? { id: req.user.sub, role: req.user.role } : undefined;
+    return this.service.findAll(active === 'true', user);
   }
 
   @Get(':id')
