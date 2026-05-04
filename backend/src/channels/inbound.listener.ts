@@ -3,6 +3,7 @@ import { OnEvent } from '@nestjs/event-emitter';
 import { ConversationsService } from '../conversations/conversations.service';
 import { MessagesService } from '../messages/messages.service';
 import { ChannelsService } from './channels.service';
+import { UazapiAdapter } from './uazapi/uazapi.adapter';
 import { TenantContext } from '../common/tenant/tenant-context.service';
 import { Repository } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -31,6 +32,7 @@ export class InboundListener {
     private conversations: ConversationsService,
     private messages: MessagesService,
     private channels: ChannelsService,
+    private uazapi: UazapiAdapter,
     private tenant: TenantContext,
     @InjectRepository(ChannelConfig) private channelRepo: Repository<ChannelConfig>,
   ) {}
@@ -45,6 +47,7 @@ export class InboundListener {
           evt.channelType,
           evt.from,
           channel.workspaceId,
+          evt.fromName,
         );
         const saved = await this.messages.saveWebhookOutbound({
           conversationId: conv.id,
@@ -93,7 +96,17 @@ export class InboundListener {
       evt.channelType,
       evt.from,
       channel.workspaceId,
+      evt.fromName,
     );
+
+    // Fetch WhatsApp profile picture in background when not yet saved
+    if (channel.type === 'uazapi' && !conv.fromAvatarUrl && evt.channelConfigId) {
+      this.uazapi.getChatDetails(evt.channelConfigId, evt.from)
+        .then(({ image }) => {
+          if (image) this.conversations.updateFromAvatar(conv.id, image);
+        })
+        .catch(() => { /* ignore */ });
+    }
 
     const saved = await this.messages.saveInbound({
       conversationId: conv.id,

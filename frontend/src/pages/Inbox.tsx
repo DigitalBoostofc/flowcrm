@@ -563,12 +563,12 @@ function ConvItem({ item, selected, onClick }: { item: InboxItem; selected: bool
         borderLeft: selected ? '2px solid var(--brand-500)' : '2px solid transparent',
       }}
     >
-      <Avatar name={item.contactName} url={item.contactAvatarUrl} size={36} />
+      <Avatar name={item.contactName ?? item.fromName} url={item.contactAvatarUrl ?? item.fromAvatarUrl} size={36} />
 
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between gap-2">
           <span className="text-sm font-medium truncate" style={{ color: 'var(--ink-1)' }}>
-            {item.contactName ?? item.externalId ?? 'Desconhecido'}
+            {item.contactName ?? item.fromName ?? item.externalId ?? 'Desconhecido'}
           </span>
           <span className="text-[10px] flex-shrink-0 flex items-center gap-1.5" style={{ color: 'var(--ink-3)' }}>
             <span
