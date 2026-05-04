@@ -1,6 +1,9 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { MessageCircle, Send, Search, Phone, Loader2, Sparkles } from 'lucide-react';
+import { MessageCircle, Send, Search, Phone, Loader2, Sparkles, Activity, FileText } from 'lucide-react';
+import ConversationSummaryButton from '@/components/lead-panel/ConversationSummary';
+import LeadActivities from '@/components/lead-panel/LeadActivities';
+import LeadInfo from '@/components/lead-panel/LeadInfo';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { listInbox, markConversationRead, type InboxItem, type InboxPage } from '@/api/conversations';
@@ -80,8 +83,17 @@ function ConvItem({ item, selected, onClick }: { item: InboxItem; selected: bool
 
 /* ── ChatView ─────────────────────────────────────────── */
 
+type ChatTab = 'chat' | 'activities' | 'info';
+
+const CHAT_TABS: { id: ChatTab; label: string; icon: React.ElementType }[] = [
+  { id: 'chat', label: 'Chat', icon: MessageCircle },
+  { id: 'activities', label: 'Atividades', icon: Activity },
+  { id: 'info', label: 'Dados', icon: FileText },
+];
+
 function ChatView({ item, onQualify }: { item: InboxItem; onQualify: () => void }) {
   const qc = useQueryClient();
+  const [activeTab, setActiveTab] = useState<ChatTab>('chat');
   const [body, setBody] = useState('');
   const scrollRef = useRef<HTMLDivElement>(null);
   const { socket } = useWs();
@@ -97,15 +109,17 @@ function ChatView({ item, onQualify }: { item: InboxItem; onQualify: () => void 
   const { data: rawMessages = [], isLoading } = useQuery({
     queryKey: ['messages', item.id],
     queryFn: () => listMessages(item.id),
+    enabled: activeTab === 'chat',
   });
 
   const messages = [...rawMessages].sort((a, b) => new Date(a.sentAt).getTime() - new Date(b.sentAt).getTime());
 
   useEffect(() => {
-    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
-  }, [messages.length]);
+    if (activeTab === 'chat') {
+      scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
+    }
+  }, [messages.length, activeTab]);
 
-  // Atualiza mensagens em tempo real via WebSocket
   useEffect(() => {
     if (!socket) return;
     const handler = () => {
@@ -115,6 +129,9 @@ function ChatView({ item, onQualify }: { item: InboxItem; onQualify: () => void 
     socket.on('message.received', handler);
     return () => { socket.off('message.received', handler); };
   }, [socket, item.id, qc]);
+
+  // Reset para aba chat ao trocar de conversa
+  useEffect(() => { setActiveTab('chat'); }, [item.id]);
 
   const sendMut = useMutation({
     mutationFn: () => sendMessage({ conversationId: item.id, channelConfigId: channelId, body: body.trim() }),
@@ -173,81 +190,120 @@ function ChatView({ item, onQualify }: { item: InboxItem; onQualify: () => void 
         )}
       </div>
 
-      {/* Messages */}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto px-5 py-4 space-y-2" style={{ background: 'var(--canvas)' }}>
-        {isLoading ? (
-          <div className="flex items-center justify-center h-full">
-            <Loader2 className="w-6 h-6 animate-spin" style={{ color: 'var(--ink-3)' }} />
-          </div>
-        ) : messages.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full gap-2" style={{ color: 'var(--ink-3)' }}>
-            <MessageCircle className="w-8 h-8" strokeWidth={1.5} />
-            <p className="text-sm">Nenhuma mensagem ainda</p>
-          </div>
-        ) : (
-          messages.map(m => (
-            <div key={m.id} className={`flex ${m.direction === 'outbound' ? 'justify-end' : 'justify-start'}`}>
-              <div
-                className="max-w-[70%] px-3 py-2 rounded-2xl text-sm leading-relaxed"
-                style={m.direction === 'outbound'
-                  ? { background: 'var(--brand-500)', color: '#fff', borderBottomRightRadius: 4 }
-                  : { background: 'var(--surface)', border: '1px solid var(--edge)', color: 'var(--ink-1)', borderBottomLeftRadius: 4 }
-                }
-              >
-                <p className="whitespace-pre-wrap break-words">{m.body}</p>
-                <p className={`text-[10px] mt-1 ${m.direction === 'outbound' ? 'text-white/60 text-right' : ''}`} style={m.direction === 'inbound' ? { color: 'var(--ink-3)' } : {}}>
-                  {new Date(m.sentAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
-                </p>
-              </div>
-            </div>
-          ))
-        )}
+      {/* Tabs */}
+      <div
+        className="flex gap-1 px-3 py-2 flex-shrink-0"
+        style={{ borderBottom: '1px solid var(--edge)', background: 'var(--surface)' }}
+      >
+        {CHAT_TABS.map(({ id, label, icon: Icon }) => (
+          <button
+            key={id}
+            onClick={() => setActiveTab(id)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
+            style={
+              activeTab === id
+                ? { background: 'var(--panel-bg, var(--canvas))', color: 'var(--ink-1)', boxShadow: '0 1px 3px rgba(0,0,0,0.12)' }
+                : { color: 'var(--ink-3)' }
+            }
+          >
+            <Icon className="w-3.5 h-3.5" />
+            {label}
+          </button>
+        ))}
       </div>
 
-      {/* Composer */}
-      <div
-        className="flex-shrink-0 px-4 py-3 space-y-2"
-        style={{ borderTop: '1px solid var(--edge)', background: 'var(--surface)' }}
-      >
-        {activeChannels.length === 0 && (
-          <p className="text-xs text-center" style={{ color: 'var(--warning)' }}>
-            Nenhum canal WhatsApp conectado. Vá em Configurações → Canais.
-          </p>
-        )}
-        {activeChannels.length > 1 && (
-          <select
-            value={channelId}
-            onChange={e => setChannelId(e.target.value)}
-            className="w-full text-xs rounded-lg px-2 py-1.5 outline-none"
-            style={{ background: 'var(--surface-hover)', border: '1px solid var(--edge)', color: 'var(--ink-2)' }}
+      {/* Tab content */}
+      {activeTab === 'chat' && (
+        <>
+          <ConversationSummaryButton conversationId={item.id} />
+
+          <div ref={scrollRef} className="flex-1 overflow-y-auto px-5 py-4 space-y-2" style={{ background: 'var(--canvas)' }}>
+            {isLoading ? (
+              <div className="flex items-center justify-center h-full">
+                <Loader2 className="w-6 h-6 animate-spin" style={{ color: 'var(--ink-3)' }} />
+              </div>
+            ) : messages.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-full gap-2" style={{ color: 'var(--ink-3)' }}>
+                <MessageCircle className="w-8 h-8" strokeWidth={1.5} />
+                <p className="text-sm">Nenhuma mensagem ainda</p>
+              </div>
+            ) : (
+              messages.map(m => (
+                <div key={m.id} className={`flex ${m.direction === 'outbound' ? 'justify-end' : 'justify-start'}`}>
+                  <div
+                    className="max-w-[70%] px-3 py-2 rounded-2xl text-sm leading-relaxed"
+                    style={m.direction === 'outbound'
+                      ? { background: 'var(--brand-500)', color: '#fff', borderBottomRightRadius: 4 }
+                      : { background: 'var(--surface)', border: '1px solid var(--edge)', color: 'var(--ink-1)', borderBottomLeftRadius: 4 }
+                    }
+                  >
+                    <p className="whitespace-pre-wrap break-words">{m.body}</p>
+                    <p className={`text-[10px] mt-1 ${m.direction === 'outbound' ? 'text-white/60 text-right' : ''}`} style={m.direction === 'inbound' ? { color: 'var(--ink-3)' } : {}}>
+                      {new Date(m.sentAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                    </p>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+
+          <div
+            className="flex-shrink-0 px-4 py-3 space-y-2"
+            style={{ borderTop: '1px solid var(--edge)', background: 'var(--surface)' }}
           >
-            {activeChannels.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-          </select>
-        )}
-        <div className="flex gap-2">
-          <textarea
-            value={body}
-            onChange={e => setBody(e.target.value)}
-            onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
-            placeholder="Digite uma mensagem... (Enter para enviar)"
-            rows={2}
-            className="flex-1 text-sm rounded-xl px-3 py-2 resize-none outline-none"
-            style={{ background: 'var(--surface-hover)', border: '1px solid var(--edge)', color: 'var(--ink-1)' }}
-            disabled={activeChannels.length === 0}
-          />
-          <button
-            onClick={handleSend}
-            disabled={!body.trim() || !channelId || sendMut.isPending || activeChannels.length === 0}
-            className="w-10 h-10 rounded-xl flex items-center justify-center self-end disabled:opacity-40 transition-opacity"
-            style={{ background: 'var(--brand-500)', color: '#fff' }}
-          >
-            {sendMut.isPending
-              ? <Loader2 className="w-4 h-4 animate-spin" />
-              : <Send className="w-4 h-4" strokeWidth={2} />
-            }
-          </button>
+            {activeChannels.length === 0 && (
+              <p className="text-xs text-center" style={{ color: 'var(--warning)' }}>
+                Nenhum canal WhatsApp conectado. Vá em Configurações → Canais.
+              </p>
+            )}
+            {activeChannels.length > 1 && (
+              <select
+                value={channelId}
+                onChange={e => setChannelId(e.target.value)}
+                className="w-full text-xs rounded-lg px-2 py-1.5 outline-none"
+                style={{ background: 'var(--surface-hover)', border: '1px solid var(--edge)', color: 'var(--ink-2)' }}
+              >
+                {activeChannels.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+            )}
+            <div className="flex gap-2">
+              <textarea
+                value={body}
+                onChange={e => setBody(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
+                placeholder="Digite uma mensagem... (Enter para enviar)"
+                rows={2}
+                className="flex-1 text-sm rounded-xl px-3 py-2 resize-none outline-none"
+                style={{ background: 'var(--surface-hover)', border: '1px solid var(--edge)', color: 'var(--ink-1)' }}
+                disabled={activeChannels.length === 0}
+              />
+              <button
+                onClick={handleSend}
+                disabled={!body.trim() || !channelId || sendMut.isPending || activeChannels.length === 0}
+                className="w-10 h-10 rounded-xl flex items-center justify-center self-end disabled:opacity-40 transition-opacity"
+                style={{ background: 'var(--brand-500)', color: '#fff' }}
+              >
+                {sendMut.isPending
+                  ? <Loader2 className="w-4 h-4 animate-spin" />
+                  : <Send className="w-4 h-4" strokeWidth={2} />
+                }
+              </button>
+            </div>
+          </div>
+        </>
+      )}
+
+      {activeTab === 'activities' && (
+        <div className="flex-1 overflow-auto">
+          <LeadActivities leadId={item.leadId} />
         </div>
-      </div>
+      )}
+
+      {activeTab === 'info' && (
+        <div className="flex-1 overflow-auto">
+          <LeadInfo leadId={item.leadId} />
+        </div>
+      )}
     </div>
   );
 }
