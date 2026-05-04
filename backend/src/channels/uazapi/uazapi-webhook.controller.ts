@@ -124,12 +124,16 @@ export class UazapiWebhookController {
         payload?.fromMe ?? false;
 
       // Tipo da mensagem — tenta todos os campos conhecidos
-      const rawMsgType: string =
+      const rawType: string =
         msg?.type ?? msg?.messageType ??
         payload?.type ?? payload?.messageType ??
         'conversation';
+      // uazapGO envia type='media' com o subtipo real em msg.mediaType (audio, ptt, image, etc.)
+      const rawMsgType: string = rawType === 'media'
+        ? (msg?.mediaType ?? rawType)
+        : rawType;
 
-      this.logger.log(`[diag] rawMsgType=${rawMsgType} fromMe=${msg?.fromMe ?? msg?.key?.fromMe ?? payload?.fromMe ?? false} msgid=${msg?.messageid ?? msg?.key?.id ?? payload?.messageid ?? payload?.id ?? 'none'}`);
+      this.logger.log(`[diag] rawType=${rawType} rawMsgType=${rawMsgType} fromMe=${msg?.fromMe ?? msg?.key?.fromMe ?? payload?.fromMe ?? false} msgid=${msg?.messageid ?? msg?.key?.id ?? payload?.messageid ?? payload?.id ?? 'none'}`);
 
       // Ignorar tipos sem conteúdo exibível (reações, protocolos, etc.)
       if (IGNORED_TYPES.has(rawMsgType)) {
