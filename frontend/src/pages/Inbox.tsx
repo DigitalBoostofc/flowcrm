@@ -377,6 +377,8 @@ function ChatView({ item, onQualify }: { item: InboxItem; onQualify: () => void 
     queryKey: ['messages', item.id],
     queryFn: () => listMessages(item.id),
     enabled: activeTab === 'chat',
+    refetchInterval: 10000,
+    refetchIntervalInBackground: false,
   });
 
   const messages = [...rawMessages].sort((a, b) => new Date(a.sentAt).getTime() - new Date(b.sentAt).getTime());
@@ -709,7 +711,8 @@ export default function Inbox() {
       const loaded = last.page * last.pageSize;
       return loaded < last.total ? last.page + 1 : undefined;
     },
-    refetchInterval: 30000,
+    refetchInterval: 10000,
+    refetchIntervalInBackground: false,
   });
   const inbox: InboxItem[] = useMemo(
     () => inboxQuery.data?.pages.flatMap((p) => p.items) ?? [],
