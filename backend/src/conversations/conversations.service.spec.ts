@@ -3,7 +3,20 @@ import { getRepositoryToken } from '@nestjs/typeorm';
 import { ConversationsService } from './conversations.service';
 import { Conversation } from './entities/conversation.entity';
 import { TenantContext } from '../common/tenant/tenant-context.service';
+import { ContactsService } from '../contacts/contacts.service';
+import { LeadsService } from '../leads/leads.service';
+import { PipelinesService } from '../pipelines/pipelines.service';
 import { NotFoundException } from '@nestjs/common';
+
+const mockContacts = { create: jest.fn(), findByPhone: jest.fn() } as unknown as ContactsService;
+const mockLeads = { create: jest.fn() } as unknown as LeadsService;
+const mockPipelines = { findDefault: jest.fn() } as unknown as PipelinesService;
+
+const EXTRA_PROVIDERS = [
+  { provide: ContactsService, useValue: mockContacts },
+  { provide: LeadsService, useValue: mockLeads },
+  { provide: PipelinesService, useValue: mockPipelines },
+];
 
 describe('ConversationsService', () => {
   describe('computeUnread', () => {
@@ -45,9 +58,7 @@ describe('ConversationsService', () => {
 
   describe('markAsRead', () => {
     let service: ConversationsService;
-    const mockRepo = {
-      update: jest.fn(),
-    };
+    const mockRepo = { update: jest.fn() };
     const mockTenant = { requireWorkspaceId: jest.fn().mockReturnValue('ws-1') } as unknown as TenantContext;
 
     beforeEach(async () => {
@@ -57,6 +68,7 @@ describe('ConversationsService', () => {
           ConversationsService,
           { provide: getRepositoryToken(Conversation), useValue: mockRepo },
           { provide: TenantContext, useValue: mockTenant },
+          ...EXTRA_PROVIDERS,
         ],
       }).compile();
       service = module.get<ConversationsService>(ConversationsService);
@@ -105,6 +117,7 @@ describe('ConversationsService', () => {
           ConversationsService,
           { provide: getRepositoryToken(Conversation), useValue: mockRepo },
           { provide: TenantContext, useValue: mockTenant },
+          ...EXTRA_PROVIDERS,
         ],
       }).compile();
       service = module.get<ConversationsService>(ConversationsService);
@@ -154,9 +167,7 @@ describe('ConversationsService', () => {
 
   describe('findInbox pagination', () => {
     let service: ConversationsService;
-    const mockRepo = {
-      query: jest.fn(),
-    };
+    const mockRepo = { query: jest.fn() };
     const mockTenant = { requireWorkspaceId: jest.fn().mockReturnValue('ws-1') } as unknown as TenantContext;
 
     beforeEach(async () => {
@@ -166,6 +177,7 @@ describe('ConversationsService', () => {
           ConversationsService,
           { provide: getRepositoryToken(Conversation), useValue: mockRepo },
           { provide: TenantContext, useValue: mockTenant },
+          ...EXTRA_PROVIDERS,
         ],
       }).compile();
       service = module.get<ConversationsService>(ConversationsService);
