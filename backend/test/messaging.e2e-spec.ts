@@ -95,18 +95,17 @@ describe('Messaging Pipeline (e2e)', () => {
     await app.close();
   });
 
-  // Helper: locate the lead created for a given phone via DB. The current
-  // inbound listener creates a lead with externalPhone (no contact yet) when
-  // no contact exists for the number — so we don't search via /api/contacts.
-  async function findLeadByExternalPhone(phone: string): Promise<{ id: string; stageId: string } | null> {
-    const rows: { id: string; stageId: string }[] = await dataSource.query(
-      'SELECT id, "stageId" FROM leads WHERE "externalPhone" = $1 ORDER BY "createdAt" DESC LIMIT 1',
-      [phone],
+  // Helper: find an unqualified conversation by externalId (phone).
+  // Since inbound no longer auto-creates leads, conversations have leadId = null.
+  async function findConversationByExternalId(externalId: string): Promise<{ id: string; leadId: string | null } | null> {
+    const rows: { id: string; leadId: string | null }[] = await dataSource.query(
+      'SELECT id, "leadId" FROM conversations WHERE "externalId" = $1 ORDER BY "createdAt" DESC LIMIT 1',
+      [externalId],
     );
     return rows[0] ?? null;
   }
 
-  it('inbound webhook creates a lead in the default pipeline first stage', async () => {
+  it('inbound webhook creates an unqualified conversation (no lead) and saves the message', async () => {
     const phone = '+5511987654321';
     await inboundListener.handle({
       channelType: 'evolution',
@@ -118,9 +117,24 @@ describe('Messaging Pipeline (e2e)', () => {
       receivedAt: new Date(),
     });
 
-    const lead = await findLeadByExternalPhone(phone);
-    expect(lead).not.toBeNull();
-    expect(lead!.stageId).toBe(stage1Id);
+    const conv = await findConversationByExternalId(phone);
+    expect(conv).not.toBeNull();
+    // leadId must be null — no automatic lead creation
+    expect(conv!.leadId).toBeNull();
+
+    // Message saved under the conversation
+    const msgs: { count: string }[] = await dataSource.query(
+      'SELECT COUNT(*)::text AS count FROM messages WHERE "conversationId" = $1',
+      [conv!.id],
+    );
+    expect(parseInt(msgs[0].count, 10)).toBeGreaterThanOrEqual(1);
+
+    // No lead was created for this phone
+    const leads: { count: string }[] = await dataSource.query(
+      'SELECT COUNT(*)::text AS count FROM leads WHERE "externalPhone" = $1',
+      [phone],
+    );
+    expect(parseInt(leads[0].count, 10)).toBe(0);
   });
 
   it('duplicate webhook (same externalMessageId) does NOT create a duplicate message', async () => {
@@ -158,7 +172,6 @@ describe('Messaging Pipeline (e2e)', () => {
   });
 
   it('automation fires once; moving back and forth does NOT re-fire', async () => {
-    // CreateAutomationDto evolved: now requires { name, triggerType, steps[] }.
     const automationRes = await request(app.getHttpServer())
       .post('/api/automations')
       .set('Authorization', `Bearer ${ownerToken}`)
@@ -177,30 +190,30 @@ describe('Messaging Pipeline (e2e)', () => {
       .expect(201);
     const automationId = automationRes.body.id;
 
-    const phone = '+5511987654323';
-    await inboundListener.handle({
-      channelType: 'evolution',
-      channelConfigId,
-      externalMessageId: 'evo-msg-auto-001',
-      from: phone,
-      fromName: 'Carlos Auto',
-      body: 'Interesse',
-      receivedAt: new Date(),
-    });
+    // Create contact + lead directly via API (inbound no longer auto-creates leads)
+    const contactRes = await request(app.getHttpServer())
+      .post('/api/contacts')
+      .set('Authorization', `Bearer ${ownerToken}`)
+      .send({ name: 'Carlos Auto', phone: '+5511987654323' })
+      .expect(201);
 
-    const lead = await findLeadByExternalPhone(phone);
-    expect(lead).not.toBeNull();
+    const leadRes = await request(app.getHttpServer())
+      .post('/api/leads')
+      .set('Authorization', `Bearer ${ownerToken}`)
+      .send({ contactId: contactRes.body.id, pipelineId, stageId: stage1Id })
+      .expect(201);
+    const leadId = leadRes.body.id;
 
     // 1st move: stage1 → stage2 (creates execution)
     await request(app.getHttpServer())
-      .patch(`/api/leads/${lead!.id}/move`)
+      .patch(`/api/leads/${leadId}/move`)
       .set('Authorization', `Bearer ${ownerToken}`)
       .send({ stageId: stage2Id })
       .expect(200);
 
     // 2nd: back to stage1
     await request(app.getHttpServer())
-      .patch(`/api/leads/${lead!.id}/move`)
+      .patch(`/api/leads/${leadId}/move`)
       .set('Authorization', `Bearer ${ownerToken}`)
       .send({ stageId: stage1Id })
       .expect(200);
@@ -208,7 +221,7 @@ describe('Messaging Pipeline (e2e)', () => {
     // 3rd: stage1 → stage2 again (must NOT create another execution due to
     // UNIQUE(automationId, leadId) on automation_executions)
     await request(app.getHttpServer())
-      .patch(`/api/leads/${lead!.id}/move`)
+      .patch(`/api/leads/${leadId}/move`)
       .set('Authorization', `Bearer ${ownerToken}`)
       .send({ stageId: stage2Id })
       .expect(200);
@@ -218,7 +231,7 @@ describe('Messaging Pipeline (e2e)', () => {
 
     const result: { count: string }[] = await dataSource.query(
       'SELECT COUNT(*)::text AS count FROM automation_executions WHERE "automationId" = $1 AND "leadId" = $2',
-      [automationId, lead!.id],
+      [automationId, leadId],
     );
     expect(parseInt(result[0].count, 10)).toBe(1);
   });
