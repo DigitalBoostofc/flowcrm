@@ -37,6 +37,7 @@ export default function Analytics() {
   const { data, isLoading } = useQuery({
     queryKey: ['analytics', pipelineId],
     queryFn: () => getAnalyticsSummary(pipelineId ?? undefined),
+    staleTime: 5 * 60 * 1000,
   });
 
   const leadsByDayData = data
@@ -203,7 +204,7 @@ export default function Analytics() {
                             {a.active} ativos ·{' '}
                             <span className="text-emerald-500">{a.won} ganhos</span> ·{' '}
                             <span className="text-red-500">{a.lost} perdidos</span>
-                            {(a as any).frozen > 0 && <> · <span className="text-sky-500">{(a as any).frozen} cong.</span></>}
+                            {a.frozen > 0 && <> · <span className="text-sky-500">{a.frozen} cong.</span></>}
                           </div>
                         </div>
                         <div className="text-sm font-semibold" style={{ color: 'var(--ink-1)' }}>
