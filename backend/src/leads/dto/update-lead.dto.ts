@@ -1,5 +1,6 @@
 import { IsOptional, IsString, IsNumber, IsDateString, IsUUID, Min, Max, MaxLength, IsInt, IsIn, IsArray } from 'class-validator';
 import { Type } from 'class-transformer';
+import { LeadItem } from '../entities/lead.entity';
 
 export class UpdateLeadDto {
   @IsOptional()
@@ -48,4 +49,8 @@ export class UpdateLeadDto {
   @IsArray()
   @IsUUID('4', { each: true })
   additionalAccessUserIds?: string[];
+
+  @IsOptional()
+  @IsArray()
+  items?: LeadItem[];
 }

@@ -430,7 +430,7 @@ function ContactAutocomplete({
   );
 }
 
-type ProductDraft = {
+export type ProductDraft = {
   productName: string;
   unitPrice: string;
   quantity: string;
@@ -438,11 +438,11 @@ type ProductDraft = {
   discountType: 'value' | 'percent';
 };
 
-function emptyProductDraft(): ProductDraft {
+export function emptyProductDraft(): ProductDraft {
   return { productName: '', unitPrice: '', quantity: '1', discount: '0', discountType: 'value' };
 }
 
-function ProductPickerCombo({
+export function ProductPickerCombo({
   onPick,
 }: {
   onPick: (patch: { productName: string; unitPrice?: string }) => void;
@@ -587,7 +587,7 @@ function ProductPickerCombo({
   );
 }
 
-function ProductNameField({
+export function ProductNameField({
   productName,
   onUpdate,
 }: {
