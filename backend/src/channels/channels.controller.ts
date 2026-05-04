@@ -113,7 +113,8 @@ export class ChannelsController {
     const host = req.get('host');
     const forwardedProto = req.get('x-forwarded-proto');
     const isLocal = /^(localhost|127\.|0\.0\.0\.0|::1)/.test(host ?? '');
-    const protocol = forwardedProto || (isLocal ? req.protocol || 'http' : 'https');
+    // For non-local hosts always use https regardless of x-forwarded-proto — prevents http webhook registration behind reverse proxies that don't forward the header
+    const protocol = isLocal ? (forwardedProto || req.protocol || 'http') : 'https';
     const provider = channel.type === 'uazapi' ? 'uazapi' : 'evolution';
     return `${protocol}://${host}/api/webhooks/${provider}/${id}/${secret}`;
   }
