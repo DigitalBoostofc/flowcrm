@@ -45,6 +45,7 @@ export class InboundListener {
           evt.channelType,
           evt.from,
           channel.workspaceId,
+          evt.fromName,
         );
         const saved = await this.messages.saveWebhookOutbound({
           conversationId: conv.id,
@@ -93,6 +94,7 @@ export class InboundListener {
       evt.channelType,
       evt.from,
       channel.workspaceId,
+      evt.fromName,
     );
 
     const saved = await this.messages.saveInbound({

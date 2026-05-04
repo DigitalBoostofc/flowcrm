@@ -24,6 +24,9 @@ export class Conversation {
   @Column({ nullable: true })
   externalId: string;
 
+  @Column({ type: 'varchar', nullable: true })
+  fromName: string | null;
+
   @OneToMany(() => Message, (m) => m.conversation)
   messages: Message[];
 

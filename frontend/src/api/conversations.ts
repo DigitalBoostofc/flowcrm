@@ -8,6 +8,7 @@ export interface InboxItem {
   externalId: string | null;
   contactId: string | null;
   contactName: string | null;
+  fromName: string | null;
   contactPhone: string | null;
   contactCategoria: string | null;
   contactAvatarUrl: string | null;

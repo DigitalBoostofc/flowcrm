@@ -16,6 +16,7 @@ export interface InboxItem {
   externalId: string | null;
   contactId: string | null;
   contactName: string | null;
+  fromName: string | null;
   contactPhone: string | null;
   contactCategoria: string | null;
   contactAvatarUrl: string | null;
@@ -61,12 +62,19 @@ export class ConversationsService {
     return this.repo.save(conv);
   }
 
-  async findOrCreateUnqualified(channelType: string, externalId: string, workspaceId: string): Promise<Conversation> {
+  async findOrCreateUnqualified(channelType: string, externalId: string, workspaceId: string, fromName?: string): Promise<Conversation> {
     // Look up by externalId regardless of leadId — so if the contact was already
     // qualified (leadId set), new inbound messages still land on the same conversation.
     const existing = await this.repo.findOne({ where: { channelType, externalId, workspaceId } });
-    if (existing) return existing;
-    const conv = this.repo.create({ channelType, externalId, workspaceId, leadId: null });
+    if (existing) {
+      // Update fromName if we now have a name and didn't before
+      if (fromName && !existing.fromName) {
+        await this.repo.update(existing.id, { fromName });
+        existing.fromName = fromName;
+      }
+      return existing;
+    }
+    const conv = this.repo.create({ channelType, externalId, workspaceId, leadId: null, fromName: fromName ?? null });
     return this.repo.save(conv);
   }
 
@@ -157,6 +165,7 @@ export class ConversationsService {
         c."leadId",
         c."channelType",
         c."externalId",
+        c."fromName",
         c."updatedAt",
         c."lastReadAt",
         contact.id                                                  AS "contactId",
@@ -189,6 +198,7 @@ export class ConversationsService {
       externalId: r.externalId,
       contactId: r.contactId,
       contactName: r.contactName ?? null,
+      fromName: r.fromName ?? null,
       contactPhone: r.contactPhone ?? null,
       contactCategoria: r.contactCategoria,
       contactAvatarUrl: r.contactAvatarUrl,
