@@ -1,9 +1,10 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
 import {
   MessageCircle, Send, Search, Phone, Loader2, Sparkles, Activity,
   FileText, Paperclip, Mic, File, Video, Trash2, SmilePlus, X,
-  Check, CheckCheck,
+  Check, CheckCheck, Users, Building2, ChevronDown,
 } from 'lucide-react';
 import ConversationSummaryButton from '@/components/lead-panel/ConversationSummary';
 import LeadActivities from '@/components/lead-panel/LeadActivities';
@@ -14,9 +15,10 @@ import { listInbox, markConversationRead, qualifyConversation, type InboxItem, t
 import { listMessages, sendMessage, sendMedia, reactMessage, deleteMessage } from '@/api/messages';
 import { listQuickReplies } from '@/api/quick-replies';
 import { listChannels } from '@/api/channels';
+import { listPipelines } from '@/api/pipelines';
 import { api } from '@/api/client';
 import { useWs } from '@/hooks/useWebSocket';
-import type { Message, QuickReply } from '@/types/api';
+import type { Message, QuickReply, Pipeline } from '@/types/api';
 import Avatar from '@/components/ui/Avatar';
 import { channelMeta, uniqueChannelTypes } from '@/lib/channels';
 
@@ -285,6 +287,199 @@ function MediaUploadPreview({ file, onCancel }: { file: File; onCancel: () => vo
   );
 }
 
+/* ── QualifyModal ─────────────────────────────────────── */
+
+function QualifyModal({
+  item,
+  onConfirm,
+  onClose,
+}: {
+  item: InboxItem;
+  onConfirm: (payload: { name: string; type: 'person' | 'company'; pipelineId: string; stageId: string }) => Promise<void>;
+  onClose: () => void;
+}) {
+  const [type, setType] = useState<'person' | 'company'>('person');
+  const [name, setName] = useState(item.contactName ?? '');
+  const [pipelineId, setPipelineId] = useState('');
+  const [stageId, setStageId] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  const { data: pipelines = [] } = useQuery<Pipeline[]>({
+    queryKey: ['pipelines'],
+    queryFn: listPipelines,
+  });
+
+  // Set default pipeline + stage
+  useEffect(() => {
+    if (pipelines.length && !pipelineId) {
+      const def = pipelines.find((p) => p.isDefault) ?? pipelines[0];
+      setPipelineId(def.id);
+      const sorted = (def.stages ?? []).slice().sort((a, b) => a.position - b.position);
+      setStageId(sorted[0]?.id ?? '');
+    }
+  }, [pipelines, pipelineId]);
+
+  const selectedPipeline = pipelines.find((p) => p.id === pipelineId) ?? null;
+  const stages = (selectedPipeline?.stages ?? []).slice().sort((a, b) => a.position - b.position);
+
+  const handlePipelineChange = (id: string) => {
+    setPipelineId(id);
+    const p = pipelines.find((p) => p.id === id);
+    const sorted = (p?.stages ?? []).slice().sort((a, b) => a.position - b.position);
+    setStageId(sorted[0]?.id ?? '');
+  };
+
+  const handleSubmit = async () => {
+    if (!name.trim()) { setError('Informe o nome.'); return; }
+    if (!pipelineId) { setError('Selecione um funil.'); return; }
+    if (!stageId) { setError('Selecione uma etapa.'); return; }
+    setSaving(true);
+    setError('');
+    try {
+      await onConfirm({ name: name.trim(), type, pipelineId, stageId });
+    } catch {
+      setError('Erro ao qualificar. Tente novamente.');
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)' }}
+      onClick={onClose}
+    >
+      <div
+        className="rounded-2xl shadow-2xl w-full max-w-md p-6 space-y-5"
+        style={{ background: 'var(--surface-raised)', border: '1px solid var(--edge)' }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: 'rgba(245,158,11,0.15)' }}>
+              <Sparkles className="w-4 h-4" style={{ color: '#f59e0b' }} />
+            </span>
+            <div>
+              <h3 className="text-sm font-semibold" style={{ color: 'var(--ink-1)' }}>Qualificar contato</h3>
+              <p className="text-xs" style={{ color: 'var(--ink-3)' }}>{item.externalId ?? item.contactPhone}</p>
+            </div>
+          </div>
+          <button onClick={onClose}>
+            <X className="w-4 h-4" style={{ color: 'var(--ink-3)' }} />
+          </button>
+        </div>
+
+        {/* Type selector */}
+        <div>
+          <label className="block text-xs font-medium mb-2" style={{ color: 'var(--ink-2)' }}>Tipo</label>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              onClick={() => setType('person')}
+              className="flex items-center gap-2 px-3 py-2.5 rounded-xl border text-sm font-medium transition-all"
+              style={{
+                background: type === 'person' ? 'var(--brand-50)' : 'var(--surface)',
+                borderColor: type === 'person' ? 'var(--brand-500)' : 'var(--edge)',
+                color: type === 'person' ? 'var(--brand-500)' : 'var(--ink-2)',
+              }}
+            >
+              <Users className="w-4 h-4 flex-shrink-0" />
+              Pessoa
+            </button>
+            <button
+              onClick={() => setType('company')}
+              className="flex items-center gap-2 px-3 py-2.5 rounded-xl border text-sm font-medium transition-all"
+              style={{
+                background: type === 'company' ? 'var(--brand-50)' : 'var(--surface)',
+                borderColor: type === 'company' ? 'var(--brand-500)' : 'var(--edge)',
+                color: type === 'company' ? 'var(--brand-500)' : 'var(--ink-2)',
+              }}
+            >
+              <Building2 className="w-4 h-4 flex-shrink-0" />
+              Empresa
+            </button>
+          </div>
+        </div>
+
+        {/* Name */}
+        <div>
+          <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--ink-2)' }}>
+            {type === 'person' ? 'Nome da pessoa' : 'Nome da empresa'}
+          </label>
+          <input
+            autoFocus
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder={type === 'person' ? 'Ex: João Silva' : 'Ex: Acme Ltda'}
+            className="w-full px-3 py-2.5 rounded-xl text-sm outline-none"
+            style={{ background: 'var(--surface)', border: '1px solid var(--edge)', color: 'var(--ink-1)' }}
+            onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
+          />
+        </div>
+
+        {/* Pipeline */}
+        <div>
+          <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--ink-2)' }}>Funil</label>
+          <div className="relative">
+            <select
+              value={pipelineId}
+              onChange={(e) => handlePipelineChange(e.target.value)}
+              className="w-full px-3 py-2.5 rounded-xl text-sm outline-none appearance-none"
+              style={{ background: 'var(--surface)', border: '1px solid var(--edge)', color: 'var(--ink-1)', paddingRight: '2.5rem' }}
+            >
+              {pipelines.map((p) => (
+                <option key={p.id} value={p.id}>{p.name}</option>
+              ))}
+            </select>
+            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 pointer-events-none" style={{ color: 'var(--ink-3)' }} />
+          </div>
+        </div>
+
+        {/* Stage */}
+        <div>
+          <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--ink-2)' }}>Etapa</label>
+          <div className="relative">
+            <select
+              value={stageId}
+              onChange={(e) => setStageId(e.target.value)}
+              className="w-full px-3 py-2.5 rounded-xl text-sm outline-none appearance-none"
+              style={{ background: 'var(--surface)', border: '1px solid var(--edge)', color: 'var(--ink-1)', paddingRight: '2.5rem' }}
+            >
+              {stages.map((s) => (
+                <option key={s.id} value={s.id}>{s.name}</option>
+              ))}
+            </select>
+            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 pointer-events-none" style={{ color: 'var(--ink-3)' }} />
+          </div>
+        </div>
+
+        {error && <p className="text-xs font-medium" style={{ color: 'var(--danger, #ef4444)' }}>{error}</p>}
+
+        {/* Actions */}
+        <div className="flex gap-2 justify-end pt-1">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 rounded-xl text-sm"
+            style={{ color: 'var(--ink-2)', background: 'var(--surface-hover)' }}
+          >
+            Cancelar
+          </button>
+          <button
+            onClick={handleSubmit}
+            disabled={saving}
+            className="flex items-center gap-1.5 px-5 py-2 rounded-xl text-sm font-semibold text-white disabled:opacity-50 transition-opacity hover:opacity-90"
+            style={{ background: 'var(--brand-500)' }}
+          >
+            {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
+            {saving ? 'Qualificando…' : 'Qualificar'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ── ConvItem ─────────────────────────────────────────── */
 
 function ConvItem({ item, selected, onClick }: { item: InboxItem; selected: boolean; onClick: () => void }) {
@@ -351,11 +546,10 @@ const CHAT_TABS: { id: ChatTab; label: string; icon: React.ElementType }[] = [
   { id: 'info', label: 'Dados', icon: FileText },
 ];
 
-function ChatView({ item, onQualify }: { item: InboxItem; onQualify: (name: string) => Promise<void> }) {
+function ChatView({ item, onQualify }: { item: InboxItem; onQualify: (payload: { name: string; type: 'person' | 'company'; pipelineId: string; stageId: string }) => Promise<void> }) {
   const qc = useQueryClient();
   const [activeTab, setActiveTab] = useState<ChatTab>('chat');
-  const [qualifyName, setQualifyName] = useState('');
-  const [showQualifyForm, setShowQualifyForm] = useState(false);
+  const [showQualifyModal, setShowQualifyModal] = useState(false);
   const [body, setBody] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [showQuickReplies, setShowQuickReplies] = useState(false);
@@ -402,7 +596,7 @@ function ChatView({ item, onQualify }: { item: InboxItem; onQualify: (name: stri
   }, [socket, item.id, qc]);
 
   // Reset tab on conversation switch
-  useEffect(() => { setActiveTab('chat'); setBody(''); setSelectedFile(null); setShowQualifyForm(false); setQualifyName(''); }, [item.id]);
+  useEffect(() => { setActiveTab('chat'); setBody(''); setSelectedFile(null); setShowQualifyModal(false); }, [item.id]);
 
   // Mark as read on WhatsApp side when conversation opens
   useEffect(() => {
@@ -523,41 +717,14 @@ function ChatView({ item, onQualify }: { item: InboxItem; onQualify: (name: stri
           )}
         </div>
         {item.pendingClassification ? (
-          showQualifyForm ? (
-            <div className="flex items-center gap-2">
-              <input
-                autoFocus
-                value={qualifyName}
-                onChange={e => setQualifyName(e.target.value)}
-                placeholder={item.externalId ?? 'Nome do contato'}
-                className="text-xs rounded-lg px-2 py-1 outline-none w-36"
-                style={{ background: 'var(--surface-hover)', border: '1px solid var(--edge)', color: 'var(--ink-1)' }}
-                onKeyDown={e => {
-                  if (e.key === 'Enter') onQualify(qualifyName).then(() => { setShowQualifyForm(false); setQualifyName(''); });
-                  if (e.key === 'Escape') { setShowQualifyForm(false); setQualifyName(''); }
-                }}
-              />
-              <button
-                onClick={() => onQualify(qualifyName).then(() => { setShowQualifyForm(false); setQualifyName(''); })}
-                className="text-[10px] font-semibold px-2 py-1 rounded-lg"
-                style={{ background: 'var(--brand-500)', color: '#fff' }}
-              >
-                Salvar
-              </button>
-              <button onClick={() => { setShowQualifyForm(false); setQualifyName(''); }}>
-                <X className="w-3 h-3" style={{ color: 'var(--ink-3)' }} />
-              </button>
-            </div>
-          ) : (
-            <button
-              onClick={() => setShowQualifyForm(true)}
-              className="flex items-center gap-1 text-[10px] font-semibold px-2.5 py-1 rounded-full transition-opacity hover:opacity-80"
-              style={{ background: 'rgba(245,158,11,0.15)', color: '#f59e0b', border: '1px solid rgba(245,158,11,0.3)' }}
-            >
-              <Sparkles className="w-2.5 h-2.5" strokeWidth={2} />
-              Qualificar
-            </button>
-          )
+          <button
+            onClick={() => setShowQualifyModal(true)}
+            className="flex items-center gap-1 text-[10px] font-semibold px-2.5 py-1 rounded-full transition-opacity hover:opacity-80"
+            style={{ background: 'rgba(245,158,11,0.15)', color: '#f59e0b', border: '1px solid rgba(245,158,11,0.3)' }}
+          >
+            <Sparkles className="w-2.5 h-2.5" strokeWidth={2} />
+            Qualificar
+          </button>
         ) : (
           <div
             className="text-[10px] font-medium px-2 py-0.5 rounded-full"
@@ -714,6 +881,17 @@ function ChatView({ item, onQualify }: { item: InboxItem; onQualify: (name: stri
           <LeadInfo leadId={item.leadId} />
         </div>
       )}
+
+      {showQualifyModal && (
+        <QualifyModal
+          item={item}
+          onConfirm={async (payload) => {
+            await onQualify(payload);
+            setShowQualifyModal(false);
+          }}
+          onClose={() => setShowQualifyModal(false)}
+        />
+      )}
     </div>
   );
 }
@@ -722,6 +900,7 @@ function ChatView({ item, onQualify }: { item: InboxItem; onQualify: (name: stri
 
 export default function Inbox() {
   const qc = useQueryClient();
+  const navigate = useNavigate();
   const [search, setSearch] = useState('');
   const [tab, setTab] = useState<'todas' | 'pendentes'>('todas');
   const [channelFilter, setChannelFilter] = useState<string | null>(null);
@@ -771,10 +950,13 @@ export default function Inbox() {
   const selected = inbox.find(i => i.id === selectedId) ?? null;
   const unreadCount = inbox.filter(i => i.unread).length;
 
-  async function handleQualify(name: string): Promise<void> {
+  async function handleQualify(payload: { name: string; type: 'person' | 'company'; pipelineId: string; stageId: string }): Promise<void> {
     if (!selected) return;
-    await qualifyConversation(selected.id, name || selected.externalId || '');
+    const result = await qualifyConversation(selected.id, payload);
     qc.invalidateQueries({ queryKey: ['inbox'] });
+    qc.invalidateQueries({ queryKey: ['negocios'] });
+    // Navigate to Funil and auto-open the new lead's detail panel
+    navigate(`/funil?pipeline=${result.pipelineId}&lead=${result.leadId}`);
   }
 
   function handleSelect(item: InboxItem) {

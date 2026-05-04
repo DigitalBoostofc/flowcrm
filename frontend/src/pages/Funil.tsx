@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Search, Filter, ArrowUpDown, Plus, List, GitBranch,
@@ -693,6 +693,7 @@ function PipelineSidebar({
 
 export default function Funil() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const qc = useQueryClient();
   const currentUser = useAuthStore((s) => s.user);
   const sidebarCollapsed = useSidebarStore((s) => s.collapsed);
@@ -710,8 +711,8 @@ export default function Funil() {
   const [filterDateTo, setFilterDateTo] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
-  const [selectedPipelineId, setSelectedPipelineId] = useState<string>('');
-  const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
+  const [selectedPipelineId, setSelectedPipelineId] = useState<string>(() => searchParams.get('pipeline') ?? '');
+  const [selectedLeadId, setSelectedLeadId] = useState<string | null>(() => searchParams.get('lead'));
   const [personalizarOpen, setPersonalizarOpen] = useState(false);
   const [editingStagesPipelineId, setEditingStagesPipelineId] = useState<string | null>(null);
 
@@ -751,6 +752,13 @@ export default function Funil() {
       setSelectedPipelineId(def.id);
     }
   }, [pipelines, selectedPipelineId]);
+
+  // Clear URL params after consuming them (avoid re-opening on refresh)
+  useEffect(() => {
+    if (searchParams.get('lead') || searchParams.get('pipeline')) {
+      setSearchParams({}, { replace: true });
+    }
+  }, []);
 
   const selectedPipeline = useMemo(
     () => pipelines.find((p) => p.id === selectedPipelineId) ?? null,

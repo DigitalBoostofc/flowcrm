@@ -6,6 +6,7 @@ import { Conversation } from './entities/conversation.entity';
 import { ContactsModule } from '../contacts/contacts.module';
 import { LeadsModule } from '../leads/leads.module';
 import { PipelinesModule } from '../pipelines/pipelines.module';
+import { CompaniesModule } from '../companies/companies.module';
 
 @Module({
   imports: [
@@ -13,6 +14,7 @@ import { PipelinesModule } from '../pipelines/pipelines.module';
     ContactsModule,
     LeadsModule,
     PipelinesModule,
+    CompaniesModule,
   ],
   controllers: [ConversationsController],
   providers: [ConversationsService],
