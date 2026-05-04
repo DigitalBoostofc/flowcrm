@@ -32,3 +32,8 @@ export async function reactMessage(dto: { messageId: string; channelConfigId: st
 export async function deleteMessage(id: string, dto: { messageId: string; channelConfigId: string }): Promise<void> {
   await api.delete(`/messages/${id}`, { data: dto });
 }
+
+export async function transcribeAudio(audioUrl: string): Promise<string> {
+  const res = await api.post<{ transcript: string }>('/messages/transcribe', { audioUrl });
+  return res.data.transcript;
+}
