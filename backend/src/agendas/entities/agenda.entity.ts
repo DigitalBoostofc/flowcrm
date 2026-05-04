@@ -41,6 +41,10 @@ export class Agenda {
   @Column({ type: 'text', nullable: true })
   description: string | null;
 
+  @Column({ type: 'uuid', nullable: true })
+  @Index()
+  ownerId: string | null;
+
   @Column({ type: 'varchar', length: 80, nullable: true })
   ownerName: string | null;
 
