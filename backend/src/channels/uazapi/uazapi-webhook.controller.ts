@@ -109,10 +109,25 @@ export class UazapiWebhookController {
     }
 
     if (eventType === 'messages' || eventType === 'message') {
-      const msg = payload?.message ?? payload?.data ?? {};
-      const fromMe: boolean = msg?.fromMe ?? msg?.key?.fromMe ?? false;
+      // Log do payload bruto para diagnóstico (truncado para não poluir)
+      this.logger.debug(`webhook payload: ${JSON.stringify(payload).slice(0, 600)}`);
 
-      const rawMsgType: string = msg?.type ?? msg?.messageType ?? 'conversation';
+      // uazapGO pode mandar os dados em payload.message, payload.data, ou direto na raiz
+      const nested = payload?.message ?? payload?.data ?? null;
+      // Se o objeto aninhado não tem campos de mensagem, usa a raiz do payload
+      const msg: any = (nested?.type || nested?.messageType || nested?.chatid || nested?.key)
+        ? nested
+        : (payload ?? {});
+
+      const fromMe: boolean =
+        msg?.fromMe ?? msg?.key?.fromMe ??
+        payload?.fromMe ?? false;
+
+      // Tipo da mensagem — tenta todos os campos conhecidos
+      const rawMsgType: string =
+        msg?.type ?? msg?.messageType ??
+        payload?.type ?? payload?.messageType ??
+        'conversation';
 
       // Ignorar tipos sem conteúdo exibível (reações, protocolos, etc.)
       if (IGNORED_TYPES.has(rawMsgType)) {
@@ -122,7 +137,7 @@ export class UazapiWebhookController {
 
       const mediaType: MessageType | undefined = MEDIA_TYPES[rawMsgType];
 
-      // Extrair texto / legenda (cobre múltiplas estruturas do uazapGO)
+      // Extrair texto / legenda — cobre múltiplas estruturas do uazapGO
       const text: string =
         msg?.text ??
         msg?.body ??
@@ -136,7 +151,7 @@ export class UazapiWebhookController {
         msg?.message?.audioMessage?.caption ??
         '';
 
-      // Body: texto real, placeholder de mídia, ou placeholder de tipo especial
+      // Body: texto real → placeholder de mídia → placeholder de tipo especial
       const normalizedType = rawMsgType.replace('Message', '').toLowerCase();
       const body =
         text ||
@@ -147,25 +162,39 @@ export class UazapiWebhookController {
         return { ok: true };
       }
 
-      const chatid: string = msg?.chatid ?? msg?.key?.remoteJid ?? msg?.remoteJid ?? '';
-      const from = chatid.replace('@s.whatsapp.net', '').replace(/@lid$/, '').replace(/@c\.us$/, '');
+      // chatid / from — tenta msg e raiz do payload
+      const chatid: string =
+        msg?.chatid ?? msg?.key?.remoteJid ?? msg?.remoteJid ??
+        payload?.chatid ?? payload?.remoteJid ?? '';
+      const from = chatid
+        .replace('@s.whatsapp.net', '')
+        .replace(/@lid$/, '')
+        .replace(/@c\.us$/, '');
 
       if (!from) {
-        this.logger.warn(`Mensagem sem remetente identificável (type=${rawMsgType}), ignorando`);
+        this.logger.warn(`Mensagem sem remetente (type=${rawMsgType}) — payload: ${JSON.stringify(payload).slice(0, 300)}`);
         return { ok: true };
       }
 
-      const fromName: string = msg?.senderName ?? msg?.pushName ?? payload?.chat?.name ?? '';
-      const externalMessageId: string = msg?.messageid ?? msg?.key?.id ?? `uza-${Date.now()}`;
+      const fromName: string =
+        msg?.senderName ?? msg?.pushName ??
+        payload?.senderName ?? payload?.pushName ??
+        payload?.chat?.name ?? '';
 
-      const rawTs: number = msg?.messageTimestamp ?? msg?.t ?? Date.now();
+      const externalMessageId: string =
+        msg?.messageid ?? msg?.key?.id ??
+        payload?.messageid ?? payload?.id ??
+        `uza-${Date.now()}`;
+
+      const rawTs: number =
+        msg?.messageTimestamp ?? msg?.t ??
+        payload?.messageTimestamp ?? payload?.t ??
+        Date.now();
       const receivedAt = new Date(rawTs > 1e12 ? rawTs : rawTs * 1000);
 
-      // Extrair URL de mídia — cobre url direta do uazapGO e campos aninhados
+      // URL de mídia — url direta ou campos aninhados por tipo
       const mediaUrl: string | undefined =
-        msg?.url ??
-        msg?.mediaUrl ??
-        msg?.fileUrl ??
+        msg?.url ?? msg?.mediaUrl ?? msg?.fileUrl ??
         msg?.message?.imageMessage?.url ??
         msg?.message?.videoMessage?.url ??
         msg?.message?.audioMessage?.url ??
@@ -175,8 +204,7 @@ export class UazapiWebhookController {
         undefined;
 
       const mediaMimeType: string | undefined =
-        msg?.mimetype ??
-        msg?.mimeType ??
+        msg?.mimetype ?? msg?.mimeType ??
         msg?.message?.imageMessage?.mimetype ??
         msg?.message?.videoMessage?.mimetype ??
         msg?.message?.audioMessage?.mimetype ??
@@ -185,8 +213,7 @@ export class UazapiWebhookController {
         undefined;
 
       const mediaFileName: string | undefined =
-        msg?.fileName ??
-        msg?.filename ??
+        msg?.fileName ?? msg?.filename ??
         msg?.message?.documentMessage?.fileName ??
         undefined;
 
