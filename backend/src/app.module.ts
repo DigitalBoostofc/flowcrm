@@ -57,6 +57,7 @@ import { MeModule } from './me/me.module';
 import { AppCacheModule } from './common/cache/cache.module';
 import { OutboundModule } from './messaging/outbound/outbound.module';
 import { AiModule } from './ai/ai.module';
+import { QuickRepliesModule } from './quick-replies/quick-replies.module';
 
 @Module({
   imports: [
@@ -150,6 +151,7 @@ import { AiModule } from './ai/ai.module';
     MeModule,
     OutboundModule,
     AiModule,
+    QuickRepliesModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },

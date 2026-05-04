@@ -1,6 +1,6 @@
-import { Body, Controller, Get, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
 import { MessagesService } from './messages.service';
-import { SendMessageDto } from './dto/send-message.dto';
+import { SendMessageDto, SendMediaDto, ReactMessageDto, DeleteMessageDto } from './dto/send-message.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { ChannelsService } from '../channels/channels.service';
 import { ConversationsService } from '../conversations/conversations.service';
@@ -36,5 +36,45 @@ export class MessagesController {
       externalMessageId: result.externalMessageId,
       status: result.status,
     });
+  }
+
+  @Post('send-media')
+  async sendMedia(@Body() dto: SendMediaDto) {
+    const conv = await this.conversationsService.findOne(dto.conversationId);
+    const result = await this.channelsService.send({
+      channelConfigId: dto.channelConfigId,
+      to: conv.externalId ?? '',
+      body: dto.mediaCaption ?? '',
+      mediaType: dto.mediaType,
+      mediaUrl: dto.mediaUrl,
+      base64: dto.base64,
+      mediaMimeType: dto.mediaMimeType,
+      mediaCaption: dto.mediaCaption,
+      mediaFileName: dto.mediaFileName,
+    });
+    return this.messagesService.saveOutbound({
+      conversationId: dto.conversationId,
+      body: dto.mediaCaption ?? '',
+      externalMessageId: result.externalMessageId,
+      status: result.status,
+      type: dto.mediaType,
+      mediaUrl: dto.mediaUrl,
+      mediaMimeType: dto.mediaMimeType,
+      mediaCaption: dto.mediaCaption,
+      mediaFileName: dto.mediaFileName,
+    });
+  }
+
+  @Post('react')
+  async react(@Body() dto: ReactMessageDto) {
+    await this.channelsService.reactToMessage(dto.channelConfigId, dto.messageId, dto.emoji);
+    return { ok: true };
+  }
+
+  @Delete(':id')
+  async deleteMessage(@Param('id') id: string, @Body() dto: DeleteMessageDto) {
+    await this.channelsService.deleteMessage(dto.channelConfigId, dto.messageId);
+    await this.messagesService.softDelete(id);
+    return { ok: true };
   }
 }

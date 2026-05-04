@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, Delete, UseGuards, Request, Res } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Delete, UseGuards, Request, Res, Query } from '@nestjs/common';
 import { ChannelsService } from './channels.service';
 import { CreateChannelDto } from './dto/create-channel.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -8,6 +8,26 @@ import { UserRole } from '../users/entities/user.entity';
 import { FeatureGuard } from '../common/feature-access/feature.guard';
 import { RequireFeature } from '../common/feature-access/require-feature.decorator';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
+import { IsString, IsOptional } from 'class-validator';
+
+class CheckNumberDto {
+  @IsString()
+  phone: string;
+}
+
+class TypingDto {
+  @IsString()
+  chatId: string;
+
+  @IsOptional()
+  @IsString()
+  type?: 'composing' | 'paused' | 'recording';
+}
+
+class MarkReadDto {
+  @IsString()
+  chatId: string;
+}
 
 @ApiTags('channels')
 @ApiBearerAuth('jwt')
@@ -59,6 +79,32 @@ export class ChannelsController {
     const webhookUrl = await this.buildWebhookUrl(req, id);
     await this.channelsService.refreshWebhook(id, webhookUrl);
     return { ok: true, webhookUrl };
+  }
+
+  @Post(':id/check-number')
+  @UseGuards(JwtAuthGuard)
+  async checkNumber(@Param('id') id: string, @Body() dto: CheckNumberDto) {
+    return this.channelsService.checkNumber(id, dto.phone);
+  }
+
+  @Get(':id/wa-limits')
+  @UseGuards(JwtAuthGuard)
+  async waLimits(@Param('id') id: string) {
+    return this.channelsService.getWaLimits(id);
+  }
+
+  @Post(':id/typing')
+  @UseGuards(JwtAuthGuard)
+  async typing(@Param('id') id: string, @Body() dto: TypingDto) {
+    await this.channelsService.sendTyping(id, dto.chatId, dto.type);
+    return { ok: true };
+  }
+
+  @Post(':id/mark-read')
+  @UseGuards(JwtAuthGuard)
+  async markRead(@Param('id') id: string, @Body() dto: MarkReadDto) {
+    await this.channelsService.markRead(id, dto.chatId);
+    return { ok: true };
   }
 
   private async buildWebhookUrl(req: any, id: string): Promise<string> {

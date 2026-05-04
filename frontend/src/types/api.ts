@@ -156,17 +156,33 @@ export interface Conversation {
 
 export type MessageDirection = 'inbound' | 'outbound';
 export type MessageStatus = 'pending' | 'sent' | 'delivered' | 'read' | 'failed';
+export type MessageType = 'text' | 'image' | 'video' | 'audio' | 'document' | 'sticker' | 'reaction' | 'deleted';
 
 export interface Message {
   id: string;
   conversationId: string;
   body: string;
   direction: MessageDirection;
-  type: 'text';
+  type: MessageType;
   status: MessageStatus;
   externalMessageId?: string | null;
+  mediaUrl?: string | null;
+  mediaMimeType?: string | null;
+  mediaCaption?: string | null;
+  mediaFileName?: string | null;
   sentAt: string;
   createdAt: string;
+  deletedAt?: string | null;
+}
+
+export interface QuickReply {
+  id: string;
+  title: string;
+  shortcut: string | null;
+  body: string;
+  category: string | null;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface ChannelConfig {
