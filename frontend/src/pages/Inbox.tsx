@@ -10,14 +10,12 @@ import LeadActivities from '@/components/lead-panel/LeadActivities';
 import LeadInfo from '@/components/lead-panel/LeadInfo';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { listInbox, markConversationRead, type InboxItem, type InboxPage } from '@/api/conversations';
+import { listInbox, markConversationRead, qualifyConversation, type InboxItem, type InboxPage } from '@/api/conversations';
 import { listMessages, sendMessage, sendMedia, reactMessage, deleteMessage } from '@/api/messages';
 import { listQuickReplies } from '@/api/quick-replies';
 import { listChannels } from '@/api/channels';
-import { getLead } from '@/api/leads';
 import { api } from '@/api/client';
 import { useWs } from '@/hooks/useWebSocket';
-import { useQualificationStore } from '@/store/qualification.store';
 import type { Message, QuickReply } from '@/types/api';
 import Avatar from '@/components/ui/Avatar';
 import { channelMeta, uniqueChannelTypes } from '@/lib/channels';
@@ -353,9 +351,11 @@ const CHAT_TABS: { id: ChatTab; label: string; icon: React.ElementType }[] = [
   { id: 'info', label: 'Dados', icon: FileText },
 ];
 
-function ChatView({ item, onQualify }: { item: InboxItem; onQualify: () => void }) {
+function ChatView({ item, onQualify }: { item: InboxItem; onQualify: (name: string) => Promise<void> }) {
   const qc = useQueryClient();
   const [activeTab, setActiveTab] = useState<ChatTab>('chat');
+  const [qualifyName, setQualifyName] = useState('');
+  const [showQualifyForm, setShowQualifyForm] = useState(false);
   const [body, setBody] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [showQuickReplies, setShowQuickReplies] = useState(false);
@@ -402,7 +402,7 @@ function ChatView({ item, onQualify }: { item: InboxItem; onQualify: () => void 
   }, [socket, item.id, qc]);
 
   // Reset tab on conversation switch
-  useEffect(() => { setActiveTab('chat'); setBody(''); setSelectedFile(null); }, [item.id]);
+  useEffect(() => { setActiveTab('chat'); setBody(''); setSelectedFile(null); setShowQualifyForm(false); setQualifyName(''); }, [item.id]);
 
   // Mark as read on WhatsApp side when conversation opens
   useEffect(() => {
@@ -523,14 +523,41 @@ function ChatView({ item, onQualify }: { item: InboxItem; onQualify: () => void 
           )}
         </div>
         {item.pendingClassification ? (
-          <button
-            onClick={onQualify}
-            className="flex items-center gap-1 text-[10px] font-semibold px-2.5 py-1 rounded-full transition-opacity hover:opacity-80"
-            style={{ background: 'rgba(245,158,11,0.15)', color: '#f59e0b', border: '1px solid rgba(245,158,11,0.3)' }}
-          >
-            <Sparkles className="w-2.5 h-2.5" strokeWidth={2} />
-            Qualificar
-          </button>
+          showQualifyForm ? (
+            <div className="flex items-center gap-2">
+              <input
+                autoFocus
+                value={qualifyName}
+                onChange={e => setQualifyName(e.target.value)}
+                placeholder={item.externalId ?? 'Nome do contato'}
+                className="text-xs rounded-lg px-2 py-1 outline-none w-36"
+                style={{ background: 'var(--surface-hover)', border: '1px solid var(--edge)', color: 'var(--ink-1)' }}
+                onKeyDown={e => {
+                  if (e.key === 'Enter') onQualify(qualifyName).then(() => { setShowQualifyForm(false); setQualifyName(''); });
+                  if (e.key === 'Escape') { setShowQualifyForm(false); setQualifyName(''); }
+                }}
+              />
+              <button
+                onClick={() => onQualify(qualifyName).then(() => { setShowQualifyForm(false); setQualifyName(''); })}
+                className="text-[10px] font-semibold px-2 py-1 rounded-lg"
+                style={{ background: 'var(--brand-500)', color: '#fff' }}
+              >
+                Salvar
+              </button>
+              <button onClick={() => { setShowQualifyForm(false); setQualifyName(''); }}>
+                <X className="w-3 h-3" style={{ color: 'var(--ink-3)' }} />
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => setShowQualifyForm(true)}
+              className="flex items-center gap-1 text-[10px] font-semibold px-2.5 py-1 rounded-full transition-opacity hover:opacity-80"
+              style={{ background: 'rgba(245,158,11,0.15)', color: '#f59e0b', border: '1px solid rgba(245,158,11,0.3)' }}
+            >
+              <Sparkles className="w-2.5 h-2.5" strokeWidth={2} />
+              Qualificar
+            </button>
+          )
         ) : (
           <div
             className="text-[10px] font-medium px-2 py-0.5 rounded-full"
@@ -544,12 +571,12 @@ function ChatView({ item, onQualify }: { item: InboxItem; onQualify: () => void 
         )}
       </div>
 
-      {/* Tabs */}
+      {/* Tabs — only show Activities/Info when conversation is linked to a lead */}
       <div
         className="flex gap-1 px-3 py-2 flex-shrink-0"
         style={{ borderBottom: '1px solid var(--edge)', background: 'var(--surface)' }}
       >
-        {CHAT_TABS.map(({ id, label, icon: Icon }) => (
+        {CHAT_TABS.filter(t => item.leadId || t.id === 'chat').map(({ id, label, icon: Icon }) => (
           <button
             key={id}
             onClick={() => setActiveTab(id)}
@@ -676,13 +703,13 @@ function ChatView({ item, onQualify }: { item: InboxItem; onQualify: () => void 
         </>
       )}
 
-      {activeTab === 'activities' && (
+      {activeTab === 'activities' && item.leadId && (
         <div className="flex-1 overflow-auto">
           <LeadActivities leadId={item.leadId} />
         </div>
       )}
 
-      {activeTab === 'info' && (
+      {activeTab === 'info' && item.leadId && (
         <div className="flex-1 overflow-auto">
           <LeadInfo leadId={item.leadId} />
         </div>
@@ -700,7 +727,6 @@ export default function Inbox() {
   const [channelFilter, setChannelFilter] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const { socket } = useWs();
-  const pushQualification = useQualificationStore(s => s.push);
 
   const PAGE_SIZE = 50;
   const inboxQuery = useInfiniteQuery({
@@ -745,23 +771,10 @@ export default function Inbox() {
   const selected = inbox.find(i => i.id === selectedId) ?? null;
   const unreadCount = inbox.filter(i => i.unread).length;
 
-  async function openQualify(item: InboxItem) {
-    try {
-      const lead = await getLead(item.leadId);
-      const fakeMessage: Message = {
-        id: `inbox-${item.id}`,
-        conversationId: item.id,
-        body: item.lastMessageBody ?? '',
-        direction: (item.lastMessageDirection ?? 'inbound') as Message['direction'],
-        type: 'text',
-        status: 'read',
-        sentAt: item.lastMessageSentAt ?? item.updatedAt,
-        createdAt: item.lastMessageSentAt ?? item.updatedAt,
-      };
-      pushQualification({ lead, message: fakeMessage });
-    } catch {
-      /* noop */
-    }
+  async function handleQualify(name: string): Promise<void> {
+    if (!selected) return;
+    await qualifyConversation(selected.id, name || selected.externalId || '');
+    qc.invalidateQueries({ queryKey: ['inbox'] });
   }
 
   function handleSelect(item: InboxItem) {
@@ -944,7 +957,7 @@ export default function Inbox() {
       {/* Right: chat or empty state */}
       <div className="flex-1 min-w-0 h-full overflow-hidden">
         {selected ? (
-          <ChatView key={selected.id} item={selected} onQualify={() => openQualify(selected)} />
+          <ChatView key={selected.id} item={selected} onQualify={handleQualify} />
         ) : (
           <div className="flex flex-col items-center justify-center h-full gap-4" style={{ color: 'var(--ink-3)' }}>
             <div

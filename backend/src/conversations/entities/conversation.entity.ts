@@ -10,13 +10,13 @@ export class Conversation {
   @Column({ type: 'uuid' })
   workspaceId: string;
 
-  @ManyToOne(() => Lead)
+  @ManyToOne(() => Lead, { nullable: true })
   @JoinColumn({ name: 'leadId' })
-  lead: Lead;
+  lead: Lead | null;
 
-  @Column()
+  @Column({ nullable: true })
   @Index()
-  leadId: string;
+  leadId: string | null;
 
   @Column()
   channelType: string;
