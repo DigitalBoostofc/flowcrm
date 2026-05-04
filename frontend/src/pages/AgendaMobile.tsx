@@ -4,9 +4,11 @@ import { useNavigate } from 'react-router-dom';
 import {
   CheckCircle2, Clock, Phone, Mail, MessageCircle,
   FileText, Users, MapPin, LogOut, CalendarDays, Maximize2,
+  Download, Share, X,
 } from 'lucide-react';
 import { listTasks, completeTask } from '@/api/tasks';
 import { useAuthStore } from '@/store/auth.store';
+import { useInstallPrompt } from '@/hooks/useInstallPrompt';
 import type { Task, TaskType } from '@/types/api';
 
 /* ── Types ─────────────────────────────────────── */
@@ -194,11 +196,81 @@ function EmptyState({ tab }: { tab: Tab }) {
 
 /* ── Main Page ─────────────────────────────────── */
 
+/* ── iOS Install Modal ──────────────────────────── */
+
+function IosInstallModal({ onClose }: { onClose: () => void }) {
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-end justify-center p-4"
+      style={{ background: 'rgba(0,0,0,0.6)' }}
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-sm rounded-2xl p-6 space-y-4"
+        style={{ background: 'var(--surface)', border: '1px solid var(--edge)' }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between">
+          <p className="font-semibold" style={{ color: 'var(--ink-1)' }}>
+            Adicionar à Tela de Início
+          </p>
+          <button onClick={onClose} style={{ color: 'var(--ink-3)' }}>
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <div className="space-y-3">
+          <div className="flex items-center gap-3">
+            <div
+              className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 text-sm font-bold"
+              style={{ background: 'var(--brand-500)', color: '#fff' }}
+            >1</div>
+            <p className="text-sm" style={{ color: 'var(--ink-2)' }}>
+              Toque no botão <strong>Compartilhar</strong>{' '}
+              <Share className="w-4 h-4 inline" /> na barra inferior do Safari
+            </p>
+          </div>
+          <div className="flex items-center gap-3">
+            <div
+              className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 text-sm font-bold"
+              style={{ background: 'var(--brand-500)', color: '#fff' }}
+            >2</div>
+            <p className="text-sm" style={{ color: 'var(--ink-2)' }}>
+              Role para baixo e toque em <strong>"Adicionar à Tela de Início"</strong>
+            </p>
+          </div>
+          <div className="flex items-center gap-3">
+            <div
+              className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 text-sm font-bold"
+              style={{ background: 'var(--brand-500)', color: '#fff' }}
+            >3</div>
+            <p className="text-sm" style={{ color: 'var(--ink-2)' }}>
+              Toque em <strong>"Adicionar"</strong> no canto superior direito
+            </p>
+          </div>
+        </div>
+
+        <button
+          onClick={onClose}
+          className="w-full py-3 rounded-xl text-sm font-semibold"
+          style={{ background: 'var(--brand-500)', color: '#fff' }}
+        >
+          Entendido
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ── Main Page ─────────────────────────────────── */
+
 export default function AgendaMobile() {
   const { user, logout } = useAuthStore();
   const navigate = useNavigate();
   const qc = useQueryClient();
   const isAgent = user?.role === 'agent';
+  const { state: installState, install } = useInstallPrompt();
+  const [showIosModal, setShowIosModal] = useState(false);
   const [tab, setTab] = useState<Tab>('today');
 
   const today    = toLocalDateStr(new Date());
@@ -269,6 +341,26 @@ export default function AgendaMobile() {
           </p>
         </div>
         <div className="flex items-center gap-1">
+          {installState === 'ready' && (
+            <button
+              onClick={install}
+              className="p-2 rounded-lg"
+              style={{ color: 'var(--brand-500)' }}
+              title="Instalar app"
+            >
+              <Download className="w-5 h-5" />
+            </button>
+          )}
+          {installState === 'ios' && (
+            <button
+              onClick={() => setShowIosModal(true)}
+              className="p-2 rounded-lg"
+              style={{ color: 'var(--brand-500)' }}
+              title="Adicionar à tela de início"
+            >
+              <Share className="w-5 h-5" />
+            </button>
+          )}
           {!isAgent && (
             <button
               onClick={() => navigate('/funil')}
@@ -321,6 +413,8 @@ export default function AgendaMobile() {
           );
         })}
       </div>
+
+      {showIosModal && <IosInstallModal onClose={() => setShowIosModal(false)} />}
 
       {/* Task list */}
       <div className="flex-1 overflow-y-auto px-4 py-4 pb-10">
