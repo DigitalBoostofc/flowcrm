@@ -16,12 +16,38 @@ function timingSafeStringEqual(a: string, b: string): boolean {
 }
 
 const MEDIA_TYPES: Record<string, MessageType> = {
+  // Formas longas (nomes proto do WhatsApp)
   imageMessage: 'image',
   videoMessage: 'video',
   audioMessage: 'audio',
   pttMessage: 'audio',
   documentMessage: 'document',
   stickerMessage: 'sticker',
+  // Formas curtas (uazapGO simplificado)
+  image: 'image',
+  video: 'video',
+  audio: 'audio',
+  ptt: 'audio',
+  document: 'document',
+  sticker: 'sticker',
+};
+
+// Tipos sem conteúdo útil para exibir — ignorar silenciosamente
+const IGNORED_TYPES = new Set([
+  'reaction', 'reactionMessage',
+  'protocolMessage', 'senderKeyDistributionMessage',
+  'readReceiptMessage', 'callLogMessage',
+]);
+
+// Placeholder de body para tipos especiais sem texto
+const BODY_PLACEHOLDER: Record<string, string> = {
+  location: '[Localização]',
+  locationMessage: '[Localização]',
+  liveLocationMessage: '[Localização ao vivo]',
+  contactMessage: '[Contato]',
+  contact: '[Contato]',
+  pollMessage: '[Enquete]',
+  poll: '[Enquete]',
 };
 
 @ApiTags('uazapi-webhook')
@@ -87,11 +113,19 @@ export class UazapiWebhookController {
       const fromMe: boolean = msg?.fromMe ?? msg?.key?.fromMe ?? false;
 
       const rawMsgType: string = msg?.type ?? msg?.messageType ?? 'conversation';
+
+      // Ignorar tipos sem conteúdo exibível (reações, protocolos, etc.)
+      if (IGNORED_TYPES.has(rawMsgType)) {
+        this.logger.debug(`Ignorando tipo ${rawMsgType}`);
+        return { ok: true };
+      }
+
       const mediaType: MessageType | undefined = MEDIA_TYPES[rawMsgType];
 
-      // Extract text / caption
+      // Extrair texto / legenda (cobre múltiplas estruturas do uazapGO)
       const text: string =
         msg?.text ??
+        msg?.body ??
         msg?.content ??
         msg?.caption ??
         msg?.message?.conversation ??
@@ -99,45 +133,60 @@ export class UazapiWebhookController {
         msg?.message?.imageMessage?.caption ??
         msg?.message?.videoMessage?.caption ??
         msg?.message?.documentMessage?.caption ??
+        msg?.message?.audioMessage?.caption ??
         '';
 
-      // For media messages without caption, use placeholder body so we still save the message
-      const body = text || (mediaType ? `[${rawMsgType.replace('Message', '')}]` : '');
+      // Body: texto real, placeholder de mídia, ou placeholder de tipo especial
+      const normalizedType = rawMsgType.replace('Message', '').toLowerCase();
+      const body =
+        text ||
+        (mediaType ? `[${normalizedType}]` : (BODY_PLACEHOLDER[rawMsgType] ?? ''));
 
-      if (!body && !mediaType) {
+      if (!body) {
         this.logger.debug(`Ignorando mensagem sem conteúdo (type=${rawMsgType})`);
         return { ok: true };
       }
 
-      const chatid: string = msg?.chatid ?? msg?.key?.remoteJid ?? '';
-      const from = chatid.replace('@s.whatsapp.net', '').replace(/@lid$/, '');
-      const fromName: string = msg?.senderName ?? payload?.chat?.name ?? msg?.pushName ?? '';
+      const chatid: string = msg?.chatid ?? msg?.key?.remoteJid ?? msg?.remoteJid ?? '';
+      const from = chatid.replace('@s.whatsapp.net', '').replace(/@lid$/, '').replace(/@c\.us$/, '');
+
+      if (!from) {
+        this.logger.warn(`Mensagem sem remetente identificável (type=${rawMsgType}), ignorando`);
+        return { ok: true };
+      }
+
+      const fromName: string = msg?.senderName ?? msg?.pushName ?? payload?.chat?.name ?? '';
       const externalMessageId: string = msg?.messageid ?? msg?.key?.id ?? `uza-${Date.now()}`;
 
-      const rawTs: number = msg?.messageTimestamp ?? Date.now();
+      const rawTs: number = msg?.messageTimestamp ?? msg?.t ?? Date.now();
       const receivedAt = new Date(rawTs > 1e12 ? rawTs : rawTs * 1000);
 
-      // Extract media URL if present
+      // Extrair URL de mídia — cobre url direta do uazapGO e campos aninhados
       const mediaUrl: string | undefined =
         msg?.url ??
         msg?.mediaUrl ??
+        msg?.fileUrl ??
         msg?.message?.imageMessage?.url ??
         msg?.message?.videoMessage?.url ??
         msg?.message?.audioMessage?.url ??
         msg?.message?.documentMessage?.url ??
         msg?.message?.stickerMessage?.url ??
+        msg?.message?.pttMessage?.url ??
         undefined;
 
       const mediaMimeType: string | undefined =
         msg?.mimetype ??
+        msg?.mimeType ??
         msg?.message?.imageMessage?.mimetype ??
         msg?.message?.videoMessage?.mimetype ??
         msg?.message?.audioMessage?.mimetype ??
         msg?.message?.documentMessage?.mimetype ??
+        msg?.message?.stickerMessage?.mimetype ??
         undefined;
 
       const mediaFileName: string | undefined =
         msg?.fileName ??
+        msg?.filename ??
         msg?.message?.documentMessage?.fileName ??
         undefined;
 
@@ -156,11 +205,10 @@ export class UazapiWebhookController {
       };
 
       if (fromMe) {
-        // Mensagem enviada direto do celular (não via API do CRM)
-        this.logger.log(`outbound-from-phone ${mediaType ?? 'text'} to ${from}: "${body.slice(0, 60)}"`);
+        this.logger.log(`outbound-from-phone ${rawMsgType} to ${from}: "${body.slice(0, 60)}"`);
         this.events.emit('message.outbound.fromphone', eventPayload);
       } else {
-        this.logger.log(`inbound ${mediaType ?? 'text'} from ${from} (${fromName}): "${body.slice(0, 60)}"`);
+        this.logger.log(`inbound ${rawMsgType} from ${from} (${fromName}): "${body.slice(0, 60)}"`);
         this.events.emit('message.inbound.received', eventPayload);
       }
     }
