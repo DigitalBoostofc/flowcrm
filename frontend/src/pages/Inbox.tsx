@@ -637,11 +637,13 @@ function ChatView({ item, onQualify }: { item: InboxItem; onQualify: (payload: {
   // Reset tab on conversation switch
   useEffect(() => { setActiveTab('chat'); setBody(''); setSelectedFile(null); setShowQualifyModal(false); }, [item.id]);
 
-  // Mark as read on WhatsApp side when conversation opens
+  // Mark as read + sync full chat history when conversation opens
   useEffect(() => {
-    if (channelId && item.externalId) {
-      api.post(`/channels/${channelId}/mark-read`, { chatId: item.externalId }).catch(() => {});
-    }
+    if (!channelId || !item.externalId) return;
+    api.post(`/channels/${channelId}/mark-read`, { chatId: item.externalId }).catch(() => {});
+    api.post(`/channels/${channelId}/sync-chat`, { chatId: item.externalId, count: 50 })
+      .then(() => qc.invalidateQueries({ queryKey: ['messages', item.id] }))
+      .catch(() => {});
   }, [item.id, channelId]);
 
   // Send text mutation

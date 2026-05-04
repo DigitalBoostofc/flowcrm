@@ -29,6 +29,14 @@ class MarkReadDto {
   chatId: string;
 }
 
+class SyncChatDto {
+  @IsString()
+  chatId: string;
+
+  @IsOptional()
+  count?: number;
+}
+
 @ApiTags('channels')
 @ApiBearerAuth('jwt')
 @Controller('channels')
@@ -105,6 +113,12 @@ export class ChannelsController {
   async markRead(@Param('id') id: string, @Body() dto: MarkReadDto) {
     await this.channelsService.markRead(id, dto.chatId);
     return { ok: true };
+  }
+
+  @Post(':id/sync-chat')
+  @UseGuards(JwtAuthGuard)
+  async syncChat(@Param('id') id: string, @Body() dto: SyncChatDto) {
+    return this.channelsService.syncChatHistory(id, dto.chatId, dto.count ?? 50);
   }
 
   private async buildWebhookUrl(req: any, id: string): Promise<string> {

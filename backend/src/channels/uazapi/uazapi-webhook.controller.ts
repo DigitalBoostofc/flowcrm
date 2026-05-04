@@ -85,7 +85,6 @@ export class UazapiWebhookController {
     if (eventType === 'messages' || eventType === 'message') {
       const msg = payload?.message ?? payload?.data ?? {};
       const fromMe: boolean = msg?.fromMe ?? msg?.key?.fromMe ?? false;
-      if (fromMe) return { ok: true };
 
       const rawMsgType: string = msg?.type ?? msg?.messageType ?? 'conversation';
       const mediaType: MessageType | undefined = MEDIA_TYPES[rawMsgType];
@@ -142,9 +141,7 @@ export class UazapiWebhookController {
         msg?.message?.documentMessage?.fileName ??
         undefined;
 
-      this.logger.log(`inbound ${mediaType ?? 'text'} from ${from} (${fromName}): "${body.slice(0, 60)}"`);
-
-      this.events.emit('message.inbound.received', {
+      const eventPayload = {
         channelConfigId,
         channelType: 'uazapi',
         externalMessageId,
@@ -156,7 +153,16 @@ export class UazapiWebhookController {
         mediaUrl,
         mediaMimeType,
         mediaFileName,
-      });
+      };
+
+      if (fromMe) {
+        // Mensagem enviada direto do celular (não via API do CRM)
+        this.logger.log(`outbound-from-phone ${mediaType ?? 'text'} to ${from}: "${body.slice(0, 60)}"`);
+        this.events.emit('message.outbound.fromphone', eventPayload);
+      } else {
+        this.logger.log(`inbound ${mediaType ?? 'text'} from ${from} (${fromName}): "${body.slice(0, 60)}"`);
+        this.events.emit('message.inbound.received', eventPayload);
+      }
     }
 
     return { ok: true };
