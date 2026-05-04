@@ -18,6 +18,12 @@ const MEDIA_TYPES: Record<string, string> = {
   pttMessage: 'audio',
   documentMessage: 'document',
   stickerMessage: 'sticker',
+  image: 'image',
+  video: 'video',
+  audio: 'audio',
+  ptt: 'audio',
+  document: 'document',
+  sticker: 'sticker',
 };
 
 @Injectable()
@@ -225,12 +231,12 @@ export class ChannelsService {
         body,
         receivedAt,
         messageType: mediaType ?? 'text',
-        mediaUrl: msg?.url ?? msg?.mediaUrl ?? msg?.message?.imageMessage?.url ??
-          msg?.message?.videoMessage?.url ?? msg?.message?.audioMessage?.url ??
-          msg?.message?.documentMessage?.url ?? undefined,
-        mediaMimeType: msg?.mimetype ?? msg?.message?.imageMessage?.mimetype ??
+        mediaUrl: msg?.url ?? msg?.mediaUrl ?? msg?.fileUrl ?? msg?.fileURL ??
+          msg?.message?.imageMessage?.url ?? msg?.message?.videoMessage?.url ??
+          msg?.message?.audioMessage?.url ?? msg?.message?.documentMessage?.url ?? undefined,
+        mediaMimeType: msg?.mimetype ?? msg?.mimeType ?? msg?.message?.imageMessage?.mimetype ??
           msg?.message?.audioMessage?.mimetype ?? msg?.message?.documentMessage?.mimetype ?? undefined,
-        mediaFileName: msg?.fileName ?? msg?.message?.documentMessage?.fileName ?? undefined,
+        mediaFileName: msg?.fileName ?? msg?.filename ?? msg?.message?.documentMessage?.fileName ?? undefined,
       };
 
       this.events.emit(fromMe ? 'message.outbound.fromphone' : 'message.inbound.received', eventPayload);

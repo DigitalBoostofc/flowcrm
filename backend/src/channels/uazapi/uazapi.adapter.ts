@@ -232,14 +232,30 @@ export class UazapiAdapter implements ChannelAdapter {
       const token = await this.ensureToken(channelConfigId);
       const normalizedId = chatId.includes('@') ? chatId : `${chatId}@s.whatsapp.net`;
       const res = await axios.post(
-        `${this.baseUrl}/chat/messages`,
-        { chatid: normalizedId, count },
+        `${this.baseUrl}/message/find`,
+        { chatid: normalizedId, limit: count, offset: 0 },
         { headers: this.instanceHeaders(token), timeout: 30000 },
       );
-      return Array.isArray(res.data) ? res.data : (res.data?.messages ?? []);
+      const data = res.data;
+      return Array.isArray(data?.messages) ? data.messages : (Array.isArray(data) ? data : []);
     } catch (err: any) {
       this.logger.warn(`fetchChatMessages failed: ${err.message}`);
       return [];
+    }
+  }
+
+  async downloadMedia(channelConfigId: string, messageid: string): Promise<{ fileURL?: string; mimetype?: string }> {
+    try {
+      const token = await this.ensureToken(channelConfigId);
+      const res = await axios.post(
+        `${this.baseUrl}/message/download`,
+        { id: messageid, return_link: true, generate_mp3: true },
+        { headers: this.instanceHeaders(token), timeout: 12000 },
+      );
+      return { fileURL: res.data?.fileURL ?? undefined, mimetype: res.data?.mimetype ?? undefined };
+    } catch (err: any) {
+      this.logger.warn(`downloadMedia failed for ${messageid}: ${err.message}`);
+      return {};
     }
   }
 
