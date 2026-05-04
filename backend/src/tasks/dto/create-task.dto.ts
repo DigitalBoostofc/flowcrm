@@ -31,6 +31,10 @@ export class CreateTaskDto {
   targetLabel?: string;
 
   @IsOptional()
+  @IsString()
+  location?: string;
+
+  @IsOptional()
   @IsArray()
   attachments?: { name: string; url: string }[];
 }
