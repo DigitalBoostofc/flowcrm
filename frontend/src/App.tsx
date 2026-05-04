@@ -40,6 +40,7 @@ const BillingSuccess = lazy(() => import('@/pages/BillingSuccess'));
 const BillingCancel = lazy(() => import('@/pages/BillingCancel'));
 const NotFound = lazy(() => import('@/pages/NotFound'));
 const WidgetPage = lazy(() => import('@/pages/WidgetPage'));
+const AgendaMobile = lazy(() => import('@/pages/AgendaMobile'));
 
 function PageFallback() {
   return (
@@ -54,10 +55,14 @@ function AuthedLayout() {
   useNotifications();
   useRefreshUser();
   const { data: workspace, isLoading } = useWorkspace();
+  const me = useAuthStore((s) => s.user);
 
   useEffect(() => {
     usePrefsStore.getState().load();
   }, []);
+
+  // Agents only have access to the mobile agenda view
+  if (me?.role === 'agent') return <Navigate to="/mobile" replace />;
 
   if (isLoading && !workspace) {
     return (
@@ -127,13 +132,19 @@ function GatedTasks() {
 }
 
 export default function App() {
-  const token = useAuthStore((s) => s.token);
+  const { token, user } = useAuthStore();
 
   return (
     <WsProvider>
       <Routes>
-        <Route path="/login" element={token ? <Navigate to="/" /> : <Login />} />
-        <Route path="/signup" element={token ? <Navigate to="/" /> : <Signup />} />
+        <Route
+          path="/login"
+          element={token ? <Navigate to={user?.role === 'agent' ? '/mobile' : '/'} replace /> : <Login />}
+        />
+        <Route
+          path="/signup"
+          element={token ? <Navigate to="/" replace /> : <Signup />}
+        />
         <Route path="/termos" element={<Termos />} />
         <Route path="/privacidade" element={<Privacidade />} />
         <Route path="/reembolso" element={<Reembolso />} />
@@ -143,6 +154,17 @@ export default function App() {
             <Suspense fallback={<PageFallback />}>
               <WidgetPage />
             </Suspense>
+          }
+        />
+        {/* Mobile agenda — no sidebar, for agents */}
+        <Route
+          path="/mobile"
+          element={
+            <ProtectedRoute>
+              <Suspense fallback={<PageFallback />}>
+                <AgendaMobile />
+              </Suspense>
+            </ProtectedRoute>
           }
         />
         <Route
