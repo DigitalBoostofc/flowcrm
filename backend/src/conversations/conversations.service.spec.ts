@@ -6,16 +6,19 @@ import { TenantContext } from '../common/tenant/tenant-context.service';
 import { ContactsService } from '../contacts/contacts.service';
 import { LeadsService } from '../leads/leads.service';
 import { PipelinesService } from '../pipelines/pipelines.service';
+import { CompaniesService } from '../companies/companies.service';
 import { NotFoundException } from '@nestjs/common';
 
 const mockContacts = { create: jest.fn(), findByPhone: jest.fn() } as unknown as ContactsService;
-const mockLeads = { create: jest.fn() } as unknown as LeadsService;
+const mockLeads = { create: jest.fn(), findOne: jest.fn() } as unknown as LeadsService;
 const mockPipelines = { findDefault: jest.fn() } as unknown as PipelinesService;
+const mockCompanies = { create: jest.fn() } as unknown as CompaniesService;
 
 const EXTRA_PROVIDERS = [
   { provide: ContactsService, useValue: mockContacts },
   { provide: LeadsService, useValue: mockLeads },
   { provide: PipelinesService, useValue: mockPipelines },
+  { provide: CompaniesService, useValue: mockCompanies },
 ];
 
 describe('ConversationsService', () => {
