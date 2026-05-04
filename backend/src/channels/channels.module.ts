@@ -22,9 +22,6 @@ import { MessagesModule } from '../messages/messages.module';
 @Module({
   imports: [
     TypeOrmModule.forFeature([ChannelConfig]),
-    ContactsModule,
-    LeadsModule,
-    PipelinesModule,
     ConversationsModule,
     forwardRef(() => MessagesModule),
   ],

@@ -3,7 +3,7 @@ import type { Conversation } from '@/types/api';
 
 export interface InboxItem {
   id: string;
-  leadId: string;
+  leadId: string | null;
   channelType: string;
   externalId: string | null;
   contactId: string | null;
@@ -38,5 +38,10 @@ export async function listConversations(leadId: string): Promise<Conversation[]>
 
 export async function markConversationRead(id: string): Promise<{ id: string; lastReadAt: string }> {
   const res = await api.post<{ id: string; lastReadAt: string }>(`/conversations/${id}/read`);
+  return res.data;
+}
+
+export async function qualifyConversation(id: string, name: string): Promise<{ leadId: string }> {
+  const res = await api.post<{ leadId: string }>(`/conversations/${id}/qualify`, { name });
   return res.data;
 }
