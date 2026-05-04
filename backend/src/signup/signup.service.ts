@@ -176,17 +176,18 @@ export class SignupService {
 
       const pipeline = manager.create(Pipeline, {
         workspaceId: savedWs.id,
-        name: 'Funil Principal',
+        name: 'Funil de venda',
         isDefault: true,
       });
       const savedPipeline = await manager.save(pipeline);
 
       const defaultStages = [
-        { name: 'Novos leads', color: '#3b82f6', position: 0 },
-        { name: 'Em contato', color: '#8b5cf6', position: 1 },
+        { name: 'Lead', color: '#3b82f6', position: 0 },
+        { name: 'Qualificação', color: '#8b5cf6', position: 1 },
         { name: 'Proposta', color: '#f59e0b', position: 2 },
-        { name: 'Negociação', color: '#ef4444', position: 3 },
-        { name: 'Fechado', color: '#10b981', position: 4 },
+        { name: 'Follow up', color: '#f97316', position: 3 },
+        { name: 'Aguardando Pagamento', color: '#ef4444', position: 4 },
+        { name: 'Fechamento', color: '#10b981', position: 5 },
       ];
       const stages = defaultStages.map((s) => manager.create(Stage, {
         workspaceId: savedWs.id,
