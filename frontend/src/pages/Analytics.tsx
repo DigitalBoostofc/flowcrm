@@ -34,10 +34,11 @@ export default function Analytics() {
   const [pipelineId, setPipelineId] = useState<string | null>(null);
 
   const { data: pipelines = [] } = useQuery({ queryKey: ['pipelines'], queryFn: listPipelines });
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['analytics', pipelineId],
     queryFn: () => getAnalyticsSummary(pipelineId ?? undefined),
     staleTime: 5 * 60 * 1000,
+    retry: 1,
   });
 
   const leadsByDayData = data
@@ -75,7 +76,19 @@ export default function Analytics() {
         </select>
       </div>
 
-      {isLoading || !data ? (
+      {isError ? (
+        <div className="flex flex-col items-center justify-center py-20 gap-4">
+          <p className="text-sm" style={{ color: 'var(--ink-3)' }}>
+            Não foi possível carregar os dados de analytics.
+          </p>
+          <button
+            onClick={() => refetch()}
+            className="btn-primary text-sm px-4 py-2"
+          >
+            Tentar novamente
+          </button>
+        </div>
+      ) : isLoading || !data ? (
         <div className="space-y-6 animate-fade-up">
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
             {[...Array(6)].map((_, i) => (
