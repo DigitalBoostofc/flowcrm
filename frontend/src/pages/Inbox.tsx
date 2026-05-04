@@ -84,35 +84,55 @@ function MessageBubble({ message, isOut, channelId, onDelete }: {
     if (message.type === 'deleted') {
       return <em className="text-sm opacity-60">Mensagem apagada</em>;
     }
-    if (message.type === 'image' && message.mediaUrl) {
-      return (
-        <a href={message.mediaUrl} target="_blank" rel="noreferrer">
-          <img
-            src={message.mediaUrl}
-            alt={message.mediaCaption ?? 'Imagem'}
-            className="max-w-[240px] rounded-lg object-cover"
-            style={{ maxHeight: 200 }}
-            onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-          />
-          {message.mediaCaption && <p className="text-sm mt-1 leading-relaxed">{message.mediaCaption}</p>}
-        </a>
-      );
-    }
-    if (message.type === 'video' && message.mediaUrl) {
+    if (message.type === 'image') {
       return (
         <div>
-          <video controls src={message.mediaUrl} className="max-w-[240px] rounded-lg" style={{ maxHeight: 200 }} />
+          {message.mediaUrl ? (
+            <a href={message.mediaUrl} target="_blank" rel="noreferrer">
+              <img
+                src={message.mediaUrl}
+                alt={message.mediaCaption ?? 'Imagem'}
+                className="max-w-[240px] rounded-lg object-cover"
+                style={{ maxHeight: 200 }}
+                onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+              />
+            </a>
+          ) : (
+            <div className="flex items-center gap-2 py-1 opacity-60">
+              <File className="w-4 h-4 flex-shrink-0" strokeWidth={1.75} />
+              <span className="text-sm">Imagem</span>
+            </div>
+          )}
+          {message.mediaCaption && <p className="text-sm mt-1 leading-relaxed">{message.mediaCaption}</p>}
+        </div>
+      );
+    }
+    if (message.type === 'video') {
+      return (
+        <div>
+          {message.mediaUrl ? (
+            <video controls src={message.mediaUrl} className="max-w-[240px] rounded-lg" style={{ maxHeight: 200 }} />
+          ) : (
+            <div className="flex items-center gap-2 py-1 opacity-60">
+              <Video className="w-4 h-4 flex-shrink-0" strokeWidth={1.75} />
+              <span className="text-sm">Vídeo</span>
+            </div>
+          )}
           {message.mediaCaption && <p className="text-sm mt-1">{message.mediaCaption}</p>}
         </div>
       );
     }
-    if (message.type === 'audio' && message.mediaUrl) {
+    if (message.type === 'audio') {
       return (
         <div className="space-y-1.5">
           <div className="flex items-center gap-2 py-1">
             <Mic className="w-4 h-4 flex-shrink-0" strokeWidth={1.75} />
-            <audio controls src={message.mediaUrl} className="h-8" style={{ minWidth: 160 }} />
-            {!isOut && (
+            {message.mediaUrl ? (
+              <audio controls src={message.mediaUrl} className="h-8" style={{ minWidth: 160 }} />
+            ) : (
+              <span className="text-sm opacity-60">Áudio</span>
+            )}
+            {!isOut && message.mediaUrl && (
               <button
                 onClick={handleTranscribe}
                 disabled={isTranscribing}
@@ -133,6 +153,18 @@ function MessageBubble({ message, isOut, channelId, onDelete }: {
             </p>
           )}
         </div>
+      );
+    }
+    if (message.type === 'sticker') {
+      return message.mediaUrl ? (
+        <img
+          src={message.mediaUrl}
+          alt="Sticker"
+          className="max-w-[120px] rounded-lg"
+          onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+        />
+      ) : (
+        <span className="text-sm opacity-60">🎭 Sticker</span>
       );
     }
     if (message.type === 'document') {
@@ -637,11 +669,13 @@ function ChatView({ item, onQualify }: { item: InboxItem; onQualify: (payload: {
   // Reset tab on conversation switch
   useEffect(() => { setActiveTab('chat'); setBody(''); setSelectedFile(null); setShowQualifyModal(false); }, [item.id]);
 
-  // Mark as read on WhatsApp side when conversation opens
+  // Mark as read + sync full chat history when conversation opens
   useEffect(() => {
-    if (channelId && item.externalId) {
-      api.post(`/channels/${channelId}/mark-read`, { chatId: item.externalId }).catch(() => {});
-    }
+    if (!channelId || !item.externalId) return;
+    api.post(`/channels/${channelId}/mark-read`, { chatId: item.externalId }).catch(() => {});
+    api.post(`/channels/${channelId}/sync-chat`, { chatId: item.externalId, count: 50 })
+      .then(() => qc.invalidateQueries({ queryKey: ['messages', item.id] }))
+      .catch(() => {});
   }, [item.id, channelId]);
 
   // Send text mutation

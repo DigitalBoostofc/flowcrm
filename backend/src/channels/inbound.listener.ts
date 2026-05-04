@@ -35,6 +35,36 @@ export class InboundListener {
     @InjectRepository(ChannelConfig) private channelRepo: Repository<ChannelConfig>,
   ) {}
 
+  @OnEvent('message.outbound.fromphone')
+  async handleOutboundFromPhone(evt: InboundEvent): Promise<void> {
+    try {
+      const channel = await this.channels.findByIdUnscoped(evt.channelConfigId!);
+      if (!channel) return;
+      await this.tenant.run(channel.workspaceId, undefined, async () => {
+        const conv = await this.conversations.findOrCreateUnqualified(
+          evt.channelType,
+          evt.from,
+          channel.workspaceId,
+        );
+        const saved = await this.messages.saveWebhookOutbound({
+          conversationId: conv.id,
+          externalMessageId: evt.externalMessageId,
+          body: evt.body,
+          sentAt: evt.receivedAt,
+          type: (evt.messageType as any) ?? 'text',
+          mediaUrl: evt.mediaUrl,
+          mediaMimeType: evt.mediaMimeType,
+          mediaFileName: evt.mediaFileName,
+        });
+        if (!saved) {
+          this.logger.debug(`Duplicate outbound-from-phone — ${evt.externalMessageId} skipped`);
+        }
+      });
+    } catch (err: any) {
+      this.logger.error(`Outbound-from-phone handling failed: ${err.message}`, err.stack);
+    }
+  }
+
   @OnEvent('message.inbound.received')
   async handle(evt: InboundEvent): Promise<void> {
     try {

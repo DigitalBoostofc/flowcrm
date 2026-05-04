@@ -227,6 +227,22 @@ export class UazapiAdapter implements ChannelAdapter {
     }
   }
 
+  async fetchChatMessages(channelConfigId: string, chatId: string, count = 50): Promise<any[]> {
+    try {
+      const token = await this.ensureToken(channelConfigId);
+      const normalizedId = chatId.includes('@') ? chatId : `${chatId}@s.whatsapp.net`;
+      const res = await axios.post(
+        `${this.baseUrl}/chat/messages`,
+        { chatid: normalizedId, count },
+        { headers: this.instanceHeaders(token), timeout: 30000 },
+      );
+      return Array.isArray(res.data) ? res.data : (res.data?.messages ?? []);
+    } catch (err: any) {
+      this.logger.warn(`fetchChatMessages failed: ${err.message}`);
+      return [];
+    }
+  }
+
   async getWaLimits(channelConfigId: string): Promise<Record<string, unknown>> {
     try {
       const token = await this.ensureToken(channelConfigId);
