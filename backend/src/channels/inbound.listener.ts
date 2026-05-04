@@ -20,6 +20,10 @@ interface InboundEvent {
   fromName?: string;
   body: string;
   receivedAt: Date;
+  messageType?: string;
+  mediaUrl?: string;
+  mediaMimeType?: string;
+  mediaFileName?: string;
 }
 
 @Injectable()
@@ -99,6 +103,10 @@ export class InboundListener {
       externalMessageId: evt.externalMessageId,
       body: evt.body,
       sentAt: evt.receivedAt,
+      type: (evt.messageType as any) ?? 'text',
+      mediaUrl: evt.mediaUrl,
+      mediaMimeType: evt.mediaMimeType,
+      mediaFileName: evt.mediaFileName,
     });
     if (!saved) {
       this.logger.debug(`Duplicate webhook — externalMessageId ${evt.externalMessageId} skipped`);

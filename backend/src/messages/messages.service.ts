@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Message, MessageStatus } from './entities/message.entity';
+import { Message, MessageStatus, MessageType } from './entities/message.entity';
 import { TenantContext } from '../common/tenant/tenant-context.service';
 
 export interface SaveInboundData {
@@ -9,6 +9,11 @@ export interface SaveInboundData {
   externalMessageId: string;
   body: string;
   sentAt: Date;
+  type?: MessageType;
+  mediaUrl?: string;
+  mediaMimeType?: string;
+  mediaCaption?: string;
+  mediaFileName?: string;
 }
 
 export interface SaveOutboundData {
@@ -16,6 +21,11 @@ export interface SaveOutboundData {
   body: string;
   externalMessageId?: string;
   status: MessageStatus;
+  type?: MessageType;
+  mediaUrl?: string;
+  mediaMimeType?: string;
+  mediaCaption?: string;
+  mediaFileName?: string;
 }
 
 @Injectable()
@@ -39,7 +49,11 @@ export class MessagesService {
         sentAt: data.sentAt,
         direction: 'inbound',
         status: 'delivered',
-        type: 'text',
+        type: data.type ?? 'text',
+        mediaUrl: data.mediaUrl ?? null,
+        mediaMimeType: data.mediaMimeType ?? null,
+        mediaCaption: data.mediaCaption ?? null,
+        mediaFileName: data.mediaFileName ?? null,
       })
       .orIgnore()
       .returning('*')
@@ -57,14 +71,22 @@ export class MessagesService {
       externalMessageId: data.externalMessageId,
       status: data.status,
       direction: 'outbound',
-      type: 'text',
+      type: data.type ?? 'text',
       sentAt: new Date(),
+      mediaUrl: data.mediaUrl ?? null,
+      mediaMimeType: data.mediaMimeType ?? null,
+      mediaCaption: data.mediaCaption ?? null,
+      mediaFileName: data.mediaFileName ?? null,
     });
     return this.repo.save(msg);
   }
 
   async updateStatus(externalMessageId: string, status: MessageStatus): Promise<void> {
     await this.repo.update({ externalMessageId }, { status });
+  }
+
+  async softDelete(messageId: string): Promise<void> {
+    await this.repo.update(messageId, { deletedAt: new Date(), body: 'Mensagem apagada', type: 'deleted' });
   }
 
   findByConversation(conversationId: string, limit = 50): Promise<Message[]> {

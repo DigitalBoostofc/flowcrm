@@ -32,7 +32,6 @@ export class UazapiAdapter implements ChannelAdapter {
     return { token, 'Content-Type': 'application/json' };
   }
 
-  /** Cria instância no uazapiGO via admintoken e salva o token no canal. */
   private async createInstance(channelConfigId: string): Promise<string> {
     const instanceName = `flowcrm-${channelConfigId.slice(0, 8)}`;
 
@@ -53,8 +52,7 @@ export class UazapiAdapter implements ChannelAdapter {
     return instanceToken;
   }
 
-  /** Garante que o canal tem um token válido, recriando a instância se necessário. */
-  private async ensureToken(channelConfigId: string): Promise<string> {
+  async ensureToken(channelConfigId: string): Promise<string> {
     const channel = await this.repo.findOneByOrFail({ id: channelConfigId });
     const existing = channel.config.instanceToken as string | undefined;
 
@@ -70,7 +68,6 @@ export class UazapiAdapter implements ChannelAdapter {
         if (status === 401) {
           this.logger.warn(`Token expirado para canal ${channelConfigId}, recriando instância...`);
         } else {
-          // Timeout ou erro de rede: tenta reconectar com token existente em vez de recriar
           this.logger.warn(`Status check falhou (${err.message}), tentando reconectar com token existente`);
           return existing;
         }
@@ -80,11 +77,9 @@ export class UazapiAdapter implements ChannelAdapter {
     return this.createInstance(channelConfigId);
   }
 
-  /** Configura webhook + conecta sessão → retorna QR code. */
   async connectSession(channelConfigId: string, webhookUrl: string): Promise<string> {
     const token = await this.ensureToken(channelConfigId);
 
-    // Configura webhook com eventos corretos e exclusões
     await axios.post(
       `${this.baseUrl}/webhook`,
       {
@@ -96,7 +91,6 @@ export class UazapiAdapter implements ChannelAdapter {
       { headers: this.instanceHeaders(token), timeout: 20000 },
     ).catch((err: any) => this.logger.warn(`webhook set: ${err.message}`));
 
-    // Conecta sessão → retorna QR imediatamente
     const res = await axios.post(
       `${this.baseUrl}/instance/connect`,
       {},
@@ -112,6 +106,42 @@ export class UazapiAdapter implements ChannelAdapter {
   async sendMessage(opts: SendMessageOptions): Promise<SendMessageResult> {
     try {
       const token = await this.ensureToken(opts.channelConfigId);
+
+      // Media send
+      if (opts.mediaType) {
+        const mediaPayload: Record<string, unknown> = {
+          number: opts.to,
+          type: opts.mediaType,
+          caption: opts.mediaCaption ?? '',
+        };
+
+        if (opts.base64) {
+          mediaPayload.base64 = opts.base64;
+        } else if (opts.mediaUrl) {
+          mediaPayload.url = opts.mediaUrl;
+        }
+
+        if (opts.mediaFileName) mediaPayload.fileName = opts.mediaFileName;
+
+        const endpoint = opts.mediaType === 'audio' ? '/send/audio' : '/send/media';
+        if (opts.mediaType === 'audio') {
+          delete mediaPayload.type;
+          delete mediaPayload.caption;
+          mediaPayload.ptt = true;
+        }
+
+        const res = await axios.post(
+          `${this.baseUrl}${endpoint}`,
+          mediaPayload,
+          { headers: this.instanceHeaders(token), timeout: 30000 },
+        );
+        return {
+          externalMessageId: res.data?.id ?? res.data?.key?.id ?? `uza-${Date.now()}`,
+          status: 'sent',
+        };
+      }
+
+      // Text send
       const res = await axios.post(
         `${this.baseUrl}/send/text`,
         { number: opts.to, text: opts.body },
@@ -124,6 +154,90 @@ export class UazapiAdapter implements ChannelAdapter {
     } catch (err: any) {
       this.logger.error(`send failed para ${opts.channelConfigId}: ${err.message}`);
       return { externalMessageId: '', status: 'failed', error: err.message };
+    }
+  }
+
+  async sendTyping(channelConfigId: string, to: string, type: 'composing' | 'paused' | 'recording' = 'composing'): Promise<void> {
+    try {
+      const token = await this.ensureToken(channelConfigId);
+      await axios.post(
+        `${this.baseUrl}/message/presence`,
+        { number: to, type },
+        { headers: this.instanceHeaders(token), timeout: 8000 },
+      );
+    } catch (err: any) {
+      this.logger.warn(`sendTyping failed: ${err.message}`);
+    }
+  }
+
+  async markRead(channelConfigId: string, chatId: string): Promise<void> {
+    try {
+      const token = await this.ensureToken(channelConfigId);
+      const normalizedId = chatId.includes('@') ? chatId : `${chatId}@s.whatsapp.net`;
+      await axios.post(
+        `${this.baseUrl}/chat/read`,
+        { chatid: normalizedId },
+        { headers: this.instanceHeaders(token), timeout: 8000 },
+      );
+    } catch (err: any) {
+      this.logger.warn(`markRead failed: ${err.message}`);
+    }
+  }
+
+  async reactToMessage(channelConfigId: string, messageId: string, emoji: string): Promise<void> {
+    try {
+      const token = await this.ensureToken(channelConfigId);
+      await axios.post(
+        `${this.baseUrl}/message/react`,
+        { messageid: messageId, text: emoji },
+        { headers: this.instanceHeaders(token), timeout: 10000 },
+      );
+    } catch (err: any) {
+      this.logger.warn(`reactToMessage failed: ${err.message}`);
+    }
+  }
+
+  async deleteMessage(channelConfigId: string, messageId: string, forEveryone = true): Promise<void> {
+    try {
+      const token = await this.ensureToken(channelConfigId);
+      await axios.post(
+        `${this.baseUrl}/message/delete`,
+        { messageid: messageId, forEveryone },
+        { headers: this.instanceHeaders(token), timeout: 10000 },
+      );
+    } catch (err: any) {
+      this.logger.warn(`deleteMessage failed: ${err.message}`);
+    }
+  }
+
+  async checkNumber(channelConfigId: string, phone: string): Promise<{ exists: boolean; jid?: string }> {
+    try {
+      const token = await this.ensureToken(channelConfigId);
+      const res = await axios.post(
+        `${this.baseUrl}/chat/check`,
+        { number: phone },
+        { headers: this.instanceHeaders(token), timeout: 15000 },
+      );
+      const exists: boolean = res.data?.exists ?? res.data?.onWhatsapp ?? false;
+      const jid: string = res.data?.jid ?? res.data?.id ?? '';
+      return { exists, jid };
+    } catch (err: any) {
+      this.logger.warn(`checkNumber failed: ${err.message}`);
+      return { exists: false };
+    }
+  }
+
+  async getWaLimits(channelConfigId: string): Promise<Record<string, unknown>> {
+    try {
+      const token = await this.ensureToken(channelConfigId);
+      const res = await axios.get(
+        `${this.baseUrl}/instance/wa_messages_limits`,
+        { headers: this.instanceHeaders(token), timeout: 10000 },
+      );
+      return res.data ?? {};
+    } catch (err: any) {
+      this.logger.warn(`getWaLimits failed: ${err.message}`);
+      return {};
     }
   }
 
@@ -140,7 +254,6 @@ export class UazapiAdapter implements ChannelAdapter {
         const inst = res.data?.instance ?? {};
         const isConnected: boolean = res.data?.status?.connected === true;
 
-        // Sincroniza status com o banco sem depender do webhook
         if (isConnected && channel.status !== 'connected') {
           const phone: string = (inst.owner ?? '').replace('@s.whatsapp.net', '');
           channel.status = 'connected';

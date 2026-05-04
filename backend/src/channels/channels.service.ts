@@ -122,4 +122,54 @@ export class ChannelsService {
     }
     throw new BadRequestException('Refresh webhook não disponível para este tipo de canal');
   }
+
+  async sendTyping(id: string, to: string, type: 'composing' | 'paused' | 'recording' = 'composing'): Promise<void> {
+    const channel = await this.findById(id);
+    if (channel.type === 'uazapi') {
+      const adapter = this.adapters.get('uazapi') as unknown as UazapiAdapter;
+      await adapter.sendTyping(id, to, type);
+    }
+  }
+
+  async markRead(id: string, chatId: string): Promise<void> {
+    const channel = await this.findById(id);
+    if (channel.type === 'uazapi') {
+      const adapter = this.adapters.get('uazapi') as unknown as UazapiAdapter;
+      await adapter.markRead(id, chatId);
+    }
+  }
+
+  async reactToMessage(id: string, messageId: string, emoji: string): Promise<void> {
+    const channel = await this.findById(id);
+    if (channel.type === 'uazapi') {
+      const adapter = this.adapters.get('uazapi') as unknown as UazapiAdapter;
+      await adapter.reactToMessage(id, messageId, emoji);
+    }
+  }
+
+  async deleteMessage(id: string, messageId: string): Promise<void> {
+    const channel = await this.findById(id);
+    if (channel.type === 'uazapi') {
+      const adapter = this.adapters.get('uazapi') as unknown as UazapiAdapter;
+      await adapter.deleteMessage(id, messageId);
+    }
+  }
+
+  async checkNumber(id: string, phone: string): Promise<{ exists: boolean; jid?: string }> {
+    const channel = await this.findById(id);
+    if (channel.type === 'uazapi') {
+      const adapter = this.adapters.get('uazapi') as unknown as UazapiAdapter;
+      return adapter.checkNumber(id, phone);
+    }
+    throw new BadRequestException('checkNumber não disponível para este tipo de canal');
+  }
+
+  async getWaLimits(id: string): Promise<Record<string, unknown>> {
+    const channel = await this.findById(id);
+    if (channel.type === 'uazapi') {
+      const adapter = this.adapters.get('uazapi') as unknown as UazapiAdapter;
+      return adapter.getWaLimits(id);
+    }
+    throw new BadRequestException('WA limits não disponível para este tipo de canal');
+  }
 }

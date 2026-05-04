@@ -2,6 +2,12 @@ export interface SendMessageOptions {
   channelConfigId: string;
   to: string;
   body: string;
+  mediaUrl?: string;
+  mediaType?: 'image' | 'video' | 'audio' | 'document' | 'sticker';
+  mediaMimeType?: string;
+  mediaCaption?: string;
+  mediaFileName?: string;
+  base64?: string;
 }
 
 export interface SendMessageResult {

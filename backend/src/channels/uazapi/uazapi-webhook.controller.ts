@@ -5,6 +5,7 @@ import * as crypto from 'crypto';
 import { ChannelsService } from '../channels.service';
 import { UazapiAdapter } from './uazapi.adapter';
 import { ApiTags } from '@nestjs/swagger';
+import type { MessageType } from '../../messages/entities/message.entity';
 
 function timingSafeStringEqual(a: string, b: string): boolean {
   if (typeof a !== 'string' || typeof b !== 'string') return false;
@@ -13,6 +14,15 @@ function timingSafeStringEqual(a: string, b: string): boolean {
   if (ba.length !== bb.length) return false;
   return crypto.timingSafeEqual(ba, bb);
 }
+
+const MEDIA_TYPES: Record<string, MessageType> = {
+  imageMessage: 'image',
+  videoMessage: 'video',
+  audioMessage: 'audio',
+  pttMessage: 'audio',
+  documentMessage: 'document',
+  stickerMessage: 'sticker',
+};
 
 @ApiTags('uazapi-webhook')
 @Controller('webhooks/uazapi')
@@ -38,7 +48,6 @@ export class UazapiWebhookController {
       throw new UnauthorizedException();
     }
 
-    // uazapiGO v2 envia `EventType`; legado envia `event`. Normaliza ambos.
     const eventType: string = payload?.EventType ?? payload?.event ?? '';
     this.logger.log(`webhook received for ${channelConfigId}: event=${eventType || 'unknown'}`);
 
@@ -56,7 +65,6 @@ export class UazapiWebhookController {
     }
 
     if (eventType === 'connection') {
-      // v2: payload.instance.status/connected ; legado: payload.data.connected
       const connected: boolean =
         payload?.instance?.status === 'connected' ||
         payload?.connected === true ||
@@ -74,20 +82,31 @@ export class UazapiWebhookController {
       return { ok: true };
     }
 
-    // v2: EventType === 'messages' (plural) com payload.message ; legado: 'message' com payload.data
     if (eventType === 'messages' || eventType === 'message') {
       const msg = payload?.message ?? payload?.data ?? {};
       const fromMe: boolean = msg?.fromMe ?? msg?.key?.fromMe ?? false;
       if (fromMe) return { ok: true };
 
+      const rawMsgType: string = msg?.type ?? msg?.messageType ?? 'conversation';
+      const mediaType: MessageType | undefined = MEDIA_TYPES[rawMsgType];
+
+      // Extract text / caption
       const text: string =
         msg?.text ??
         msg?.content ??
+        msg?.caption ??
         msg?.message?.conversation ??
         msg?.message?.extendedTextMessage?.text ??
+        msg?.message?.imageMessage?.caption ??
+        msg?.message?.videoMessage?.caption ??
+        msg?.message?.documentMessage?.caption ??
         '';
-      if (!text) {
-        this.logger.debug(`Ignorando mensagem sem texto (type=${msg?.type ?? msg?.messageType ?? 'unknown'})`);
+
+      // For media messages without caption, use placeholder body so we still save the message
+      const body = text || (mediaType ? `[${rawMsgType.replace('Message', '')}]` : '');
+
+      if (!body && !mediaType) {
+        this.logger.debug(`Ignorando mensagem sem conteúdo (type=${rawMsgType})`);
         return { ok: true };
       }
 
@@ -96,11 +115,34 @@ export class UazapiWebhookController {
       const fromName: string = msg?.senderName ?? payload?.chat?.name ?? msg?.pushName ?? '';
       const externalMessageId: string = msg?.messageid ?? msg?.key?.id ?? `uza-${Date.now()}`;
 
-      // v2: messageTimestamp já em ms (13 dígitos). Legado: em segundos. Normaliza pela magnitude.
       const rawTs: number = msg?.messageTimestamp ?? Date.now();
       const receivedAt = new Date(rawTs > 1e12 ? rawTs : rawTs * 1000);
 
-      this.logger.log(`inbound message from ${from} (${fromName}): "${text.slice(0, 60)}"`);
+      // Extract media URL if present
+      const mediaUrl: string | undefined =
+        msg?.url ??
+        msg?.mediaUrl ??
+        msg?.message?.imageMessage?.url ??
+        msg?.message?.videoMessage?.url ??
+        msg?.message?.audioMessage?.url ??
+        msg?.message?.documentMessage?.url ??
+        msg?.message?.stickerMessage?.url ??
+        undefined;
+
+      const mediaMimeType: string | undefined =
+        msg?.mimetype ??
+        msg?.message?.imageMessage?.mimetype ??
+        msg?.message?.videoMessage?.mimetype ??
+        msg?.message?.audioMessage?.mimetype ??
+        msg?.message?.documentMessage?.mimetype ??
+        undefined;
+
+      const mediaFileName: string | undefined =
+        msg?.fileName ??
+        msg?.message?.documentMessage?.fileName ??
+        undefined;
+
+      this.logger.log(`inbound ${mediaType ?? 'text'} from ${from} (${fromName}): "${body.slice(0, 60)}"`);
 
       this.events.emit('message.inbound.received', {
         channelConfigId,
@@ -108,8 +150,12 @@ export class UazapiWebhookController {
         externalMessageId,
         from,
         fromName,
-        body: text,
+        body,
         receivedAt,
+        messageType: mediaType ?? 'text',
+        mediaUrl,
+        mediaMimeType,
+        mediaFileName,
       });
     }
 
