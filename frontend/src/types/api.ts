@@ -243,7 +243,7 @@ export interface Company {
 }
 
 export type TaskType = 'email' | 'call' | 'whatsapp' | 'proposal' | 'meeting' | 'visit';
-export type TaskStatus = 'pending' | 'completed';
+export type TaskStatus = 'pending' | 'completed' | 'cancelled';
 export type TaskTargetType = 'contact' | 'lead' | 'company';
 
 export interface TaskAttachment {
