@@ -19,6 +19,7 @@ import { useRefreshUser } from '@/hooks/useRefreshUser';
 import { useAuthStore } from '@/store/auth.store';
 import { usePrefsStore } from '@/store/prefs.store';
 import { useWorkspace } from '@/hooks/useWorkspace';
+import { useIsMobile } from '@/hooks/useIsMobile';
 import { Loader2 } from 'lucide-react';
 
 // Code-splitting por rota: cada page vira um chunk próprio carregado on-demand.
@@ -56,13 +57,14 @@ function AuthedLayout() {
   useRefreshUser();
   const { data: workspace, isLoading } = useWorkspace();
   const me = useAuthStore((s) => s.user);
+  const isMobile = useIsMobile();
 
   useEffect(() => {
     usePrefsStore.getState().load();
   }, []);
 
-  // Agents only have access to the mobile agenda view
-  if (me?.role === 'agent') return <Navigate to="/mobile" replace />;
+  // Agents always go to mobile; any user on a mobile device also goes to mobile
+  if (me?.role === 'agent' || isMobile) return <Navigate to="/mobile" replace />;
 
   if (isLoading && !workspace) {
     return (
@@ -133,13 +135,18 @@ function GatedTasks() {
 
 export default function App() {
   const { token, user } = useAuthStore();
+  const isMobile = useIsMobile();
+
+  const postLoginTarget = token
+    ? (user?.role === 'agent' || isMobile ? '/mobile' : '/')
+    : null;
 
   return (
     <WsProvider>
       <Routes>
         <Route
           path="/login"
-          element={token ? <Navigate to={user?.role === 'agent' ? '/mobile' : '/'} replace /> : <Login />}
+          element={postLoginTarget ? <Navigate to={postLoginTarget} replace /> : <Login />}
         />
         <Route
           path="/signup"

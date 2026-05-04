@@ -1,8 +1,9 @@
 import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
 import {
   CheckCircle2, Clock, Phone, Mail, MessageCircle,
-  FileText, Users, MapPin, LogOut, CalendarDays,
+  FileText, Users, MapPin, LogOut, CalendarDays, Maximize2,
 } from 'lucide-react';
 import { listTasks, completeTask } from '@/api/tasks';
 import { useAuthStore } from '@/store/auth.store';
@@ -195,7 +196,9 @@ function EmptyState({ tab }: { tab: Tab }) {
 
 export default function AgendaMobile() {
   const { user, logout } = useAuthStore();
+  const navigate = useNavigate();
   const qc = useQueryClient();
+  const isAgent = user?.role === 'agent';
   const [tab, setTab] = useState<Tab>('today');
 
   const today    = toLocalDateStr(new Date());
@@ -265,14 +268,26 @@ export default function AgendaMobile() {
             {user?.name}
           </p>
         </div>
-        <button
-          onClick={logout}
-          className="p-2 rounded-lg"
-          style={{ color: 'var(--ink-3)' }}
-          title="Sair"
-        >
-          <LogOut className="w-5 h-5" />
-        </button>
+        <div className="flex items-center gap-1">
+          {!isAgent && (
+            <button
+              onClick={() => navigate('/funil')}
+              className="p-2 rounded-lg"
+              style={{ color: 'var(--ink-3)' }}
+              title="Versão completa"
+            >
+              <Maximize2 className="w-5 h-5" />
+            </button>
+          )}
+          <button
+            onClick={logout}
+            className="p-2 rounded-lg"
+            style={{ color: 'var(--ink-3)' }}
+            title="Sair"
+          >
+            <LogOut className="w-5 h-5" />
+          </button>
+        </div>
       </header>
 
       {/* Tabs */}
