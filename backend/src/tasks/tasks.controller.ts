@@ -50,6 +50,11 @@ export class TasksController {
     return this.tasksService.complete(id);
   }
 
+  @Patch(':id/cancel')
+  cancel(@Param('id') id: string) {
+    return this.tasksService.cancel(id);
+  }
+
   @Patch(':id/reopen')
   reopen(@Param('id') id: string) {
     return this.tasksService.reopen(id);

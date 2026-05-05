@@ -51,6 +51,11 @@ export async function completeTask(id: string): Promise<Task> {
   return res.data;
 }
 
+export async function cancelTask(id: string): Promise<Task> {
+  const res = await api.patch<Task>(`/tasks/${id}/cancel`);
+  return res.data;
+}
+
 export async function reopenTask(id: string): Promise<Task> {
   const res = await api.patch<Task>(`/tasks/${id}/reopen`);
   return res.data;

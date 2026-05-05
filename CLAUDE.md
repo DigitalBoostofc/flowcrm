@@ -4,13 +4,31 @@
 
 **NUNCA fazer push direto no `master`.** Push no master = deploy imediato em produção.
 
+### ⚠️ VERIFICAÇÃO OBRIGATÓRIA ANTES DE QUALQUER COMMIT
+
+**ANTES de fazer qualquer commit**, executar SEMPRE:
+
+```bash
+git fetch origin
+git log --oneline origin/master..HEAD
+```
+
+- Se retornar **0 commits** (branch já foi mergeada ou está em master): **NÃO commitar aqui**. Criar nova branch a partir de `origin/master`:
+  ```bash
+  git checkout -b feat/nome-descritivo origin/master
+  ```
+- Se retornar commits: a branch ainda tem trabalho pendente, pode commitar normalmente.
+
+**Por que isso existe:** Entre sessões, o histórico da conversa é perdido. Sem essa verificação, continuo commitando em branches já mergeadas, empilhando commits em cima de código que já está em produção. Isso aconteceu 3 vezes. Não pode repetir.
+
 ### Passos que devem ser seguidos SEMPRE:
 
-1. **Implementar** as alterações localmente
-2. **Testar localmente** — verificar se o backend/frontend compilam e rodam sem erro
-3. **Aguardar confirmação do usuário** — perguntar "está funcionando como esperado?"
-4. Somente após confirmação: **criar branch** com nome descritivo (ex: `feat/nome`, `fix/nome`)
-5. **Commit + push na branch** (nunca no master diretamente)
+1. **Verificar branch** (regra acima) — obrigatório antes de qualquer commit
+2. **Implementar** as alterações localmente
+3. **Testar localmente** — verificar se o backend/frontend compilam e rodam sem erro
+4. **Aguardar confirmação do usuário** — perguntar "está funcionando como esperado?"
+5. Somente após confirmação: **criar branch** com nome descritivo (ex: `feat/nome`, `fix/nome`)
+6. **Commit + push na branch** (nunca no master diretamente)
 
 ### Regra de nomenclatura de branches
 
