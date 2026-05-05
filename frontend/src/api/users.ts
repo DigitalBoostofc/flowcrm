@@ -6,6 +6,11 @@ export async function listUsers(): Promise<User[]> {
   return res.data;
 }
 
+export async function listWorkspaceMembers(): Promise<{ id: string; name: string }[]> {
+  const res = await api.get<{ id: string; name: string }[]>('/users/members');
+  return res.data;
+}
+
 export async function createUser(dto: { name: string; email: string; password: string; role: 'manager' | 'seller' | 'agent' }): Promise<User> {
   const res = await api.post<User>('/users', dto);
   return res.data;

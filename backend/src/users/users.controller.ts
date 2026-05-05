@@ -111,6 +111,11 @@ export class UsersController {
     return this.usersService.create(dto);
   }
 
+  @Get('members')
+  findMembers() {
+    return this.usersService.findMembers();
+  }
+
   @Get()
   @UseGuards(RolesGuard)
   @Roles(UserRole.OWNER)
