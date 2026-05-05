@@ -27,6 +27,7 @@ export interface InboxItem {
   unread: boolean;
   updatedAt: Date;
   pendingClassification: boolean;
+  assignedToName: string | null;
 }
 
 export interface InboxPage {
@@ -103,7 +104,7 @@ export class ConversationsService {
 
   async qualify(
     id: string,
-    dto: { name: string; type?: 'person' | 'company'; pipelineId?: string; stageId?: string },
+    dto: { name: string; type?: 'person' | 'company'; pipelineId?: string; stageId?: string; assignedToId?: string },
   ): Promise<{ leadId: string; pipelineId: string; stageId: string }> {
     const workspaceId = this.tenant.requireWorkspaceId();
     const conv = await this.repo.findOne({ where: { id, workspaceId } });
@@ -148,6 +149,7 @@ export class ConversationsService {
       companyId,
       pipelineId: targetPipelineId,
       stageId: targetStageId,
+      assignedToId: dto.assignedToId ?? null,
     } as any);
 
     await this.repo.update({ id, workspaceId }, { leadId: lead.id });
@@ -183,9 +185,11 @@ export class ConversationsService {
         contact."avatarUrl"                                         AS "contactAvatarUrl",
         lm.body                                                     AS "lastMessageBody",
         lm.direction                                                AS "lastMessageDirection",
-        lm."sentAt"                                                 AS "lastMessageSentAt"
+        lm."sentAt"                                                 AS "lastMessageSentAt",
+        u.name                                                      AS "assignedToName"
       FROM conversations c
       LEFT JOIN leads l        ON l.id = c."leadId"
+      LEFT JOIN users u        ON u.id = l."assignedToId"
       LEFT JOIN contacts contact ON contact.id = l."contactId"
       LEFT JOIN LATERAL (
         SELECT body, direction, "sentAt"
@@ -217,6 +221,7 @@ export class ConversationsService {
       unread: ConversationsService.computeUnread(r.lastMessageDirection, r.lastMessageSentAt, r.lastReadAt),
       updatedAt: r.updatedAt,
       pendingClassification: !r.leadId,
+      assignedToName: r.assignedToName ?? null,
     }));
 
     return { items, total, page, pageSize };

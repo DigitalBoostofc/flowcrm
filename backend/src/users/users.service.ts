@@ -54,6 +54,15 @@ export class UsersService {
     return this.repo.save(user);
   }
 
+  findMembers(): Promise<Pick<User, 'id' | 'name'>[]> {
+    const workspaceId = this.tenant.requireWorkspaceId();
+    return this.repo.find({
+      where: { workspaceId, active: true },
+      select: ['id', 'name'],
+      order: { name: 'ASC' },
+    });
+  }
+
   findAll(): Promise<User[]> {
     const workspaceId = this.tenant.requireWorkspaceId();
     return this.repo.find({

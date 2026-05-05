@@ -16,6 +16,8 @@ import { listMessages, sendMessage, sendMedia, reactMessage, deleteMessage, tran
 import { listQuickReplies } from '@/api/quick-replies';
 import { listChannels } from '@/api/channels';
 import { listPipelines } from '@/api/pipelines';
+import { listWorkspaceMembers } from '@/api/users';
+import { useAuthStore } from '@/store/auth.store';
 import { api } from '@/api/client';
 import { useWs } from '@/hooks/useWebSocket';
 import type { Message, QuickReply, Pipeline } from '@/types/api';
@@ -363,19 +365,26 @@ function QualifyModal({
   onClose,
 }: {
   item: InboxItem;
-  onConfirm: (payload: { name: string; type: 'person' | 'company'; pipelineId: string; stageId: string }) => Promise<void>;
+  onConfirm: (payload: { name: string; type: 'person' | 'company'; pipelineId: string; stageId: string; assignedToId: string }) => Promise<void>;
   onClose: () => void;
 }) {
+  const { user: me } = useAuthStore();
   const [type, setType] = useState<'person' | 'company'>('person');
   const [name, setName] = useState(item.contactName ?? '');
   const [pipelineId, setPipelineId] = useState('');
   const [stageId, setStageId] = useState('');
+  const [assignedToId, setAssignedToId] = useState(me?.id ?? '');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
   const { data: pipelines = [] } = useQuery<Pipeline[]>({
     queryKey: ['pipelines'],
     queryFn: listPipelines,
+  });
+
+  const { data: members = [] } = useQuery<{ id: string; name: string }[]>({
+    queryKey: ['workspace-members'],
+    queryFn: listWorkspaceMembers,
   });
 
   // Set default pipeline + stage
@@ -402,10 +411,11 @@ function QualifyModal({
     if (!name.trim()) { setError('Informe o nome.'); return; }
     if (!pipelineId) { setError('Selecione um funil.'); return; }
     if (!stageId) { setError('Selecione uma etapa.'); return; }
+    if (!assignedToId) { setError('Selecione o responsável.'); return; }
     setSaving(true);
     setError('');
     try {
-      await onConfirm({ name: name.trim(), type, pipelineId, stageId });
+      await onConfirm({ name: name.trim(), type, pipelineId, stageId, assignedToId });
     } catch {
       setError('Erro ao qualificar. Tente novamente.');
       setSaving(false);
@@ -522,6 +532,29 @@ function QualifyModal({
           </div>
         </div>
 
+        {/* Responsável */}
+        <div>
+          <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--ink-2)' }}>
+            Responsável <span style={{ color: 'var(--danger, #ef4444)' }}>*</span>
+          </label>
+          <div className="relative">
+            <select
+              value={assignedToId}
+              onChange={(e) => setAssignedToId(e.target.value)}
+              className="w-full px-3 py-2.5 rounded-xl text-sm outline-none appearance-none"
+              style={{ background: 'var(--surface)', border: `1px solid ${!assignedToId ? 'var(--danger, #ef4444)' : 'var(--edge)'}`, color: 'var(--ink-1)', paddingRight: '2.5rem' }}
+            >
+              <option value="">Selecione o responsável…</option>
+              {members.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.id === me?.id ? `Eu (${m.name})` : m.name}
+                </option>
+              ))}
+            </select>
+            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 pointer-events-none" style={{ color: 'var(--ink-3)' }} />
+          </div>
+        </div>
+
         {error && <p className="text-xs font-medium" style={{ color: 'var(--danger, #ef4444)' }}>{error}</p>}
 
         {/* Actions */}
@@ -585,7 +618,7 @@ function ConvItem({ item, selected, onClick }: { item: InboxItem; selected: bool
           {item.unread && (
             <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: 'var(--success)' }} />
           )}
-          {pending && (
+          {pending ? (
             <span
               className="flex items-center gap-0.5 text-[9px] font-semibold px-1.5 py-0.5 rounded-full flex-shrink-0"
               style={{ background: 'rgba(245,158,11,0.15)', color: '#f59e0b' }}
@@ -593,7 +626,14 @@ function ConvItem({ item, selected, onClick }: { item: InboxItem; selected: bool
               <Sparkles className="w-2.5 h-2.5" strokeWidth={2} />
               Qualificar
             </span>
-          )}
+          ) : item.assignedToName ? (
+            <span
+              className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full flex-shrink-0"
+              style={{ background: 'rgba(99,91,255,0.12)', color: 'var(--brand-500)' }}
+            >
+              {item.assignedToName}
+            </span>
+          ) : null}
           <p className="text-xs truncate" style={{ color: item.unread ? 'var(--ink-2)' : 'var(--ink-3)', fontWeight: item.unread ? 500 : 400 }}>
             {item.lastMessageDirection === 'outbound' && <span style={{ color: 'var(--ink-3)' }}>Você: </span>}
             {item.lastMessageBody ?? 'Nenhuma mensagem'}
@@ -614,7 +654,7 @@ const CHAT_TABS: { id: ChatTab; label: string; icon: React.ElementType }[] = [
   { id: 'info', label: 'Dados', icon: FileText },
 ];
 
-function ChatView({ item, onQualify }: { item: InboxItem; onQualify: (payload: { name: string; type: 'person' | 'company'; pipelineId: string; stageId: string }) => Promise<void> }) {
+function ChatView({ item, onQualify }: { item: InboxItem; onQualify: (payload: { name: string; type: 'person' | 'company'; pipelineId: string; stageId: string; assignedToId: string }) => Promise<void> }) {
   const qc = useQueryClient();
   const [activeTab, setActiveTab] = useState<ChatTab>('chat');
   const [showQualifyModal, setShowQualifyModal] = useState(false);
@@ -1080,7 +1120,7 @@ export default function Inbox() {
   const selected = inbox.find(i => i.id === selectedId) ?? null;
   const unreadCount = inbox.filter(i => i.unread).length;
 
-  async function handleQualify(payload: { name: string; type: 'person' | 'company'; pipelineId: string; stageId: string }): Promise<void> {
+  async function handleQualify(payload: { name: string; type: 'person' | 'company'; pipelineId: string; stageId: string; assignedToId: string }): Promise<void> {
     if (!selected) return;
     const result = await qualifyConversation(selected.id, payload);
     qc.invalidateQueries({ queryKey: ['inbox'] });

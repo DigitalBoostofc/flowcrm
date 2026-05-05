@@ -19,6 +19,7 @@ export interface InboxItem {
   unread: boolean;
   updatedAt: string;
   pendingClassification: boolean;
+  assignedToName: string | null;
 }
 
 export interface InboxPage {
@@ -48,6 +49,7 @@ export interface QualifyPayload {
   type?: 'person' | 'company';
   pipelineId?: string;
   stageId?: string;
+  assignedToId: string;
 }
 
 export async function qualifyConversation(

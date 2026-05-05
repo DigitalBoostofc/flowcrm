@@ -23,6 +23,10 @@ class QualifyDto {
   @IsOptional()
   @IsUUID()
   stageId?: string;
+
+  @IsOptional()
+  @IsUUID()
+  assignedToId?: string;
 }
 
 @ApiTags('conversations')
@@ -61,6 +65,7 @@ export class ConversationsController {
       type: dto.type,
       pipelineId: dto.pipelineId,
       stageId: dto.stageId,
+      assignedToId: dto.assignedToId,
     });
   }
 }
