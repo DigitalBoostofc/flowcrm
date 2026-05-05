@@ -108,6 +108,11 @@ export class InboundListener {
         .catch(() => { /* ignore */ });
     }
 
+    // Auto-unarchive: if conversation was archived and a new message arrives, bring it back with "Novo negócio" tag
+    if (conv.archivedAt) {
+      await this.conversations.unarchiveOnNewMessage(conv.id, channel.workspaceId);
+    }
+
     const saved = await this.messages.saveInbound({
       conversationId: conv.id,
       externalMessageId: evt.externalMessageId,

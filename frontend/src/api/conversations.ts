@@ -32,8 +32,18 @@ export interface InboxPage {
   pageSize: number;
 }
 
-export async function listInbox(params: { page?: number; pageSize?: number } = {}): Promise<InboxPage> {
+export async function listInbox(params: {
+  page?: number;
+  pageSize?: number;
+  filter?: 'all' | 'archived';
+  tagId?: string;
+} = {}): Promise<InboxPage> {
   const res = await api.get<InboxPage>('/conversations/inbox', { params });
+  return res.data;
+}
+
+export async function archiveConversation(id: string, archive: boolean): Promise<{ id: string; archivedAt: string | null }> {
+  const res = await api.patch<{ id: string; archivedAt: string | null }>(`/conversations/${id}/archive`, { archive });
   return res.data;
 }
 

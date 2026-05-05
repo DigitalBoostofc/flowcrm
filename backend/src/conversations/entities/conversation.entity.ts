@@ -44,6 +44,9 @@ export class Conversation {
   @Column({ type: 'uuid', nullable: true })
   inboxTagId: string | null;
 
+  @Column({ type: 'timestamptz', nullable: true })
+  archivedAt: Date | null;
+
   @CreateDateColumn()
   createdAt: Date;
 
