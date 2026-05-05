@@ -22,6 +22,7 @@ export enum TaskType {
 export enum TaskStatus {
   PENDING = 'pending',
   COMPLETED = 'completed',
+  CANCELLED = 'cancelled',
 }
 
 export enum TaskTargetType {

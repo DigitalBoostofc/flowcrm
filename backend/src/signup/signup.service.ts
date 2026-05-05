@@ -15,6 +15,7 @@ import { User, UserRole } from '../users/entities/user.entity';
 import { Workspace } from '../workspaces/entities/workspace.entity';
 import { Pipeline } from '../pipelines/entities/pipeline.entity';
 import { Stage } from '../stages/entities/stage.entity';
+import { Agenda } from '../agendas/entities/agenda.entity';
 import { AppSettingsService } from '../app-settings/app-settings.service';
 import { ChannelsService } from '../channels/channels.service';
 import { PlatformChannelService } from '../otp/platform-channel.service';
@@ -37,6 +38,7 @@ export class SignupService {
   constructor(
     @InjectRepository(OtpVerification) private otpRepo: Repository<OtpVerification>,
     @InjectRepository(User) private userRepo: Repository<User>,
+    @InjectRepository(Agenda) private agendaRepo: Repository<Agenda>,
     private readonly dataSource: DataSource,
     private readonly appSettings: AppSettingsService,
     private readonly channels: ChannelsService,
@@ -197,6 +199,16 @@ export class SignupService {
         position: s.position,
       }));
       await manager.save(stages);
+
+      const ownerAgenda = manager.create(Agenda, {
+        workspaceId: savedWs.id,
+        name: `Agenda de ${payload.name}`,
+        ownerId: savedUser.id,
+        ownerName: payload.name,
+        isActive: true,
+        services: [],
+      });
+      await manager.save(ownerAgenda);
 
       otp.consumedAt = new Date();
       otp.payload = {};

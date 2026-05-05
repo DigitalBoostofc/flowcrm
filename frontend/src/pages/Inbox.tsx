@@ -3,7 +3,7 @@ import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from '@tansta
 import { useNavigate } from 'react-router-dom';
 import {
   MessageCircle, Send, Search, Phone, Loader2, Sparkles, Activity,
-  FileText, Paperclip, Mic, File, Video, Trash2, SmilePlus, X,
+  FileText, Paperclip, Mic, MicOff, File, Video, Trash2, SmilePlus, X,
   Check, CheckCheck, Users, Building2, ChevronDown,
 } from 'lucide-react';
 import ConversationSummaryButton from '@/components/lead-panel/ConversationSummary';
@@ -12,7 +12,7 @@ import LeadInfo from '@/components/lead-panel/LeadInfo';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { listInbox, markConversationRead, qualifyConversation, type InboxItem, type InboxPage } from '@/api/conversations';
-import { listMessages, sendMessage, sendMedia, reactMessage, deleteMessage } from '@/api/messages';
+import { listMessages, sendMessage, sendMedia, reactMessage, deleteMessage, transcribeAudio } from '@/api/messages';
 import { listQuickReplies } from '@/api/quick-replies';
 import { listChannels } from '@/api/channels';
 import { listPipelines } from '@/api/pipelines';
@@ -56,10 +56,25 @@ function MessageBubble({ message, isOut, channelId, onDelete }: {
 }) {
   const [hovered, setHovered] = useState(false);
   const [showEmojis, setShowEmojis] = useState(false);
+  const [transcript, setTranscript] = useState<string | null>(null);
+  const [isTranscribing, setIsTranscribing] = useState(false);
   const reactMut = useMutation({
     mutationFn: (emoji: string) =>
       reactMessage({ messageId: message.externalMessageId ?? message.id, channelConfigId: channelId, emoji }),
   });
+
+  async function handleTranscribe() {
+    if (!message.mediaUrl || isTranscribing) return;
+    setIsTranscribing(true);
+    try {
+      const text = await transcribeAudio(message.mediaUrl);
+      setTranscript(text);
+    } catch {
+      setTranscript('Não foi possível transcrever o áudio.');
+    } finally {
+      setIsTranscribing(false);
+    }
+  }
 
   const bubbleStyle = isOut
     ? { background: 'var(--brand-500)', color: '#fff', borderBottomRightRadius: 4 }
@@ -69,34 +84,87 @@ function MessageBubble({ message, isOut, channelId, onDelete }: {
     if (message.type === 'deleted') {
       return <em className="text-sm opacity-60">Mensagem apagada</em>;
     }
-    if (message.type === 'image' && message.mediaUrl) {
-      return (
-        <a href={message.mediaUrl} target="_blank" rel="noreferrer">
-          <img
-            src={message.mediaUrl}
-            alt={message.mediaCaption ?? 'Imagem'}
-            className="max-w-[240px] rounded-lg object-cover"
-            style={{ maxHeight: 200 }}
-            onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-          />
-          {message.mediaCaption && <p className="text-sm mt-1 leading-relaxed">{message.mediaCaption}</p>}
-        </a>
-      );
-    }
-    if (message.type === 'video' && message.mediaUrl) {
+    if (message.type === 'image') {
       return (
         <div>
-          <video controls src={message.mediaUrl} className="max-w-[240px] rounded-lg" style={{ maxHeight: 200 }} />
+          {message.mediaUrl ? (
+            <a href={message.mediaUrl} target="_blank" rel="noreferrer">
+              <img
+                src={message.mediaUrl}
+                alt={message.mediaCaption ?? 'Imagem'}
+                className="max-w-[240px] rounded-lg object-cover"
+                style={{ maxHeight: 200 }}
+                onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+              />
+            </a>
+          ) : (
+            <div className="flex items-center gap-2 py-1 opacity-60">
+              <File className="w-4 h-4 flex-shrink-0" strokeWidth={1.75} />
+              <span className="text-sm">Imagem</span>
+            </div>
+          )}
+          {message.mediaCaption && <p className="text-sm mt-1 leading-relaxed">{message.mediaCaption}</p>}
+        </div>
+      );
+    }
+    if (message.type === 'video') {
+      return (
+        <div>
+          {message.mediaUrl ? (
+            <video controls src={message.mediaUrl} className="max-w-[240px] rounded-lg" style={{ maxHeight: 200 }} />
+          ) : (
+            <div className="flex items-center gap-2 py-1 opacity-60">
+              <Video className="w-4 h-4 flex-shrink-0" strokeWidth={1.75} />
+              <span className="text-sm">Vídeo</span>
+            </div>
+          )}
           {message.mediaCaption && <p className="text-sm mt-1">{message.mediaCaption}</p>}
         </div>
       );
     }
-    if (message.type === 'audio' && message.mediaUrl) {
+    if (message.type === 'audio') {
       return (
-        <div className="flex items-center gap-2 py-1">
-          <Mic className="w-4 h-4 flex-shrink-0" strokeWidth={1.75} />
-          <audio controls src={message.mediaUrl} className="h-8" style={{ minWidth: 160 }} />
+        <div className="space-y-1.5">
+          <div className="flex items-center gap-2 py-1">
+            <Mic className="w-4 h-4 flex-shrink-0" strokeWidth={1.75} />
+            {message.mediaUrl ? (
+              <audio controls src={message.mediaUrl} className="h-8" style={{ minWidth: 160 }} />
+            ) : (
+              <span className="text-sm opacity-60">Áudio</span>
+            )}
+            {!isOut && message.mediaUrl && (
+              <button
+                onClick={handleTranscribe}
+                disabled={isTranscribing}
+                title="Transcrever áudio"
+                className="p-1 rounded-lg flex-shrink-0 disabled:opacity-50 transition-opacity hover:opacity-70"
+                style={{ background: 'var(--surface-hover)', border: '1px solid var(--edge)', color: 'var(--ink-2)' }}
+              >
+                {isTranscribing
+                  ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  : <FileText className="w-3.5 h-3.5" />
+                }
+              </button>
+            )}
+          </div>
+          {transcript && (
+            <p className="text-xs italic leading-relaxed px-1" style={{ color: 'var(--ink-2)' }}>
+              {transcript}
+            </p>
+          )}
         </div>
+      );
+    }
+    if (message.type === 'sticker') {
+      return message.mediaUrl ? (
+        <img
+          src={message.mediaUrl}
+          alt="Sticker"
+          className="max-w-[120px] rounded-lg"
+          onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+        />
+      ) : (
+        <span className="text-sm opacity-60">🎭 Sticker</span>
       );
     }
     if (message.type === 'document') {
@@ -495,12 +563,12 @@ function ConvItem({ item, selected, onClick }: { item: InboxItem; selected: bool
         borderLeft: selected ? '2px solid var(--brand-500)' : '2px solid transparent',
       }}
     >
-      <Avatar name={item.contactName} url={item.contactAvatarUrl} size={36} />
+      <Avatar name={item.contactName ?? item.fromName} url={item.contactAvatarUrl ?? item.fromAvatarUrl} size={36} />
 
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between gap-2">
           <span className="text-sm font-medium truncate" style={{ color: 'var(--ink-1)' }}>
-            {item.contactName ?? item.externalId ?? 'Desconhecido'}
+            {item.contactName ?? item.fromName ?? item.externalId ?? 'Desconhecido'}
           </span>
           <span className="text-[10px] flex-shrink-0 flex items-center gap-1.5" style={{ color: 'var(--ink-3)' }}>
             <span
@@ -554,9 +622,12 @@ function ChatView({ item, onQualify }: { item: InboxItem; onQualify: (payload: {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [showQuickReplies, setShowQuickReplies] = useState(false);
   const [quickReplySearch, setQuickReplySearch] = useState('');
+  const [isRecording, setIsRecording] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
   const { socket } = useWs();
 
   const { data: channels = [] } = useQuery({ queryKey: ['channels'], queryFn: listChannels });
@@ -598,11 +669,13 @@ function ChatView({ item, onQualify }: { item: InboxItem; onQualify: (payload: {
   // Reset tab on conversation switch
   useEffect(() => { setActiveTab('chat'); setBody(''); setSelectedFile(null); setShowQualifyModal(false); }, [item.id]);
 
-  // Mark as read on WhatsApp side when conversation opens
+  // Mark as read + sync full chat history when conversation opens
   useEffect(() => {
-    if (channelId && item.externalId) {
-      api.post(`/channels/${channelId}/mark-read`, { chatId: item.externalId }).catch(() => {});
-    }
+    if (!channelId || !item.externalId) return;
+    api.post(`/channels/${channelId}/mark-read`, { chatId: item.externalId }).catch(() => {});
+    api.post(`/channels/${channelId}/sync-chat`, { chatId: item.externalId, count: 50 })
+      .then(() => qc.invalidateQueries({ queryKey: ['messages', item.id] }))
+      .catch(() => {});
   }, [item.id, channelId]);
 
   // Send text mutation
@@ -691,6 +764,40 @@ function ChatView({ item, onQualify }: { item: InboxItem; onQualify: (payload: {
   const handleQuickReplySelect = useCallback((qr: QuickReply) => {
     setBody(qr.body);
     setShowQuickReplies(false);
+  }, []);
+
+  const startRecording = useCallback(async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+        ? 'audio/webm;codecs=opus'
+        : MediaRecorder.isTypeSupported('audio/ogg;codecs=opus')
+          ? 'audio/ogg;codecs=opus'
+          : 'audio/webm';
+      const recorder = new MediaRecorder(stream, { mimeType });
+      audioChunksRef.current = [];
+      recorder.ondataavailable = (e) => {
+        if (e.data.size > 0) audioChunksRef.current.push(e.data);
+      };
+      recorder.onstop = () => {
+        const blob = new Blob(audioChunksRef.current, { type: mimeType });
+        const ext = mimeType.includes('ogg') ? 'ogg' : 'webm';
+        const file = Object.assign(blob, { name: `audio-${Date.now()}.${ext}`, lastModified: Date.now() }) as unknown as File;
+        setSelectedFile(file);
+        stream.getTracks().forEach(t => t.stop());
+      };
+      recorder.start();
+      mediaRecorderRef.current = recorder;
+      setIsRecording(true);
+    } catch {
+      /* microphone permission denied — silently ignore */
+    }
+  }, []);
+
+  const stopRecording = useCallback(() => {
+    mediaRecorderRef.current?.stop();
+    mediaRecorderRef.current = null;
+    setIsRecording(false);
   }, []);
 
   const phone = item.contactPhone ?? item.externalId;
@@ -803,6 +910,13 @@ function ChatView({ item, onQualify }: { item: InboxItem; onQualify: (payload: {
               />
             )}
 
+            {isRecording && (
+              <div className="flex items-center gap-2 px-3 py-2 rounded-xl" style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)' }}>
+                <span className="w-2 h-2 rounded-full flex-shrink-0 animate-pulse" style={{ background: '#ef4444' }} />
+                <span className="text-xs font-medium" style={{ color: '#ef4444' }}>Gravando... Clique em parar para enviar.</span>
+              </div>
+            )}
+
             {activeChannels.length === 0 && (
               <p className="text-xs text-center" style={{ color: 'var(--warning)' }}>
                 Nenhum canal WhatsApp conectado. Vá em Configurações → Canais.
@@ -835,12 +949,28 @@ function ChatView({ item, onQualify }: { item: InboxItem; onQualify: (payload: {
               />
               <button
                 onClick={() => fileInputRef.current?.click()}
-                disabled={activeChannels.length === 0}
+                disabled={activeChannels.length === 0 || isRecording}
                 title="Anexar arquivo"
                 className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 disabled:opacity-40 transition-opacity hover:opacity-80"
                 style={{ background: 'var(--surface-hover)', border: '1px solid var(--edge)', color: 'var(--ink-2)' }}
               >
                 <Paperclip className="w-4 h-4" strokeWidth={1.75} />
+              </button>
+
+              <button
+                onClick={isRecording ? stopRecording : startRecording}
+                disabled={activeChannels.length === 0 || !!selectedFile}
+                title={isRecording ? 'Parar gravação' : 'Gravar áudio'}
+                className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 disabled:opacity-40 transition-all hover:opacity-80"
+                style={isRecording
+                  ? { background: '#ef4444', color: '#fff', border: 'none' }
+                  : { background: 'var(--surface-hover)', border: '1px solid var(--edge)', color: 'var(--ink-2)' }
+                }
+              >
+                {isRecording
+                  ? <MicOff className="w-4 h-4" strokeWidth={1.75} />
+                  : <Mic className="w-4 h-4" strokeWidth={1.75} />
+                }
               </button>
 
               <textarea

@@ -227,6 +227,38 @@ export class UazapiAdapter implements ChannelAdapter {
     }
   }
 
+  async fetchChatMessages(channelConfigId: string, chatId: string, count = 50): Promise<any[]> {
+    try {
+      const token = await this.ensureToken(channelConfigId);
+      const normalizedId = chatId.includes('@') ? chatId : `${chatId}@s.whatsapp.net`;
+      const res = await axios.post(
+        `${this.baseUrl}/message/find`,
+        { chatid: normalizedId, limit: count, offset: 0 },
+        { headers: this.instanceHeaders(token), timeout: 30000 },
+      );
+      const data = res.data;
+      return Array.isArray(data?.messages) ? data.messages : (Array.isArray(data) ? data : []);
+    } catch (err: any) {
+      this.logger.warn(`fetchChatMessages failed: ${err.message}`);
+      return [];
+    }
+  }
+
+  async downloadMedia(channelConfigId: string, messageid: string): Promise<{ fileURL?: string; mimetype?: string }> {
+    try {
+      const token = await this.ensureToken(channelConfigId);
+      const res = await axios.post(
+        `${this.baseUrl}/message/download`,
+        { id: messageid, return_link: true, generate_mp3: true },
+        { headers: this.instanceHeaders(token), timeout: 12000 },
+      );
+      return { fileURL: res.data?.fileURL ?? undefined, mimetype: res.data?.mimetype ?? undefined };
+    } catch (err: any) {
+      this.logger.warn(`downloadMedia failed for ${messageid}: ${err.message}`);
+      return {};
+    }
+  }
+
   async getWaLimits(channelConfigId: string): Promise<Record<string, unknown>> {
     try {
       const token = await this.ensureToken(channelConfigId);
@@ -282,5 +314,23 @@ export class UazapiAdapter implements ChannelAdapter {
     const channel = await this.repo.findOneByOrFail({ id: channelConfigId });
     channel.config = { ...channel.config, lastQrCode: base64, lastQrAt: new Date().toISOString() };
     await this.repo.save(channel);
+  }
+
+  async getChatDetails(channelConfigId: string, phone: string): Promise<{ name?: string; image?: string }> {
+    try {
+      const token = await this.ensureToken(channelConfigId);
+      const res = await axios.post(
+        `${this.baseUrl}/chat/details`,
+        { number: phone, preview: true },
+        { headers: this.instanceHeaders(token), timeout: 10000 },
+      );
+      return {
+        name: res.data?.wa_name ?? res.data?.name ?? undefined,
+        image: res.data?.imagePreview ?? res.data?.image ?? undefined,
+      };
+    } catch (err: any) {
+      this.logger.warn(`getChatDetails failed for ${phone}: ${err.message}`);
+      return {};
+    }
   }
 }

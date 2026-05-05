@@ -24,6 +24,12 @@ export class Conversation {
   @Column({ nullable: true })
   externalId: string;
 
+  @Column({ type: 'varchar', nullable: true })
+  fromName: string | null;
+
+  @Column({ type: 'text', nullable: true })
+  fromAvatarUrl: string | null;
+
   @OneToMany(() => Message, (m) => m.conversation)
   messages: Message[];
 

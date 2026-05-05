@@ -24,6 +24,7 @@ import PrivacidadeTab from '@/components/settings/PrivacidadeTab';
 import LixeiraTab from '@/components/settings/LixeiraTab';
 import MeusDadosTab from '@/components/settings/MeusDadosTab';
 import WidgetTab from '@/components/settings/WidgetTab';
+import QuickRepliesTab from '@/components/settings/QuickRepliesTab';
 import { FeatureLockedScreen } from '@/components/ui/FeatureGate';
 import { useFeatures } from '@/hooks/useFeatures';
 
@@ -31,7 +32,7 @@ type Tab =
   | 'funis-etapas' | 'motivos-perda' | 'origens-clientes'
   | 'categorias-clientes' | 'setores' | 'produtos-servicos' | 'channels'
   | 'templates' | 'automations' | 'agents' | 'widget' | 'integrations' | 'sistema' | 'danger'
-  | 'privacidade' | 'lixeira' | 'meus-dados';
+  | 'privacidade' | 'lixeira' | 'meus-dados' | 'quick-replies';
 
 interface NavItem { id: Tab; label: string; icon: typeof GitBranch; ownerOnly?: boolean; platformAdminOnly?: boolean; danger?: boolean; feature?: string }
 interface NavGroup { title: string; items: NavItem[] }
@@ -62,6 +63,7 @@ const GROUPS: NavGroup[] = [
     title: 'Comunicação & automação',
     items: [
       { id: 'channels',             label: 'Canais WhatsApp',       icon: Radio,      ownerOnly: true, feature: 'whatsapp_channels' },
+      { id: 'quick-replies',        label: 'Respostas Rápidas',     icon: Zap,        ownerOnly: true },
       { id: 'templates',            label: 'Templates',             icon: FileText,   ownerOnly: true, feature: 'automation_templates' },
       { id: 'automations',          label: 'Automações',            icon: Zap,        ownerOnly: true, feature: 'automations' },
     ],
@@ -215,6 +217,7 @@ export default function Settings() {
           {tab === 'categorias-clientes' && <CategoriasClientesTab />}
           {tab === 'setores'             && <SetoresTab />}
           {tab === 'produtos-servicos'   && <ProdutosServicosTab />}
+          {tab === 'quick-replies'       && <QuickRepliesTab />}
           {tab === 'channels'            && (has('whatsapp_channels') ? <ChannelsTab /> : <FeatureLockedScreen feature="whatsapp_channels" />)}
           {tab === 'templates'           && (has('automation_templates') ? <TemplatesTab /> : <FeatureLockedScreen feature="automation_templates" />)}
           {tab === 'automations'         && (has('automations') ? <AutomationsTab /> : <FeatureLockedScreen feature="automations" />)}
