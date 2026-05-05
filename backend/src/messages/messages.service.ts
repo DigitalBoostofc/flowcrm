@@ -35,6 +35,33 @@ export class MessagesService {
     private readonly tenant: TenantContext,
   ) {}
 
+  async saveWebhookOutbound(data: SaveInboundData): Promise<Message | null> {
+    const workspaceId = this.tenant.requireWorkspaceId();
+    const result = await this.repo
+      .createQueryBuilder()
+      .insert()
+      .into(Message)
+      .values({
+        conversationId: data.conversationId,
+        workspaceId,
+        externalMessageId: data.externalMessageId,
+        body: data.body,
+        sentAt: data.sentAt,
+        direction: 'outbound',
+        status: 'sent',
+        type: data.type ?? 'text',
+        mediaUrl: data.mediaUrl ?? null,
+        mediaMimeType: data.mediaMimeType ?? null,
+        mediaCaption: data.mediaCaption ?? null,
+        mediaFileName: data.mediaFileName ?? null,
+      })
+      .orIgnore()
+      .returning('*')
+      .execute();
+    const row = result.raw?.[0];
+    return row ? (row as Message) : null;
+  }
+
   async saveInbound(data: SaveInboundData): Promise<Message | null> {
     const workspaceId = this.tenant.requireWorkspaceId();
     const result = await this.repo

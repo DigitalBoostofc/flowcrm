@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { OtpVerification } from './entities/otp-verification.entity';
 import { User } from '../users/entities/user.entity';
+import { Agenda } from '../agendas/entities/agenda.entity';
 import { SignupService } from './signup.service';
 import { SignupController } from './signup.controller';
 import { AuthModule } from '../auth/auth.module';
@@ -14,7 +15,7 @@ import { OutboundModule } from '../messaging/outbound/outbound.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([OtpVerification, User]),
+    TypeOrmModule.forFeature([OtpVerification, User, Agenda]),
     AuthModule,
     ChannelsModule,
     OtpModule,

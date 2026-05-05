@@ -5,13 +5,15 @@ import {
   X, Star, MoreHorizontal, Mail, Phone, MessageSquare, FileText,
   PhoneCall, Users as UsersIcon, MapPin, StickyNote, Clock, Check,
   Copy, Pin, HelpCircle, ChevronRight, ChevronDown, Tag, Trash2, Pencil,
+  CheckCircle2, Ban, RotateCcw,
 } from 'lucide-react';
-import type { Lead, LeadStatus, LeadActivity, ActivityType, Pipeline, User, Stage } from '@/types/api';
+import type { Lead, LeadStatus, LeadActivity, ActivityType, Pipeline, User, Stage, Task } from '@/types/api';
 import EditLeadModal from '@/components/negocios/EditLeadModal';
 import { updateLead, updateLeadStatus, moveLead, deleteLead } from '@/api/leads';
 import { updateContact } from '@/api/contacts';
 import { updateCompany } from '@/api/companies';
-import { getLeadActivities, createLeadActivity, updateLeadActivity, completeLeadActivity, deleteLeadActivity } from '@/api/lead-activities';
+import { getLeadActivities, createLeadActivity, completeLeadActivity, deleteLeadActivity } from '@/api/lead-activities';
+import { listTasks, completeTask, cancelTask, reopenTask } from '@/api/tasks';
 import { listCustomerOrigins } from '@/api/customer-origins';
 import { listLossReasons } from '@/api/loss-reasons';
 import Avatar from '@/components/ui/Avatar';
@@ -265,6 +267,11 @@ export default function NegocioDetailPanel({ lead, currentUser, users, pipelines
     queryFn: () => getLeadActivities(lead.id),
   });
 
+  const { data: tasks = [] } = useQuery({
+    queryKey: ['tasks', { targetId: lead.id }],
+    queryFn: () => listTasks({ targetType: 'lead', targetId: lead.id }),
+  });
+
   const { data: customerOrigins = [] } = useQuery({
     queryKey: ['customer-origins'],
     queryFn: listCustomerOrigins,
@@ -359,6 +366,21 @@ export default function NegocioDetailPanel({ lead, currentUser, users, pipelines
   const deleteActivityMut = useMutation({
     mutationFn: (id: string) => deleteLeadActivity(lead.id, id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['lead-activities', lead.id] }),
+  });
+
+  const completeTaskMut = useMutation({
+    mutationFn: (id: string) => completeTask(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['tasks', { targetId: lead.id }] }),
+  });
+
+  const cancelTaskMut = useMutation({
+    mutationFn: (id: string) => cancelTask(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['tasks', { targetId: lead.id }] }),
+  });
+
+  const reopenTaskMut = useMutation({
+    mutationFn: (id: string) => reopenTask(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['tasks', { targetId: lead.id }] }),
   });
 
   const deleteMut = useMutation({
@@ -748,16 +770,32 @@ export default function NegocioDetailPanel({ lead, currentUser, users, pipelines
 
             {/* Feed */}
             <div className="space-y-2">
-              {activities.length === 0 && <EmptyFeed />}
-              {activities.map((a) => (
-                <ActivityItem
-                  key={a.id}
-                  activity={a}
-                  users={users}
-                  onComplete={() => completeActivityMut.mutate(a.id)}
-                  onDelete={() => deleteActivityMut.mutate(a.id)}
-                />
-              ))}
+              {activities.length === 0 && tasks.length === 0 && <EmptyFeed />}
+              {[
+                ...tasks.map((t: Task) => ({ kind: 'task' as const, date: t.createdAt, item: t })),
+                ...activities.map((a: LeadActivity) => ({ kind: 'activity' as const, date: a.createdAt, item: a })),
+              ]
+                .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+                .map((entry) =>
+                  entry.kind === 'task' ? (
+                    <TaskItem
+                      key={entry.item.id}
+                      task={entry.item as Task}
+                      onComplete={() => completeTaskMut.mutate(entry.item.id)}
+                      onCancel={() => cancelTaskMut.mutate(entry.item.id)}
+                      onReopen={() => reopenTaskMut.mutate(entry.item.id)}
+                    />
+                  ) : (
+                    <ActivityItem
+                      key={entry.item.id}
+                      activity={entry.item as LeadActivity}
+                      users={users}
+                      onComplete={() => completeActivityMut.mutate(entry.item.id)}
+                      onDelete={() => deleteActivityMut.mutate(entry.item.id)}
+                    />
+                  )
+                )
+              }
 
               {/* ── Eventos de sistema ── */}
               {assignedTo && (
@@ -1265,6 +1303,116 @@ function EmptyFeed() {
       <div className="text-sm font-medium" style={{ color: 'var(--ink-1)' }}>Nenhuma atividade registrada</div>
       <div className="text-xs mt-1" style={{ color: 'var(--ink-3)' }}>
         Que tal agendar uma ligação para evoluir este negócio?
+      </div>
+    </div>
+  );
+}
+
+const TASK_META: Record<string, { label: string; icon: React.ComponentType<React.SVGProps<SVGSVGElement>> }> = {
+  note:     { label: 'Nota',     icon: StickyNote },
+  call:     { label: 'Ligação',  icon: PhoneCall },
+  whatsapp: { label: 'WhatsApp', icon: MessageSquare },
+  meeting:  { label: 'Reunião',  icon: UsersIcon },
+  visit:    { label: 'Visita',   icon: MapPin },
+  proposal: { label: 'Proposta', icon: FileText },
+  email:    { label: 'E-mail',   icon: Mail },
+};
+
+function TaskItem({
+  task, onComplete, onCancel, onReopen,
+}: {
+  task: Task;
+  onComplete: () => void;
+  onCancel: () => void;
+  onReopen: () => void;
+}) {
+  const meta = TASK_META[task.type] ?? { label: task.type, icon: FileText };
+  const Icon = meta.icon;
+  const isPending = task.status === 'pending';
+  const isCompleted = task.status === 'completed';
+  const isCancelled = task.status === 'cancelled';
+  const isOverdue = isPending && !!task.dueDate && new Date(task.dueDate) < new Date();
+
+  return (
+    <div
+      className="p-3 rounded-lg"
+      style={{
+        background: 'var(--surface)',
+        border: `1px solid ${isOverdue ? '#fca5a5' : isCancelled ? 'var(--edge)' : 'var(--edge)'}`,
+        opacity: isCancelled ? 0.6 : 1,
+      }}
+    >
+      <div className="flex items-center gap-2 mb-1">
+        <div
+          className="w-6 h-6 rounded-md flex items-center justify-center"
+          style={{ background: 'var(--surface-hover)' }}
+        >
+          <Icon className="w-3.5 h-3.5" style={{ color: isCompleted ? '#10b981' : isCancelled ? '#9ca3af' : 'var(--ink-2)' }} />
+        </div>
+        <span className="text-xs font-medium" style={{ color: 'var(--ink-1)' }}>{meta.label}</span>
+        {isCompleted && (
+          <span className="text-[11px] px-1.5 py-0.5 rounded-full font-medium" style={{ background: '#dcfce7', color: '#166534' }}>
+            Concluída
+          </span>
+        )}
+        {isCancelled && (
+          <span className="text-[11px] px-1.5 py-0.5 rounded-full font-medium" style={{ background: '#f3f4f6', color: '#6b7280' }}>
+            Cancelada
+          </span>
+        )}
+        <span className="text-xs ml-auto" style={{ color: 'var(--ink-3)' }}>{formatDateTime(task.createdAt)}</span>
+      </div>
+
+      <div className="text-sm whitespace-pre-wrap" style={{ color: isCancelled ? 'var(--ink-3)' : 'var(--ink-1)' }}>
+        {task.description}
+      </div>
+
+      {task.location && (
+        <div className="flex items-center gap-1 mt-1 text-xs" style={{ color: 'var(--ink-3)' }}>
+          <MapPin className="w-3 h-3" /> {task.location}
+        </div>
+      )}
+
+      <div className="flex items-center justify-between mt-2 pt-2" style={{ borderTop: '1px solid var(--edge)' }}>
+        <div className="flex items-center gap-1.5 text-xs" style={{ color: isOverdue ? '#ef4444' : 'var(--ink-3)' }}>
+          {task.dueDate && (
+            <>
+              <Clock className="w-3 h-3" />
+              {isCompleted
+                ? `Concluída em ${formatDateTime(task.completedAt ?? task.updatedAt)}`
+                : `Agendada para ${formatDateTime(task.dueDate)}`}
+            </>
+          )}
+        </div>
+        <div className="flex items-center gap-1.5">
+          {(isCompleted || isCancelled) && (
+            <button
+              onClick={onReopen}
+              className="flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium"
+              style={{ background: 'rgba(99,102,241,0.1)', color: 'var(--brand-500, #6366f1)' }}
+            >
+              <RotateCcw className="w-3 h-3" /> Reabrir
+            </button>
+          )}
+          {isPending && (
+            <>
+              <button
+                onClick={onCancel}
+                className="flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium"
+                style={{ background: 'rgba(239,68,68,0.1)', color: '#ef4444' }}
+              >
+                <Ban className="w-3 h-3" /> Cancelar
+              </button>
+              <button
+                onClick={onComplete}
+                className="flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium"
+                style={{ background: 'rgba(16,185,129,0.1)', color: '#10B981' }}
+              >
+                <CheckCircle2 className="w-3 h-3" /> Concluir
+              </button>
+            </>
+          )}
+        </div>
       </div>
     </div>
   );
