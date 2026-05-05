@@ -8,6 +8,7 @@ import { ContactsService } from '../contacts/contacts.service';
 import { LeadsService } from '../leads/leads.service';
 import { PipelinesService } from '../pipelines/pipelines.service';
 import { CompaniesService } from '../companies/companies.service';
+import { InboxTag } from '../inbox-tags/entities/inbox-tag.entity';
 
 export interface InboxItem {
   id: string;
@@ -43,12 +44,15 @@ export interface InboxPage {
 export interface InboxQuery {
   page?: number;
   pageSize?: number;
+  filter?: 'all' | 'archived';
+  tagId?: string;
 }
 
 @Injectable()
 export class ConversationsService {
   constructor(
     @InjectRepository(Conversation) private repo: Repository<Conversation>,
+    @InjectRepository(InboxTag) private tagRepo: Repository<InboxTag>,
     private readonly tenant: TenantContext,
     private readonly contacts: ContactsService,
     private readonly leads: LeadsService,
@@ -164,12 +168,35 @@ export class ConversationsService {
     const page = Math.max(1, query.page ?? 1);
     const pageSize = Math.min(100, Math.max(1, query.pageSize ?? 50));
     const offset = (page - 1) * pageSize;
+    const archived = query.filter === 'archived';
+
+    const extraConditions: string[] = [];
+    const params: any[] = [workspaceId];
+
+    // Archive filter — archived conversations never appear in the normal list
+    if (archived) {
+      extraConditions.push(`c."archivedAt" IS NOT NULL`);
+    } else {
+      extraConditions.push(`c."archivedAt" IS NULL`);
+    }
+
+    // Tag filter
+    if (query.tagId) {
+      params.push(query.tagId);
+      extraConditions.push(`c."inboxTagId" = $${params.length}`);
+    }
+
+    const whereClause = `c."workspaceId" = $1${extraConditions.length ? ' AND ' + extraConditions.join(' AND ') : ''}`;
 
     const totalRows: any[] = await this.repo.query(
-      `SELECT COUNT(*)::int AS total FROM conversations WHERE "workspaceId" = $1`,
-      [workspaceId],
+      `SELECT COUNT(*)::int AS total FROM conversations c WHERE ${whereClause}`,
+      params,
     );
     const total: number = totalRows[0]?.total ?? 0;
+
+    params.push(pageSize, offset);
+    const limitParam = params.length - 1;
+    const offsetParam = params.length;
 
     const rows: any[] = await this.repo.query(`
       SELECT
@@ -205,10 +232,10 @@ export class ConversationsService {
         ORDER BY "sentAt" DESC
         LIMIT 1
       ) lm ON true
-      WHERE c."workspaceId" = $1
+      WHERE ${whereClause}
       ORDER BY COALESCE(lm."sentAt", c."updatedAt") DESC, c.id DESC
-      LIMIT $2 OFFSET $3
-    `, [workspaceId, pageSize, offset]);
+      LIMIT $${limitParam} OFFSET $${offsetParam}
+    `, params);
 
     const items: InboxItem[] = rows.map(r => ({
       id: r.id,
@@ -235,6 +262,30 @@ export class ConversationsService {
     }));
 
     return { items, total, page, pageSize };
+  }
+
+  async setArchived(id: string, archive: boolean): Promise<{ id: string; archivedAt: Date | null }> {
+    const workspaceId = this.tenant.requireWorkspaceId();
+    const archivedAt = archive ? new Date() : null;
+    const result = await this.repo.update({ id, workspaceId }, { archivedAt });
+    if (!result.affected) throw new NotFoundException('Conversa não encontrada');
+    return { id, archivedAt };
+  }
+
+  // Called by InboundListener when a new message arrives on an archived conversation.
+  // Unarchives it and assigns (or creates) a "Novo negócio" tag.
+  async unarchiveOnNewMessage(conversationId: string, workspaceId: string): Promise<void> {
+    const conv = await this.repo.findOne({ where: { id: conversationId, workspaceId } });
+    if (!conv?.archivedAt) return;
+
+    // Find or create "Novo negócio" tag for this workspace
+    let tag = await this.tagRepo.findOne({ where: { workspaceId, name: 'Novo negócio' } });
+    if (!tag) {
+      tag = this.tagRepo.create({ workspaceId, name: 'Novo negócio', color: '#22c55e', position: 0 });
+      tag = await this.tagRepo.save(tag);
+    }
+
+    await this.repo.update({ id: conversationId, workspaceId }, { archivedAt: null, inboxTagId: tag.id });
   }
 
   static computeUnread(

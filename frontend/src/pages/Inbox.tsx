@@ -5,13 +5,14 @@ import {
   MessageCircle, Send, Search, Phone, Loader2, Sparkles, Activity,
   FileText, Paperclip, Mic, MicOff, File, Video, Trash2, SmilePlus, X,
   Check, CheckCheck, Users, Building2, ChevronDown, Tag, Plus, Pencil,
+  Archive, ArchiveRestore,
 } from 'lucide-react';
 import ConversationSummaryButton from '@/components/lead-panel/ConversationSummary';
 import LeadActivities from '@/components/lead-panel/LeadActivities';
 import InboxDataTab from '@/components/lead-panel/InboxDataTab';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { listInbox, markConversationRead, qualifyConversation, type InboxItem, type InboxPage } from '@/api/conversations';
+import { listInbox, markConversationRead, qualifyConversation, archiveConversation, type InboxItem, type InboxPage } from '@/api/conversations';
 import { listMessages, sendMessage, sendMedia, reactMessage, deleteMessage, transcribeAudio } from '@/api/messages';
 import { listQuickReplies } from '@/api/quick-replies';
 import { listChannels } from '@/api/channels';
@@ -784,20 +785,29 @@ function QualifyModal({
 
 /* ── ConvItem ─────────────────────────────────────────── */
 
-function ConvItem({ item, selected, onClick }: { item: InboxItem; selected: boolean; onClick: () => void }) {
+function ConvItem({ item, selected, onClick, onArchive, isArchived }: {
+  item: InboxItem;
+  selected: boolean;
+  onClick: () => void;
+  onArchive: () => void;
+  isArchived?: boolean;
+}) {
   const pending = item.pendingClassification;
   const ch = channelMeta(item.channelType);
   const [showTagPicker, setShowTagPicker] = useState(false);
+  const [hovered, setHovered] = useState(false);
 
   return (
     <div
-      className="w-full flex items-center gap-3 px-4 py-3 text-left transition-colors relative cursor-pointer"
+      className="w-full flex items-center gap-3 px-4 py-3 text-left transition-colors relative cursor-pointer group"
       style={{
         background: selected ? 'var(--brand-50)' : 'transparent',
         borderBottom: '1px solid var(--edge)',
         borderLeft: selected ? '2px solid var(--brand-500)' : '2px solid transparent',
       }}
       onClick={onClick}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
     >
       <Avatar name={item.contactName ?? item.fromName} url={item.contactAvatarUrl ?? item.fromAvatarUrl} size={36} />
 
@@ -866,6 +876,18 @@ function ConvItem({ item, selected, onClick }: { item: InboxItem; selected: bool
           </p>
         </div>
       </div>
+
+      {/* Archive / Unarchive button — shows on hover */}
+      {hovered && (
+        <button
+          onClick={(e) => { e.stopPropagation(); onArchive(); }}
+          title={isArchived ? 'Desarquivar conversa' : 'Arquivar conversa'}
+          className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-lg transition-opacity opacity-0 group-hover:opacity-100"
+          style={{ background: 'var(--surface-raised)', border: '1px solid var(--edge)', color: 'var(--ink-3)' }}
+        >
+          {isArchived ? <ArchiveRestore className="w-3.5 h-3.5" /> : <Archive className="w-3.5 h-3.5" />}
+        </button>
+      )}
     </div>
   );
 }
@@ -880,7 +902,12 @@ const CHAT_TABS: { id: ChatTab; label: string; icon: React.ElementType }[] = [
   { id: 'info', label: 'Dados', icon: FileText },
 ];
 
-function ChatView({ item, onQualify }: { item: InboxItem; onQualify: (payload: { name: string; type: 'person' | 'company'; pipelineId: string; stageId: string; assignedToId: string }) => Promise<void> }) {
+function ChatView({ item, onQualify, onArchive, isArchived }: {
+  item: InboxItem;
+  onQualify: (payload: { name: string; type: 'person' | 'company'; pipelineId: string; stageId: string; assignedToId: string }) => Promise<void>;
+  onArchive: () => void;
+  isArchived?: boolean;
+}) {
   const qc = useQueryClient();
   const [activeTab, setActiveTab] = useState<ChatTab>('chat');
   const [showQualifyModal, setShowQualifyModal] = useState(false);
@@ -1089,26 +1116,36 @@ function ChatView({ item, onQualify }: { item: InboxItem; onQualify: (payload: {
             </div>
           )}
         </div>
-        {item.pendingClassification ? (
+        <div className="flex items-center gap-2">
+          {item.pendingClassification ? (
+            <button
+              onClick={() => setShowQualifyModal(true)}
+              className="flex items-center gap-1 text-[10px] font-semibold px-2.5 py-1 rounded-full transition-opacity hover:opacity-80"
+              style={{ background: 'rgba(245,158,11,0.15)', color: '#f59e0b', border: '1px solid rgba(245,158,11,0.3)' }}
+            >
+              <Sparkles className="w-2.5 h-2.5" strokeWidth={2} />
+              Qualificar
+            </button>
+          ) : (
+            <div
+              className="text-[10px] font-medium px-2 py-0.5 rounded-full"
+              style={{
+                background: item.unread ? 'var(--success-bg)' : 'var(--surface-hover)',
+                color: item.unread ? 'var(--success)' : 'var(--ink-3)',
+              }}
+            >
+              {item.unread ? 'Nova mensagem' : 'WhatsApp'}
+            </div>
+          )}
           <button
-            onClick={() => setShowQualifyModal(true)}
-            className="flex items-center gap-1 text-[10px] font-semibold px-2.5 py-1 rounded-full transition-opacity hover:opacity-80"
-            style={{ background: 'rgba(245,158,11,0.15)', color: '#f59e0b', border: '1px solid rgba(245,158,11,0.3)' }}
+            onClick={onArchive}
+            title={isArchived ? 'Desarquivar conversa' : 'Arquivar conversa'}
+            className="p-1.5 rounded-lg hover:opacity-80 transition-opacity"
+            style={{ background: 'var(--surface-hover)', border: '1px solid var(--edge)', color: 'var(--ink-3)' }}
           >
-            <Sparkles className="w-2.5 h-2.5" strokeWidth={2} />
-            Qualificar
+            {isArchived ? <ArchiveRestore className="w-3.5 h-3.5" /> : <Archive className="w-3.5 h-3.5" />}
           </button>
-        ) : (
-          <div
-            className="text-[10px] font-medium px-2 py-0.5 rounded-full"
-            style={{
-              background: item.unread ? 'var(--success-bg)' : 'var(--surface-hover)',
-              color: item.unread ? 'var(--success)' : 'var(--ink-3)',
-            }}
-          >
-            {item.unread ? 'Nova mensagem' : 'WhatsApp'}
-          </div>
-        )}
+        </div>
       </div>
 
       {/* Tabs — only show Activities/Info when conversation is linked to a lead */}
@@ -1295,8 +1332,9 @@ function ChatView({ item, onQualify }: { item: InboxItem; onQualify: (payload: {
 export default function Inbox() {
   const qc = useQueryClient();
   const [search, setSearch] = useState('');
-  const [tab, setTab] = useState<'todas' | 'pendentes'>('todas');
+  const [tab, setTab] = useState<'todas' | 'pendentes' | 'arquivadas'>('todas');
   const [channelFilter, setChannelFilter] = useState<string | null>(null);
+  const [tagFilter, setTagFilter] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [openLeadId, setOpenLeadId] = useState<string | null>(null);
   const { user: currentUser } = useAuthStore();
@@ -1320,10 +1358,22 @@ export default function Inbox() {
     enabled: !!openLeadId,
   });
 
+  const { data: allTags = [] } = useQuery({
+    queryKey: ['inbox-tags'],
+    queryFn: listInboxTags,
+  });
+
+  const apiFilter = tab === 'arquivadas' ? 'archived' : 'all';
+
   const PAGE_SIZE = 50;
   const inboxQuery = useInfiniteQuery({
-    queryKey: ['inbox'],
-    queryFn: ({ pageParam = 1 }) => listInbox({ page: pageParam, pageSize: PAGE_SIZE }),
+    queryKey: ['inbox', { filter: apiFilter, tagId: tagFilter }],
+    queryFn: ({ pageParam = 1 }) => listInbox({
+      page: pageParam,
+      pageSize: PAGE_SIZE,
+      filter: apiFilter,
+      tagId: tagFilter ?? undefined,
+    }),
     initialPageParam: 1,
     getNextPageParam: (last) => {
       const loaded = last.page * last.pageSize;
@@ -1346,8 +1396,30 @@ export default function Inbox() {
     return () => { socket.off('message.received', handler); };
   }, [socket, qc]);
 
+  async function handleArchive(item: InboxItem, archive: boolean) {
+    // Optimistically remove from current list
+    qc.setQueryData<{ pages: InboxPage[]; pageParams: unknown[] }>(['inbox', { filter: apiFilter, tagId: tagFilter }], (prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        pages: prev.pages.map((p) => ({
+          ...p,
+          items: p.items.filter((i) => i.id !== item.id),
+        })),
+      };
+    });
+    if (selectedId === item.id) setSelectedId(null);
+    try {
+      await archiveConversation(item.id, archive);
+      qc.invalidateQueries({ queryKey: ['inbox'] });
+    } catch {
+      qc.invalidateQueries({ queryKey: ['inbox'] });
+    }
+  }
+
   const pendingCount = inbox.filter(i => i.pendingClassification).length;
   const availableChannels = useMemo(() => uniqueChannelTypes(inbox), [inbox]);
+  // "pendentes" is a client-side subset of "todas" (both use filter=all from API)
   const scoped = tab === 'pendentes' ? inbox.filter(i => i.pendingClassification) : inbox;
   const channelScoped = channelFilter
     ? scoped.filter(i => i.channelType?.toLowerCase() === channelFilter)
@@ -1413,38 +1485,70 @@ export default function Inbox() {
             )}
           </div>
 
-          <div className="flex gap-1 mb-3 p-0.5 rounded-lg" style={{ background: 'var(--surface-hover)' }}>
-            <button
-              onClick={() => setTab('todas')}
-              className="flex-1 px-2 py-1.5 rounded-md text-xs font-medium transition-colors"
-              style={{
-                background: tab === 'todas' ? 'var(--surface)' : 'transparent',
-                color: tab === 'todas' ? 'var(--ink-1)' : 'var(--ink-3)',
-                boxShadow: tab === 'todas' ? 'var(--shadow-sm)' : undefined,
-              }}
-            >
-              Todas
-            </button>
-            <button
-              onClick={() => setTab('pendentes')}
-              className="flex-1 px-2 py-1.5 rounded-md text-xs font-medium transition-colors flex items-center justify-center gap-1"
-              style={{
-                background: tab === 'pendentes' ? 'var(--surface)' : 'transparent',
-                color: tab === 'pendentes' ? 'var(--ink-1)' : 'var(--ink-3)',
-                boxShadow: tab === 'pendentes' ? 'var(--shadow-sm)' : undefined,
-              }}
-            >
-              Qualificar
-              {pendingCount > 0 && (
-                <span
-                  className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full"
-                  style={{ background: 'rgba(245,158,11,0.2)', color: '#f59e0b' }}
-                >
-                  {pendingCount}
-                </span>
-              )}
-            </button>
+          {/* Main filter tabs */}
+          <div className="flex gap-1 mb-2 p-0.5 rounded-lg" style={{ background: 'var(--surface-hover)' }}>
+            {(['todas', 'pendentes', 'arquivadas'] as const).map((t) => (
+              <button
+                key={t}
+                onClick={() => { setTab(t); setTagFilter(null); setChannelFilter(null); }}
+                className="flex-1 px-1.5 py-1.5 rounded-md text-[10px] font-medium transition-colors flex items-center justify-center gap-1"
+                style={{
+                  background: tab === t ? 'var(--surface)' : 'transparent',
+                  color: tab === t ? 'var(--ink-1)' : 'var(--ink-3)',
+                  boxShadow: tab === t ? 'var(--shadow-sm)' : undefined,
+                }}
+              >
+                {t === 'todas' && 'Todas'}
+                {t === 'pendentes' && (
+                  <>
+                    Qualificar
+                    {pendingCount > 0 && (
+                      <span className="text-[9px] font-semibold px-1 py-0.5 rounded-full"
+                        style={{ background: 'rgba(245,158,11,0.2)', color: '#f59e0b' }}>
+                        {pendingCount}
+                      </span>
+                    )}
+                  </>
+                )}
+                {t === 'arquivadas' && (
+                  <span className="flex items-center gap-0.5">
+                    <Archive className="w-3 h-3" />
+                    Arquivadas
+                  </span>
+                )}
+              </button>
+            ))}
           </div>
+
+          {/* Tag filter chips */}
+          {allTags.length > 0 && (
+            <div className="flex flex-wrap gap-1 mb-2">
+              {tagFilter !== null && (
+                <button
+                  onClick={() => setTagFilter(null)}
+                  className="px-2 py-0.5 rounded-full border text-[10px] font-semibold transition-colors"
+                  style={{ background: 'var(--brand-500)', color: '#fff', borderColor: 'var(--brand-500)' }}
+                >
+                  Todas
+                </button>
+              )}
+              {allTags.map((tag) => (
+                <button
+                  key={tag.id}
+                  onClick={() => setTagFilter(tagFilter === tag.id ? null : tag.id)}
+                  className="flex items-center gap-1 px-2 py-0.5 rounded-full border text-[10px] font-semibold transition-all"
+                  style={
+                    tagFilter === tag.id
+                      ? { background: tag.color, color: '#fff', borderColor: tag.color }
+                      : { background: tag.color + '22', color: tag.color, borderColor: tag.color + '55' }
+                  }
+                >
+                  <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: tagFilter === tag.id ? '#fff' : tag.color }} />
+                  {tag.name}
+                </button>
+              ))}
+            </div>
+          )}
 
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5" style={{ color: 'var(--ink-3)' }} />
@@ -1502,17 +1606,22 @@ export default function Inbox() {
             <div className="flex flex-col items-center justify-center py-16 px-6 text-center gap-3">
               {tab === 'pendentes'
                 ? <Sparkles className="w-10 h-10" style={{ color: 'var(--ink-3)' }} strokeWidth={1.5} />
-                : <MessageCircle className="w-10 h-10" style={{ color: 'var(--ink-3)' }} strokeWidth={1.5} />
+                : tab === 'arquivadas'
+                  ? <Archive className="w-10 h-10" style={{ color: 'var(--ink-3)' }} strokeWidth={1.5} />
+                  : <MessageCircle className="w-10 h-10" style={{ color: 'var(--ink-3)' }} strokeWidth={1.5} />
               }
               <div>
                 <p className="text-sm font-medium" style={{ color: 'var(--ink-2)' }}>
                   {search
                     ? 'Nenhuma conversa encontrada'
-                    : tab === 'pendentes' ? 'Tudo qualificado' : 'Nenhuma conversa ainda'}
+                    : tab === 'pendentes' ? 'Tudo qualificado'
+                    : tab === 'arquivadas' ? 'Nenhuma conversa arquivada'
+                    : 'Nenhuma conversa ainda'}
                 </p>
                 <p className="text-xs mt-1" style={{ color: 'var(--ink-3)' }}>
                   {!search && (tab === 'pendentes'
                     ? 'Contatos novos do WhatsApp aparecem aqui'
+                    : tab === 'arquivadas' ? 'Conversas arquivadas aparecem aqui'
                     : 'As conversas do WhatsApp aparecerão aqui')}
                 </p>
               </div>
@@ -1525,6 +1634,8 @@ export default function Inbox() {
                   item={item}
                   selected={item.id === selectedId}
                   onClick={() => handleSelect(item)}
+                  onArchive={() => handleArchive(item, tab !== 'arquivadas')}
+                  isArchived={tab === 'arquivadas'}
                 />
               ))}
               {inboxQuery.hasNextPage && !channelFilter && tab === 'todas' && !search && (
@@ -1551,7 +1662,13 @@ export default function Inbox() {
       {/* Right: chat or empty state */}
       <div className="flex-1 min-w-0 h-full overflow-hidden">
         {selected ? (
-          <ChatView key={selected.id} item={selected} onQualify={handleQualify} />
+          <ChatView
+            key={selected.id}
+            item={selected}
+            onQualify={handleQualify}
+            onArchive={() => handleArchive(selected, tab !== 'arquivadas')}
+            isArchived={tab === 'arquivadas'}
+          />
         ) : (
           <div className="flex flex-col items-center justify-center h-full gap-4" style={{ color: 'var(--ink-3)' }}>
             <div

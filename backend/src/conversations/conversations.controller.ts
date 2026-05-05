@@ -76,4 +76,12 @@ export class ConversationsController {
   ) {
     return this.service.setInboxTag(id, dto.inboxTagId);
   }
+
+  @Patch(':id/archive')
+  setArchived(
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Body() dto: { archive: boolean },
+  ) {
+    return this.service.setArchived(id, dto.archive);
+  }
 }
