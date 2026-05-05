@@ -8,7 +8,7 @@ import {
 } from 'lucide-react';
 import ConversationSummaryButton from '@/components/lead-panel/ConversationSummary';
 import LeadActivities from '@/components/lead-panel/LeadActivities';
-import LeadInfo from '@/components/lead-panel/LeadInfo';
+import InboxDataTab from '@/components/lead-panel/InboxDataTab';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { listInbox, markConversationRead, qualifyConversation, type InboxItem, type InboxPage } from '@/api/conversations';
@@ -1049,9 +1049,7 @@ function ChatView({ item, onQualify }: { item: InboxItem; onQualify: (payload: {
       )}
 
       {activeTab === 'info' && item.leadId && (
-        <div className="flex-1 overflow-auto">
-          <LeadInfo leadId={item.leadId} />
-        </div>
+        <InboxDataTab leadId={item.leadId} />
       )}
 
       {showQualifyModal && (
