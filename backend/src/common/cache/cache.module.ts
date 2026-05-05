@@ -1,7 +1,8 @@
 import { Module, Global } from '@nestjs/common';
 import { CacheModule as NestCacheModule } from '@nestjs/cache-manager';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { redisStore } from 'cache-manager-ioredis-yet';
+import Keyv from 'keyv';
+import KeyvRedis from '@keyv/redis';
 import { TenantCacheService } from './tenant-cache.service';
 
 @Global()
@@ -10,19 +11,14 @@ import { TenantCacheService } from './tenant-cache.service';
     NestCacheModule.registerAsync({
       isGlobal: true,
       imports: [ConfigModule],
-      useFactory: async (config: ConfigService) => {
-        const url = new URL(config.getOrThrow<string>('REDIS_URL'));
-        return {
-          store: await redisStore({
-            host: url.hostname,
-            port: url.port ? parseInt(url.port, 10) : 6379,
-            password: url.password || undefined,
-            db: url.pathname && url.pathname.length > 1 ? parseInt(url.pathname.slice(1), 10) : 0,
-            // Default cache TTL in milliseconds (per-call TTL overrides this).
+      useFactory: (config: ConfigService) => ({
+        stores: [
+          new Keyv({
+            store: new KeyvRedis(config.getOrThrow<string>('REDIS_URL')),
             ttl: 120_000,
           }),
-        };
-      },
+        ],
+      }),
       inject: [ConfigService],
     }),
   ],
