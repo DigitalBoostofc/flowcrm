@@ -41,13 +41,16 @@ export class AgendasService {
     return this.agendaRepo.save(agenda);
   }
 
-  async findAll(onlyActive?: boolean): Promise<Agenda[]> {
+  async findAll(onlyActive?: boolean, requestingUser?: { id: string; role: string }): Promise<Agenda[]> {
     const workspaceId = this.tenant.requireWorkspaceId();
     const qb = this.agendaRepo
       .createQueryBuilder('a')
       .where('a."workspaceId" = :workspaceId', { workspaceId })
       .orderBy('a.name', 'ASC');
     if (onlyActive) qb.andWhere('a."isActive" = true');
+    if (requestingUser && requestingUser.role !== 'owner') {
+      qb.andWhere('a."ownerId" = :ownerId', { ownerId: requestingUser.id });
+    }
     return qb.getMany();
   }
 

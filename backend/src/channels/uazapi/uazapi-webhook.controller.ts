@@ -16,12 +16,38 @@ function timingSafeStringEqual(a: string, b: string): boolean {
 }
 
 const MEDIA_TYPES: Record<string, MessageType> = {
+  // Formas longas (nomes proto do WhatsApp)
   imageMessage: 'image',
   videoMessage: 'video',
   audioMessage: 'audio',
   pttMessage: 'audio',
   documentMessage: 'document',
   stickerMessage: 'sticker',
+  // Formas curtas (uazapGO simplificado)
+  image: 'image',
+  video: 'video',
+  audio: 'audio',
+  ptt: 'audio',
+  document: 'document',
+  sticker: 'sticker',
+};
+
+// Tipos sem conteúdo útil para exibir — ignorar silenciosamente
+const IGNORED_TYPES = new Set([
+  'reaction', 'reactionMessage',
+  'protocolMessage', 'senderKeyDistributionMessage',
+  'readReceiptMessage', 'callLogMessage',
+]);
+
+// Placeholder de body para tipos especiais sem texto
+const BODY_PLACEHOLDER: Record<string, string> = {
+  location: '[Localização]',
+  locationMessage: '[Localização]',
+  liveLocationMessage: '[Localização ao vivo]',
+  contactMessage: '[Contato]',
+  contact: '[Contato]',
+  pollMessage: '[Enquete]',
+  poll: '[Enquete]',
 };
 
 @ApiTags('uazapi-webhook')
@@ -83,16 +109,44 @@ export class UazapiWebhookController {
     }
 
     if (eventType === 'messages' || eventType === 'message') {
-      const msg = payload?.message ?? payload?.data ?? {};
-      const fromMe: boolean = msg?.fromMe ?? msg?.key?.fromMe ?? false;
-      if (fromMe) return { ok: true };
+      // Log do payload bruto para diagnóstico (truncado para não poluir)
+      this.logger.log(`[diag] payload keys=${Object.keys(payload ?? {}).join(',')} msgKeys=${Object.keys(payload?.message ?? payload?.data ?? {}).join(',') || 'n/a'}`);
 
-      const rawMsgType: string = msg?.type ?? msg?.messageType ?? 'conversation';
+      // uazapGO pode mandar os dados em payload.message, payload.data, ou direto na raiz
+      const nested = payload?.message ?? payload?.data ?? null;
+      // Se o objeto aninhado não tem campos de mensagem, usa a raiz do payload
+      const msg: any = (nested?.type || nested?.messageType || nested?.chatid || nested?.key)
+        ? nested
+        : (payload ?? {});
+
+      const fromMe: boolean =
+        msg?.fromMe ?? msg?.key?.fromMe ??
+        payload?.fromMe ?? false;
+
+      // Tipo da mensagem — tenta todos os campos conhecidos
+      const rawType: string =
+        msg?.type ?? msg?.messageType ??
+        payload?.type ?? payload?.messageType ??
+        'conversation';
+      // uazapGO envia type='media' com o subtipo real em msg.mediaType (audio, ptt, image, etc.)
+      const rawMsgType: string = rawType === 'media'
+        ? (msg?.mediaType ?? rawType)
+        : rawType;
+
+      this.logger.log(`[diag] rawType=${rawType} rawMsgType=${rawMsgType} fromMe=${msg?.fromMe ?? msg?.key?.fromMe ?? payload?.fromMe ?? false} msgid=${msg?.messageid ?? msg?.key?.id ?? payload?.messageid ?? payload?.id ?? 'none'}`);
+
+      // Ignorar tipos sem conteúdo exibível (reações, protocolos, etc.)
+      if (IGNORED_TYPES.has(rawMsgType)) {
+        this.logger.log(`[diag] dropped IGNORED_TYPE=${rawMsgType}`);
+        return { ok: true };
+      }
+
       const mediaType: MessageType | undefined = MEDIA_TYPES[rawMsgType];
 
-      // Extract text / caption
+      // Extrair texto / legenda — cobre múltiplas estruturas do uazapGO
       const text: string =
         msg?.text ??
+        msg?.body ??
         msg?.content ??
         msg?.caption ??
         msg?.message?.conversation ??
@@ -100,51 +154,88 @@ export class UazapiWebhookController {
         msg?.message?.imageMessage?.caption ??
         msg?.message?.videoMessage?.caption ??
         msg?.message?.documentMessage?.caption ??
+        msg?.message?.audioMessage?.caption ??
         '';
 
-      // For media messages without caption, use placeholder body so we still save the message
-      const body = text || (mediaType ? `[${rawMsgType.replace('Message', '')}]` : '');
+      // Body: texto real → placeholder de mídia → placeholder de tipo especial
+      const normalizedType = rawMsgType.replace('Message', '').toLowerCase();
+      const body =
+        text ||
+        (mediaType ? `[${normalizedType}]` : (BODY_PLACEHOLDER[rawMsgType] ?? ''));
 
-      if (!body && !mediaType) {
-        this.logger.debug(`Ignorando mensagem sem conteúdo (type=${rawMsgType})`);
+      if (!body) {
+        this.logger.warn(`[diag] dropped empty body type=${rawMsgType} mediaType=${mediaType ?? 'none'} text="${text}" msgKeys=${Object.keys(msg ?? {}).join(',')}`);
         return { ok: true };
       }
 
-      const chatid: string = msg?.chatid ?? msg?.key?.remoteJid ?? '';
-      const from = chatid.replace('@s.whatsapp.net', '').replace(/@lid$/, '');
-      const fromName: string = msg?.senderName ?? payload?.chat?.name ?? msg?.pushName ?? '';
-      const externalMessageId: string = msg?.messageid ?? msg?.key?.id ?? `uza-${Date.now()}`;
+      // chatid / from — tenta msg e raiz do payload
+      const chatid: string =
+        msg?.chatid ?? msg?.key?.remoteJid ?? msg?.remoteJid ??
+        payload?.chatid ?? payload?.remoteJid ?? '';
+      const from = chatid
+        .replace('@s.whatsapp.net', '')
+        .replace(/@lid$/, '')
+        .replace(/@c\.us$/, '');
 
-      const rawTs: number = msg?.messageTimestamp ?? Date.now();
+      if (!from) {
+        this.logger.warn(`Mensagem sem remetente (type=${rawMsgType}) — payload: ${JSON.stringify(payload).slice(0, 300)}`);
+        return { ok: true };
+      }
+
+      const fromName: string =
+        msg?.senderName ?? msg?.pushName ??
+        payload?.senderName ?? payload?.pushName ??
+        payload?.chat?.name ?? '';
+
+      const externalMessageId: string =
+        msg?.messageid ?? msg?.key?.id ??
+        payload?.messageid ?? payload?.id ??
+        `uza-${Date.now()}`;
+
+      const rawTs: number =
+        msg?.messageTimestamp ?? msg?.t ??
+        payload?.messageTimestamp ?? payload?.t ??
+        Date.now();
       const receivedAt = new Date(rawTs > 1e12 ? rawTs : rawTs * 1000);
 
-      // Extract media URL if present
-      const mediaUrl: string | undefined =
-        msg?.url ??
-        msg?.mediaUrl ??
+      // URL de mídia — fileURL (campo oficial da API) ou campos aninhados por tipo
+      let mediaUrl: string | undefined =
+        msg?.url ?? msg?.mediaUrl ?? msg?.fileUrl ?? msg?.fileURL ??
         msg?.message?.imageMessage?.url ??
         msg?.message?.videoMessage?.url ??
         msg?.message?.audioMessage?.url ??
         msg?.message?.documentMessage?.url ??
         msg?.message?.stickerMessage?.url ??
+        msg?.message?.pttMessage?.url ??
         undefined;
 
-      const mediaMimeType: string | undefined =
-        msg?.mimetype ??
+      let mediaMimeType: string | undefined =
+        msg?.mimetype ?? msg?.mimeType ??
         msg?.message?.imageMessage?.mimetype ??
         msg?.message?.videoMessage?.mimetype ??
         msg?.message?.audioMessage?.mimetype ??
         msg?.message?.documentMessage?.mimetype ??
+        msg?.message?.stickerMessage?.mimetype ??
         undefined;
 
       const mediaFileName: string | undefined =
-        msg?.fileName ??
+        msg?.fileName ?? msg?.filename ??
         msg?.message?.documentMessage?.fileName ??
         undefined;
 
-      this.logger.log(`inbound ${mediaType ?? 'text'} from ${from} (${fromName}): "${body.slice(0, 60)}"`);
+      // Para mensagens de mídia sem URL, acionar download no uazapGO para obter URL hospedada
+      if (mediaType && !mediaUrl && !externalMessageId.startsWith('uza-')) {
+        const downloaded = await this.uazapi.downloadMedia(channelConfigId, externalMessageId);
+        if (downloaded.fileURL) {
+          mediaUrl = downloaded.fileURL;
+          mediaMimeType = mediaMimeType ?? downloaded.mimetype;
+          this.logger.log(`Mídia baixada para ${externalMessageId}: ${mediaUrl}`);
+        } else {
+          this.logger.warn(`Sem URL de mídia para ${rawMsgType} id=${externalMessageId} from=${from}`);
+        }
+      }
 
-      this.events.emit('message.inbound.received', {
+      const eventPayload = {
         channelConfigId,
         channelType: 'uazapi',
         externalMessageId,
@@ -156,7 +247,15 @@ export class UazapiWebhookController {
         mediaUrl,
         mediaMimeType,
         mediaFileName,
-      });
+      };
+
+      if (fromMe) {
+        this.logger.log(`outbound-from-phone ${rawMsgType} to ${from}: "${body.slice(0, 60)}"`);
+        this.events.emit('message.outbound.fromphone', eventPayload);
+      } else {
+        this.logger.log(`inbound ${rawMsgType} from ${from} (${fromName}): "${body.slice(0, 60)}"`);
+        this.events.emit('message.inbound.received', eventPayload);
+      }
     }
 
     return { ok: true };

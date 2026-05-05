@@ -3,6 +3,7 @@ import { OnEvent } from '@nestjs/event-emitter';
 import { ConversationsService } from '../conversations/conversations.service';
 import { MessagesService } from '../messages/messages.service';
 import { ChannelsService } from './channels.service';
+import { UazapiAdapter } from './uazapi/uazapi.adapter';
 import { TenantContext } from '../common/tenant/tenant-context.service';
 import { Repository } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -31,9 +32,41 @@ export class InboundListener {
     private conversations: ConversationsService,
     private messages: MessagesService,
     private channels: ChannelsService,
+    private uazapi: UazapiAdapter,
     private tenant: TenantContext,
     @InjectRepository(ChannelConfig) private channelRepo: Repository<ChannelConfig>,
   ) {}
+
+  @OnEvent('message.outbound.fromphone')
+  async handleOutboundFromPhone(evt: InboundEvent): Promise<void> {
+    try {
+      const channel = await this.channels.findByIdUnscoped(evt.channelConfigId!);
+      if (!channel) return;
+      await this.tenant.run(channel.workspaceId, undefined, async () => {
+        const conv = await this.conversations.findOrCreateUnqualified(
+          evt.channelType,
+          evt.from,
+          channel.workspaceId,
+          evt.fromName,
+        );
+        const saved = await this.messages.saveWebhookOutbound({
+          conversationId: conv.id,
+          externalMessageId: evt.externalMessageId,
+          body: evt.body,
+          sentAt: evt.receivedAt,
+          type: (evt.messageType as any) ?? 'text',
+          mediaUrl: evt.mediaUrl,
+          mediaMimeType: evt.mediaMimeType,
+          mediaFileName: evt.mediaFileName,
+        });
+        if (!saved) {
+          this.logger.debug(`Duplicate outbound-from-phone — ${evt.externalMessageId} skipped`);
+        }
+      });
+    } catch (err: any) {
+      this.logger.error(`Outbound-from-phone handling failed: ${err.message}`, err.stack);
+    }
+  }
 
   @OnEvent('message.inbound.received')
   async handle(evt: InboundEvent): Promise<void> {
@@ -63,7 +96,17 @@ export class InboundListener {
       evt.channelType,
       evt.from,
       channel.workspaceId,
+      evt.fromName,
     );
+
+    // Fetch WhatsApp profile picture in background when not yet saved
+    if (channel.type === 'uazapi' && !conv.fromAvatarUrl && evt.channelConfigId) {
+      this.uazapi.getChatDetails(evt.channelConfigId, evt.from)
+        .then(({ image }) => {
+          if (image) this.conversations.updateFromAvatar(conv.id, image);
+        })
+        .catch(() => { /* ignore */ });
+    }
 
     const saved = await this.messages.saveInbound({
       conversationId: conv.id,

@@ -1,10 +1,17 @@
 import { Body, Controller, Delete, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
 import { MessagesService } from './messages.service';
+import { AudioTranscriptionService } from './audio-transcription.service';
 import { SendMessageDto, SendMediaDto, ReactMessageDto, DeleteMessageDto } from './dto/send-message.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { ChannelsService } from '../channels/channels.service';
 import { ConversationsService } from '../conversations/conversations.service';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
+import { IsString } from 'class-validator';
+
+class TranscribeDto {
+  @IsString()
+  audioUrl: string;
+}
 
 @ApiTags('messages')
 @ApiBearerAuth('jwt')
@@ -15,6 +22,7 @@ export class MessagesController {
     private messagesService: MessagesService,
     private channelsService: ChannelsService,
     private conversationsService: ConversationsService,
+    private audioTranscriptionService: AudioTranscriptionService,
   ) {}
 
   @Get()
@@ -69,6 +77,12 @@ export class MessagesController {
   async react(@Body() dto: ReactMessageDto) {
     await this.channelsService.reactToMessage(dto.channelConfigId, dto.messageId, dto.emoji);
     return { ok: true };
+  }
+
+  @Post('transcribe')
+  async transcribe(@Body() dto: TranscribeDto) {
+    const transcript = await this.audioTranscriptionService.transcribe(dto.audioUrl);
+    return { transcript };
   }
 
   @Delete(':id')

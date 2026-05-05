@@ -7,7 +7,7 @@ export interface AnalyticsSummary {
   avgDaysToWin: number;
   avgTicket: number;
   byStage: { stageId: string; stageName: string; count: number; value: number }[];
-  byAgent: { agentId: string; name: string; active: number; won: number; lost: number; value: number }[];
+  byAgent: { agentId: string; name: string; active: number; won: number; lost: number; frozen: number; value: number }[];
   topLossReasons: { reason: string; count: number }[];
   leadsByDay: Record<string, number>;
   revenueByOrigin: { origin: string; count: number; value: number }[];

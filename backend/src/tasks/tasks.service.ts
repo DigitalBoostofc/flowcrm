@@ -128,6 +128,12 @@ export class TasksService {
     return this.repo.save(task);
   }
 
+  async cancel(id: string): Promise<Task> {
+    const task = await this.findOne(id);
+    task.status = TaskStatus.CANCELLED;
+    return this.repo.save(task);
+  }
+
   async reopen(id: string): Promise<Task> {
     const task = await this.findOne(id);
     task.status = TaskStatus.PENDING;

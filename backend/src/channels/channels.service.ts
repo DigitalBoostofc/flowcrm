@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { ChannelConfig, ChannelType, ChannelStatus } from './entities/channel-config.entity';
 import { ChannelAdapter, SendMessageOptions, SendMessageResult } from './channel-adapter.interface';
 import { CreateChannelDto } from './dto/create-channel.dto';
@@ -10,6 +11,21 @@ import { MetaAdapter } from './meta/meta.adapter';
 import { TelegramAdapter } from './telegram/telegram.adapter';
 import { TenantContext } from '../common/tenant/tenant-context.service';
 
+const MEDIA_TYPES: Record<string, string> = {
+  imageMessage: 'image',
+  videoMessage: 'video',
+  audioMessage: 'audio',
+  pttMessage: 'audio',
+  documentMessage: 'document',
+  stickerMessage: 'sticker',
+  image: 'image',
+  video: 'video',
+  audio: 'audio',
+  ptt: 'audio',
+  document: 'document',
+  sticker: 'sticker',
+};
+
 @Injectable()
 export class ChannelsService {
   private adapters = new Map<ChannelType, ChannelAdapter>();
@@ -17,6 +33,8 @@ export class ChannelsService {
   constructor(
     @InjectRepository(ChannelConfig) private repo: Repository<ChannelConfig>,
     private readonly tenant: TenantContext,
+    private readonly events: EventEmitter2,
+    private readonly uazapiAdapter: UazapiAdapter,
     evolution: EvolutionAdapter,
     uazapi: UazapiAdapter,
     meta: MetaAdapter,
@@ -171,5 +189,60 @@ export class ChannelsService {
       return adapter.getWaLimits(id);
     }
     throw new BadRequestException('WA limits não disponível para este tipo de canal');
+  }
+
+  async syncChatHistory(channelConfigId: string, chatId: string, count = 50): Promise<{ queued: number }> {
+    const channel = await this.findByIdUnscoped(channelConfigId);
+    if (!channel || channel.type !== 'uazapi') return { queued: 0 };
+
+    const msgs: any[] = await this.uazapiAdapter.fetchChatMessages(channelConfigId, chatId, count);
+    let queued = 0;
+
+    for (const msg of msgs) {
+      const fromMe: boolean = msg?.fromMe ?? msg?.key?.fromMe ?? false;
+      const rawMsgType: string = msg?.type ?? msg?.messageType ?? 'conversation';
+      const mediaType = MEDIA_TYPES[rawMsgType];
+
+      const text: string =
+        msg?.text ?? msg?.content ?? msg?.caption ??
+        msg?.message?.conversation ?? msg?.message?.extendedTextMessage?.text ??
+        msg?.message?.imageMessage?.caption ?? msg?.message?.videoMessage?.caption ??
+        msg?.message?.documentMessage?.caption ?? '';
+
+      const body = text || (mediaType ? `[${rawMsgType.replace('Message', '')}]` : '');
+      if (!body && !mediaType) continue;
+
+      const chatid: string = msg?.chatid ?? msg?.key?.remoteJid ?? '';
+      const from = chatid.replace('@s.whatsapp.net', '').replace(/@lid$/, '');
+      if (!from) continue;
+
+      const externalMessageId: string = msg?.messageid ?? msg?.key?.id ?? '';
+      if (!externalMessageId) continue;
+
+      const rawTs: number = msg?.messageTimestamp ?? Date.now();
+      const receivedAt = new Date(rawTs > 1e12 ? rawTs : rawTs * 1000);
+
+      const eventPayload = {
+        channelConfigId,
+        channelType: 'uazapi',
+        externalMessageId,
+        from,
+        fromName: msg?.senderName ?? msg?.pushName ?? '',
+        body,
+        receivedAt,
+        messageType: mediaType ?? 'text',
+        mediaUrl: msg?.url ?? msg?.mediaUrl ?? msg?.fileUrl ?? msg?.fileURL ??
+          msg?.message?.imageMessage?.url ?? msg?.message?.videoMessage?.url ??
+          msg?.message?.audioMessage?.url ?? msg?.message?.documentMessage?.url ?? undefined,
+        mediaMimeType: msg?.mimetype ?? msg?.mimeType ?? msg?.message?.imageMessage?.mimetype ??
+          msg?.message?.audioMessage?.mimetype ?? msg?.message?.documentMessage?.mimetype ?? undefined,
+        mediaFileName: msg?.fileName ?? msg?.filename ?? msg?.message?.documentMessage?.fileName ?? undefined,
+      };
+
+      this.events.emit(fromMe ? 'message.outbound.fromphone' : 'message.inbound.received', eventPayload);
+      queued++;
+    }
+
+    return { queued };
   }
 }
