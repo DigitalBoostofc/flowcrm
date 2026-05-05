@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useNavigate } from 'react-router-dom';
+
 import {
   MessageCircle, Send, Search, Phone, Loader2, Sparkles, Activity,
   FileText, Paperclip, Mic, MicOff, File, Video, Trash2, SmilePlus, X,
@@ -16,11 +16,13 @@ import { listMessages, sendMessage, sendMedia, reactMessage, deleteMessage, tran
 import { listQuickReplies } from '@/api/quick-replies';
 import { listChannels } from '@/api/channels';
 import { listPipelines } from '@/api/pipelines';
+import { getLead } from '@/api/leads';
 import { listWorkspaceMembers } from '@/api/users';
 import { useAuthStore } from '@/store/auth.store';
 import { api } from '@/api/client';
 import { useWs } from '@/hooks/useWebSocket';
-import type { Message, QuickReply, Pipeline } from '@/types/api';
+import NegocioDetailPanel from '@/components/negocios/NegocioDetailPanel';
+import type { Message, QuickReply, Pipeline, User } from '@/types/api';
 import Avatar from '@/components/ui/Avatar';
 import { channelMeta, uniqueChannelTypes } from '@/lib/channels';
 
@@ -1070,12 +1072,31 @@ function ChatView({ item, onQualify }: { item: InboxItem; onQualify: (payload: {
 
 export default function Inbox() {
   const qc = useQueryClient();
-  const navigate = useNavigate();
   const [search, setSearch] = useState('');
   const [tab, setTab] = useState<'todas' | 'pendentes'>('todas');
   const [channelFilter, setChannelFilter] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [openLeadId, setOpenLeadId] = useState<string | null>(null);
+  const { user: currentUser } = useAuthStore();
   const { socket } = useWs();
+
+  const { data: openLead } = useQuery({
+    queryKey: ['lead', openLeadId],
+    queryFn: () => getLead(openLeadId!),
+    enabled: !!openLeadId,
+  });
+
+  const { data: inboxPipelines = [] } = useQuery<Pipeline[]>({
+    queryKey: ['pipelines'],
+    queryFn: listPipelines,
+    enabled: !!openLeadId,
+  });
+
+  const { data: inboxMembers = [] } = useQuery({
+    queryKey: ['workspace-members'],
+    queryFn: listWorkspaceMembers,
+    enabled: !!openLeadId,
+  });
 
   const PAGE_SIZE = 50;
   const inboxQuery = useInfiniteQuery({
@@ -1125,8 +1146,7 @@ export default function Inbox() {
     const result = await qualifyConversation(selected.id, payload);
     qc.invalidateQueries({ queryKey: ['inbox'] });
     qc.invalidateQueries({ queryKey: ['negocios'] });
-    // Navigate to Funil and auto-open the new lead's detail panel
-    navigate(`/funil?pipeline=${result.pipelineId}&lead=${result.leadId}`);
+    setOpenLeadId(result.leadId);
   }
 
   function handleSelect(item: InboxItem) {
@@ -1325,6 +1345,29 @@ export default function Inbox() {
           </div>
         )}
       </div>
+
+      {/* Lead detail overlay after qualification */}
+      {openLead && (
+        <div
+          className="fixed inset-0 z-50"
+          style={{ background: 'rgba(0,0,0,0.4)' }}
+          onClick={() => setOpenLeadId(null)}
+        >
+          <div
+            className="absolute right-0 top-0 h-full"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <NegocioDetailPanel
+              lead={openLead}
+              currentUser={currentUser ?? null}
+              users={inboxMembers as User[]}
+              pipelines={inboxPipelines}
+              onClose={() => setOpenLeadId(null)}
+              autoOpenEdit={true}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
