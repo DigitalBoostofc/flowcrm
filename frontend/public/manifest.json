@@ -1,6 +1,6 @@
 {
-  "name": "FlowCRM",
-  "short_name": "FlowCRM",
+  "name": "AppexCRM",
+  "short_name": "AppexCRM",
   "description": "Agenda de tarefas e compromissos",
   "start_url": "/mobile",
   "scope": "/",
