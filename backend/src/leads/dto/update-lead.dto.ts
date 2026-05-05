@@ -9,6 +9,14 @@ export class UpdateLeadDto {
   title?: string;
 
   @IsOptional()
+  @IsUUID()
+  contactId?: string | null;
+
+  @IsOptional()
+  @IsUUID()
+  companyId?: string | null;
+
+  @IsOptional()
   @IsNumber()
   @Min(0)
   @Type(() => Number)

@@ -59,6 +59,8 @@ export async function updateLead(
   id: string,
   data: {
     title?: string;
+    contactId?: string | null;
+    companyId?: string | null;
     value?: number | null;
     startDate?: string | null;
     conclusionDate?: string | null;
