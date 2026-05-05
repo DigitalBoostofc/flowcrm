@@ -1,5 +1,5 @@
-import { Body, Controller, Get, Param, ParseUUIDPipe, Post, Query, UseGuards } from '@nestjs/common';
-import { IsEnum, IsOptional, IsString, IsUUID } from 'class-validator';
+import { Body, Controller, Get, Param, ParseUUIDPipe, Patch, Post, Query, UseGuards } from '@nestjs/common';
+import { IsEnum, IsOptional, IsString, IsUUID, ValidateIf } from 'class-validator';
 import { ConversationsService } from './conversations.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { FeatureGuard } from '../common/feature-access/feature.guard';
@@ -67,5 +67,13 @@ export class ConversationsController {
       stageId: dto.stageId,
       assignedToId: dto.assignedToId,
     });
+  }
+
+  @Patch(':id/inbox-tag')
+  setInboxTag(
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Body() dto: { inboxTagId: string | null },
+  ) {
+    return this.service.setInboxTag(id, dto.inboxTagId);
   }
 }

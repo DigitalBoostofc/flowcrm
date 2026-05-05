@@ -4,7 +4,7 @@ import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from '@tansta
 import {
   MessageCircle, Send, Search, Phone, Loader2, Sparkles, Activity,
   FileText, Paperclip, Mic, MicOff, File, Video, Trash2, SmilePlus, X,
-  Check, CheckCheck, Users, Building2, ChevronDown,
+  Check, CheckCheck, Users, Building2, ChevronDown, Tag, Plus, Pencil,
 } from 'lucide-react';
 import ConversationSummaryButton from '@/components/lead-panel/ConversationSummary';
 import LeadActivities from '@/components/lead-panel/LeadActivities';
@@ -18,6 +18,10 @@ import { listChannels } from '@/api/channels';
 import { listPipelines } from '@/api/pipelines';
 import { getLead } from '@/api/leads';
 import { listWorkspaceMembers } from '@/api/users';
+import {
+  listInboxTags, createInboxTag, deleteInboxTag, setConversationInboxTag,
+  type InboxTag,
+} from '@/api/inbox-tags';
 import { useAuthStore } from '@/store/auth.store';
 import { api } from '@/api/client';
 import { useWs } from '@/hooks/useWebSocket';
@@ -49,6 +53,201 @@ function formatFileSize(bytes: number): string {
 }
 
 const QUICK_EMOJIS = ['👍', '❤️', '😂', '😮', '😢', '🙏'];
+
+/* ── Predefined tag colors ────────────────────────────── */
+const TAG_COLORS = [
+  '#6366f1', '#8b5cf6', '#ec4899', '#ef4444', '#f97316',
+  '#eab308', '#22c55e', '#14b8a6', '#06b6d4', '#3b82f6',
+];
+
+/* ── InboxTagPicker ───────────────────────────────────── */
+
+function InboxTagPicker({
+  conversationId,
+  currentTagId,
+  onClose,
+}: {
+  conversationId: string;
+  currentTagId: string | null;
+  onClose: () => void;
+}) {
+  const qc = useQueryClient();
+  const [creating, setCreating] = useState(false);
+  const [newName, setNewName] = useState('');
+  const [newColor, setNewColor] = useState(TAG_COLORS[0]);
+  const ref = useRef<HTMLDivElement>(null);
+
+  const { data: tags = [] } = useQuery({
+    queryKey: ['inbox-tags'],
+    queryFn: listInboxTags,
+  });
+
+  const assignMut = useMutation({
+    mutationFn: (tagId: string | null) => setConversationInboxTag(conversationId, tagId),
+    onSuccess: (_, tagId) => {
+      qc.setQueryData<{ pages: InboxPage[]; pageParams: unknown[] }>(['inbox'], (prev) => {
+        if (!prev) return prev;
+        const tag = tags.find((t) => t.id === tagId);
+        return {
+          ...prev,
+          pages: prev.pages.map((p) => ({
+            ...p,
+            items: p.items.map((i) =>
+              i.id === conversationId
+                ? { ...i, inboxTagId: tagId, inboxTagName: tag?.name ?? null, inboxTagColor: tag?.color ?? null }
+                : i,
+            ),
+          })),
+        };
+      });
+      onClose();
+    },
+  });
+
+  const createMut = useMutation({
+    mutationFn: () => createInboxTag({ name: newName.trim(), color: newColor }),
+    onSuccess: (tag) => {
+      qc.invalidateQueries({ queryKey: ['inbox-tags'] });
+      assignMut.mutate(tag.id);
+      setCreating(false);
+      setNewName('');
+    },
+  });
+
+  const deleteMut = useMutation({
+    mutationFn: (id: string) => deleteInboxTag(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['inbox-tags'] });
+      qc.invalidateQueries({ queryKey: ['inbox'] });
+    },
+  });
+
+  // Close on outside click
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) onClose();
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [onClose]);
+
+  return (
+    <div
+      ref={ref}
+      className="absolute top-full left-0 mt-1 z-50 rounded-xl shadow-xl border overflow-hidden"
+      style={{ background: 'var(--surface-raised)', borderColor: 'var(--edge)', minWidth: 220 }}
+      onClick={(e) => e.stopPropagation()}
+    >
+      <div className="px-3 py-2 border-b flex items-center gap-2" style={{ borderColor: 'var(--edge)' }}>
+        <Tag className="w-3.5 h-3.5" style={{ color: 'var(--ink-3)' }} />
+        <span className="text-xs font-semibold" style={{ color: 'var(--ink-2)' }}>Etiqueta do atendimento</span>
+      </div>
+
+      <div className="py-1" style={{ maxHeight: 240, overflowY: 'auto' }}>
+        {/* Remove tag option */}
+        {currentTagId && (
+          <button
+            onClick={() => assignMut.mutate(null)}
+            className="w-full text-left px-3 py-2 text-xs flex items-center gap-2 hover:opacity-80"
+            style={{ color: 'var(--ink-3)' }}
+          >
+            <X className="w-3 h-3" />
+            Remover etiqueta
+          </button>
+        )}
+
+        {tags.map((tag) => (
+          <div
+            key={tag.id}
+            className="flex items-center gap-2 px-3 py-1.5 group"
+            style={{ borderBottom: '1px solid var(--edge)' }}
+          >
+            <button
+              onClick={() => assignMut.mutate(tag.id === currentTagId ? null : tag.id)}
+              className="flex items-center gap-2 flex-1 min-w-0"
+            >
+              <span
+                className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                style={{ background: tag.color }}
+              />
+              <span
+                className="text-xs truncate"
+                style={{ color: tag.id === currentTagId ? 'var(--ink-1)' : 'var(--ink-2)', fontWeight: tag.id === currentTagId ? 600 : 400 }}
+              >
+                {tag.name}
+              </span>
+              {tag.id === currentTagId && <Check className="w-3 h-3 ml-auto flex-shrink-0" style={{ color: 'var(--brand-500)' }} />}
+            </button>
+            <button
+              onClick={() => { if (window.confirm(`Excluir etiqueta "${tag.name}"?`)) deleteMut.mutate(tag.id); }}
+              className="opacity-0 group-hover:opacity-60 hover:!opacity-100 p-0.5 rounded transition-opacity"
+              style={{ color: 'var(--ink-3)' }}
+            >
+              <Trash2 className="w-3 h-3" />
+            </button>
+          </div>
+        ))}
+
+        {tags.length === 0 && !creating && (
+          <p className="px-3 py-3 text-xs text-center" style={{ color: 'var(--ink-3)' }}>
+            Nenhuma etiqueta criada ainda
+          </p>
+        )}
+      </div>
+
+      {/* Create new tag */}
+      {creating ? (
+        <div className="px-3 py-2 border-t space-y-2" style={{ borderColor: 'var(--edge)' }}>
+          <input
+            autoFocus
+            value={newName}
+            onChange={(e) => setNewName(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter' && newName.trim()) createMut.mutate(); if (e.key === 'Escape') setCreating(false); }}
+            placeholder="Nome da etiqueta..."
+            className="w-full px-2 py-1.5 rounded-lg text-xs outline-none"
+            style={{ background: 'var(--surface)', border: '1px solid var(--edge)', color: 'var(--ink-1)' }}
+          />
+          <div className="flex flex-wrap gap-1.5">
+            {TAG_COLORS.map((c) => (
+              <button
+                key={c}
+                onClick={() => setNewColor(c)}
+                className="w-4 h-4 rounded-full transition-all"
+                style={{ background: c, outline: newColor === c ? `2px solid ${c}` : 'none', outlineOffset: 2 }}
+              />
+            ))}
+          </div>
+          <div className="flex gap-1">
+            <button
+              onClick={() => { if (newName.trim()) createMut.mutate(); }}
+              disabled={!newName.trim() || createMut.isPending}
+              className="flex-1 py-1.5 rounded-lg text-xs font-semibold text-white disabled:opacity-50"
+              style={{ background: 'var(--brand-500)' }}
+            >
+              {createMut.isPending ? 'Criando…' : 'Criar'}
+            </button>
+            <button
+              onClick={() => { setCreating(false); setNewName(''); }}
+              className="px-3 py-1.5 rounded-lg text-xs"
+              style={{ color: 'var(--ink-2)', background: 'var(--surface-hover)' }}
+            >
+              Cancelar
+            </button>
+          </div>
+        </div>
+      ) : (
+        <button
+          onClick={() => setCreating(true)}
+          className="w-full flex items-center gap-2 px-3 py-2 text-xs border-t"
+          style={{ color: 'var(--brand-500)', borderColor: 'var(--edge)' }}
+        >
+          <Plus className="w-3.5 h-3.5" />
+          Nova etiqueta
+        </button>
+      )}
+    </div>
+  );
+}
 
 /* ── MessageBubble ────────────────────────────────────── */
 
@@ -588,15 +787,17 @@ function QualifyModal({
 function ConvItem({ item, selected, onClick }: { item: InboxItem; selected: boolean; onClick: () => void }) {
   const pending = item.pendingClassification;
   const ch = channelMeta(item.channelType);
+  const [showTagPicker, setShowTagPicker] = useState(false);
+
   return (
-    <button
-      onClick={onClick}
-      className="w-full flex items-center gap-3 px-4 py-3 text-left transition-colors"
+    <div
+      className="w-full flex items-center gap-3 px-4 py-3 text-left transition-colors relative cursor-pointer"
       style={{
         background: selected ? 'var(--brand-50)' : 'transparent',
         borderBottom: '1px solid var(--edge)',
         borderLeft: selected ? '2px solid var(--brand-500)' : '2px solid transparent',
       }}
+      onClick={onClick}
     >
       <Avatar name={item.contactName ?? item.fromName} url={item.contactAvatarUrl ?? item.fromAvatarUrl} size={36} />
 
@@ -606,12 +807,35 @@ function ConvItem({ item, selected, onClick }: { item: InboxItem; selected: bool
             {item.contactName ?? item.fromName ?? item.externalId ?? 'Desconhecido'}
           </span>
           <span className="text-[10px] flex-shrink-0 flex items-center gap-1.5" style={{ color: 'var(--ink-3)' }}>
-            <span
-              title={ch.label}
-              className="px-1.5 py-0.5 rounded-full font-semibold border"
-              style={{ background: ch.bg, color: ch.fg, borderColor: ch.border, fontSize: 9 }}
-            >
-              {ch.shortLabel}
+            {/* Channel badge — clicking opens the tag picker */}
+            <span className="relative">
+              <button
+                title="Etiqueta de atendimento"
+                onClick={(e) => { e.stopPropagation(); setShowTagPicker((v) => !v); }}
+                className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-full font-semibold border transition-opacity hover:opacity-80"
+                style={
+                  item.inboxTagId && item.inboxTagColor
+                    ? { background: item.inboxTagColor + '22', color: item.inboxTagColor, borderColor: item.inboxTagColor + '55', fontSize: 9 }
+                    : { background: ch.bg, color: ch.fg, borderColor: ch.border, fontSize: 9 }
+                }
+              >
+                {item.inboxTagId && item.inboxTagName ? (
+                  <>
+                    <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: item.inboxTagColor ?? undefined }} />
+                    {item.inboxTagName}
+                  </>
+                ) : (
+                  ch.shortLabel
+                )}
+              </button>
+
+              {showTagPicker && (
+                <InboxTagPicker
+                  conversationId={item.id}
+                  currentTagId={item.inboxTagId}
+                  onClose={() => setShowTagPicker(false)}
+                />
+              )}
             </span>
             {timeAgo(item.lastMessageSentAt ?? item.updatedAt)}
           </span>
@@ -642,7 +866,7 @@ function ConvItem({ item, selected, onClick }: { item: InboxItem; selected: bool
           </p>
         </div>
       </div>
-    </button>
+    </div>
   );
 }
 

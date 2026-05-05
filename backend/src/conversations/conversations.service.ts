@@ -28,6 +28,9 @@ export interface InboxItem {
   updatedAt: Date;
   pendingClassification: boolean;
   assignedToName: string | null;
+  inboxTagId: string | null;
+  inboxTagName: string | null;
+  inboxTagColor: string | null;
 }
 
 export interface InboxPage {
@@ -186,11 +189,15 @@ export class ConversationsService {
         lm.body                                                     AS "lastMessageBody",
         lm.direction                                                AS "lastMessageDirection",
         lm."sentAt"                                                 AS "lastMessageSentAt",
-        u.name                                                      AS "assignedToName"
+        u.name                                                      AS "assignedToName",
+        it.id                                                       AS "inboxTagId",
+        it.name                                                     AS "inboxTagName",
+        it.color                                                    AS "inboxTagColor"
       FROM conversations c
       LEFT JOIN leads l        ON l.id = c."leadId"
       LEFT JOIN users u        ON u.id = l."assignedToId"
       LEFT JOIN contacts contact ON contact.id = l."contactId"
+      LEFT JOIN inbox_tags it  ON it.id = c."inboxTagId"
       LEFT JOIN LATERAL (
         SELECT body, direction, "sentAt"
         FROM messages
@@ -222,6 +229,9 @@ export class ConversationsService {
       updatedAt: r.updatedAt,
       pendingClassification: !r.leadId,
       assignedToName: r.assignedToName ?? null,
+      inboxTagId: r.inboxTagId ?? null,
+      inboxTagName: r.inboxTagName ?? null,
+      inboxTagColor: r.inboxTagColor ?? null,
     }));
 
     return { items, total, page, pageSize };
@@ -250,5 +260,12 @@ export class ConversationsService {
 
   async updateFromAvatar(id: string, url: string): Promise<void> {
     await this.repo.update(id, { fromAvatarUrl: url });
+  }
+
+  async setInboxTag(id: string, inboxTagId: string | null): Promise<{ id: string; inboxTagId: string | null }> {
+    const workspaceId = this.tenant.requireWorkspaceId();
+    const result = await this.repo.update({ id, workspaceId }, { inboxTagId });
+    if (!result.affected) throw new NotFoundException('Conversa não encontrada');
+    return { id, inboxTagId };
   }
 }
