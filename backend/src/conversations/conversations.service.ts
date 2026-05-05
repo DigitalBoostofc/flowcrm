@@ -64,19 +64,25 @@ export class ConversationsService {
   }
 
   async findOrCreateUnqualified(channelType: string, externalId: string, workspaceId: string, fromName?: string): Promise<Conversation> {
-    // Look up by externalId regardless of leadId — so if the contact was already
-    // qualified (leadId set), new inbound messages still land on the same conversation.
-    const existing = await this.repo.findOne({ where: { channelType, externalId, workspaceId } });
-    if (existing) {
-      // Update fromName if we now have a name and didn't before
-      if (fromName && !existing.fromName) {
-        await this.repo.update(existing.id, { fromName });
-        existing.fromName = fromName;
-      }
-      return existing;
+    // Atomic upsert: INSERT ... ON CONFLICT DO NOTHING prevents duplicate conversations
+    // from race conditions (two simultaneous inbound messages from the same phone).
+    // The unique index on (workspaceId, channelType, externalId) enforces DB-level uniqueness.
+    await this.repo.query(
+      `INSERT INTO conversations (id, "workspaceId", "channelType", "externalId", "leadId", "fromName", "createdAt", "updatedAt")
+       VALUES (gen_random_uuid(), $1, $2, $3, NULL, $4, NOW(), NOW())
+       ON CONFLICT ("workspaceId", "channelType", "externalId") WHERE "externalId" IS NOT NULL
+       DO NOTHING`,
+      [workspaceId, channelType, externalId, fromName ?? null],
+    );
+
+    const conv = await this.repo.findOne({ where: { channelType, externalId, workspaceId } });
+    if (!conv) throw new Error(`findOrCreateUnqualified: conversation not found after upsert for externalId=${externalId}`);
+
+    if (fromName && !conv.fromName) {
+      await this.repo.update(conv.id, { fromName });
+      conv.fromName = fromName;
     }
-    const conv = this.repo.create({ channelType, externalId, workspaceId, leadId: null, fromName: fromName ?? null });
-    return this.repo.save(conv);
+    return conv;
   }
 
   create(dto: CreateConversationDto): Promise<Conversation> {
