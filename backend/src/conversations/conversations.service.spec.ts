@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { ConversationsService } from './conversations.service';
 import { Conversation } from './entities/conversation.entity';
+import { InboxTag } from '../inbox-tags/entities/inbox-tag.entity';
 import { TenantContext } from '../common/tenant/tenant-context.service';
 import { ContactsService } from '../contacts/contacts.service';
 import { LeadsService } from '../leads/leads.service';
@@ -13,12 +14,14 @@ const mockContacts = { create: jest.fn(), findByPhone: jest.fn() } as unknown as
 const mockLeads = { create: jest.fn(), findOne: jest.fn() } as unknown as LeadsService;
 const mockPipelines = { findDefault: jest.fn() } as unknown as PipelinesService;
 const mockCompanies = { create: jest.fn() } as unknown as CompaniesService;
+const mockTagRepo = { findOne: jest.fn(), create: jest.fn(), save: jest.fn() };
 
 const EXTRA_PROVIDERS = [
   { provide: ContactsService, useValue: mockContacts },
   { provide: LeadsService, useValue: mockLeads },
   { provide: PipelinesService, useValue: mockPipelines },
   { provide: CompaniesService, useValue: mockCompanies },
+  { provide: getRepositoryToken(InboxTag), useValue: mockTagRepo },
 ];
 
 describe('ConversationsService', () => {
