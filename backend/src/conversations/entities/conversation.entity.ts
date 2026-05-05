@@ -1,6 +1,7 @@
 import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, OneToMany, CreateDateColumn, UpdateDateColumn, JoinColumn, Index } from 'typeorm';
 import { Lead } from '../../leads/entities/lead.entity';
 import { Message } from '../../messages/entities/message.entity';
+import { InboxTag } from '../../inbox-tags/entities/inbox-tag.entity';
 
 @Entity('conversations')
 export class Conversation {
@@ -35,6 +36,13 @@ export class Conversation {
 
   @Column({ type: 'timestamptz', nullable: true })
   lastReadAt: Date | null;
+
+  @ManyToOne(() => InboxTag, { nullable: true, eager: false, onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'inboxTagId' })
+  inboxTag: InboxTag | null;
+
+  @Column({ type: 'uuid', nullable: true })
+  inboxTagId: string | null;
 
   @CreateDateColumn()
   createdAt: Date;

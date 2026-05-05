@@ -20,6 +20,9 @@ export interface InboxItem {
   updatedAt: string;
   pendingClassification: boolean;
   assignedToName: string | null;
+  inboxTagId: string | null;
+  inboxTagName: string | null;
+  inboxTagColor: string | null;
 }
 
 export interface InboxPage {
