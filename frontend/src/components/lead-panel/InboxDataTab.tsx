@@ -1,10 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
-  Edit2, Check, X, Archive, ArchiveRestore, RefreshCw, Sparkles,
-  Briefcase, User as UserIcon, Loader2, Save,
+  Edit2, Check, X, Archive, ArchiveRestore,
+  Briefcase, User as UserIcon, Loader2, Save, Layers,
 } from 'lucide-react';
-import { getLead, updateLead, moveLead, archiveLead, unarchiveLead, setLeadScore, recalculateLeadScore } from '@/api/leads';
+import { getLead, updateLead, moveLead, archiveLead, unarchiveLead } from '@/api/leads';
 import { getContact, updateContact } from '@/api/contacts';
 import { getCompany, updateCompany } from '@/api/companies';
 import { listPipelines } from '@/api/pipelines';
@@ -12,6 +12,7 @@ import { listWorkspaceMembers } from '@/api/users';
 import { listCustomerOrigins } from '@/api/customer-origins';
 import StatusToggle from './StatusToggle';
 import { maskCep, fetchViaCep } from '@/lib/cep';
+import ProductSelector from '@/components/products/ProductSelector';
 import type { Lead, Contact, Company, Pipeline } from '@/types/api';
 
 /* ── Shared primitives ─────────────────────────────────── */
@@ -97,43 +98,74 @@ function InlineSelect({
   onSave: (v: string) => void;
   placeholder?: string;
 }) {
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState(value);
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
   const label = options.find((o) => o.value === value)?.label;
 
-  if (!editing) {
-    return (
-      <button
-        onClick={() => { setDraft(value); setEditing(true); }}
-        className="text-sm text-left w-full flex items-center gap-1 group"
-        style={{ color: 'var(--ink-1)' }}
-      >
-        <span style={!label ? { color: 'var(--ink-3)', fontStyle: 'italic' } : {}}>
-          {label || placeholder || '—'}
-        </span>
-        <Edit2 className="w-3 h-3 opacity-0 group-hover:opacity-40 flex-shrink-0" />
-      </button>
-    );
-  }
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (!ref.current?.contains(e.target as Node)) setOpen(false);
+    };
+    if (open) document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [open]);
+
+  const pick = (v: string) => { onSave(v); setOpen(false); };
 
   return (
-    <div className="flex items-center gap-1">
-      <select
-        autoFocus
-        value={draft}
-        onChange={(e) => setDraft(e.target.value)}
-        className="flex-1 px-2 py-1 rounded-md text-sm focus:outline-none"
-        style={{ background: 'var(--panel-surface)', border: '1px solid var(--panel-border)', color: 'var(--ink-1)' }}
+    <div ref={ref} className="relative">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="text-sm text-left w-full flex items-center justify-between gap-1 group px-2 py-1.5 rounded-md transition-colors"
+        style={{
+          color: label ? 'var(--ink-1)' : 'var(--ink-3)',
+          background: open ? 'var(--surface-hover, rgba(255,255,255,0.06))' : 'transparent',
+          border: '1px solid var(--panel-border)',
+          fontStyle: label ? 'normal' : 'italic',
+        }}
       >
-        {placeholder && <option value="">{placeholder}</option>}
-        {options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-      </select>
-      <button onClick={() => { onSave(draft); setEditing(false); }} className="p-1 rounded text-emerald-500">
-        <Check className="w-4 h-4" />
+        <span className="truncate">{label || placeholder || '—'}</span>
+        <Edit2 className="w-3 h-3 opacity-0 group-hover:opacity-40 flex-shrink-0" />
       </button>
-      <button onClick={() => setEditing(false)} className="p-1 rounded" style={{ color: 'var(--ink-3)' }}>
-        <X className="w-4 h-4" />
-      </button>
+
+      {open && (
+        <div
+          className="absolute left-0 right-0 top-[calc(100%+2px)] z-30 rounded-lg overflow-hidden max-h-52 overflow-y-auto shadow-xl"
+          style={{ background: 'var(--surface-raised, #1e2230)', border: '1px solid var(--edge, rgba(255,255,255,0.1))' }}
+        >
+          {placeholder && (
+            <button
+              onClick={() => pick('')}
+              className="w-full text-left px-3 py-2 text-sm transition-colors"
+              style={{ color: 'var(--ink-3)', fontStyle: 'italic' }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--surface-hover, rgba(255,255,255,0.06))')}
+              onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+            >
+              {placeholder}
+            </button>
+          )}
+          {options.map((o) => (
+            <button
+              key={o.value}
+              onClick={() => pick(o.value)}
+              className="w-full text-left px-3 py-2 text-sm flex items-center justify-between gap-2 transition-colors"
+              style={{
+                color: o.value === value ? 'var(--brand-400, #818cf8)' : 'var(--ink-1)',
+                background: o.value === value ? 'var(--brand-500-10, rgba(99,102,241,0.12))' : 'transparent',
+              }}
+              onMouseEnter={(e) => {
+                if (o.value !== value) e.currentTarget.style.background = 'var(--surface-hover, rgba(255,255,255,0.06))';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = o.value === value ? 'var(--brand-500-10, rgba(99,102,241,0.12))' : 'transparent';
+              }}
+            >
+              <span className="truncate">{o.label}</span>
+              {o.value === value && <Check className="w-3.5 h-3.5 flex-shrink-0" />}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -220,11 +252,6 @@ function NegocioTab({ leadId }: { leadId: string }) {
     queryFn: () => getLead(leadId),
   });
 
-  const { data: pipelines = [] } = useQuery<Pipeline[]>({
-    queryKey: ['pipelines'],
-    queryFn: listPipelines,
-  });
-
   const { data: members = [] } = useQuery({
     queryKey: ['workspace-members'],
     queryFn: listWorkspaceMembers,
@@ -251,16 +278,6 @@ function NegocioTab({ leadId }: { leadId: string }) {
     },
   });
 
-  const scoreMut = useMutation({
-    mutationFn: (score: number) => setLeadScore(leadId, score),
-    onSuccess: (updated) => { qc.setQueryData<Lead>(['lead', leadId], updated); },
-  });
-
-  const recalcMut = useMutation({
-    mutationFn: () => recalculateLeadScore(leadId),
-    onSuccess: ({ lead: updated }) => { qc.setQueryData<Lead>(['lead', leadId], updated); },
-  });
-
   if (isLoading || !lead) {
     return (
       <div className="flex justify-center py-8">
@@ -269,13 +286,19 @@ function NegocioTab({ leadId }: { leadId: string }) {
     );
   }
 
-  const selectedPipeline = pipelines.find((p) => p.id === lead.pipelineId) ?? null;
-  const stages = (selectedPipeline?.stages ?? []).slice().sort((a, b) => a.position - b.position);
-
-  const pipelineOptions = pipelines.map((p) => ({ value: p.id, label: p.name }));
-  const stageOptions = stages.map((s) => ({ value: s.id, label: s.name }));
+  const isCompany = !lead.contactId && !!lead.companyId;
   const memberOptions = members.map((m) => ({ value: m.id, label: m.name }));
   const originOptions = origins.map((o) => ({ value: o.id, label: o.name }));
+
+  const currentProductNames = (lead.items ?? []).map((i) => i.productName);
+
+  const handleProductsChange = (names: string[]) => {
+    const existing = new Map((lead.items ?? []).map((i) => [i.productName, i]));
+    const newItems = names.map((name) =>
+      existing.get(name) ?? { productName: name, unitPrice: 0, quantity: 1, discount: 0, discountType: 'percent' as const },
+    );
+    mut.mutate({ items: newItems });
+  };
 
   return (
     <div className="px-4 pb-4">
@@ -299,45 +322,11 @@ function NegocioTab({ leadId }: { leadId: string }) {
       </div>
 
       {/* Title */}
-      <FieldRow label="Título do negócio">
+      <FieldRow label={isCompany ? 'Nome da empresa' : 'Nome'}>
         <InlineEdit
           value={lead.title ?? ''}
           placeholder={lead.contact?.name ?? lead.company?.name ?? 'Sem título'}
           onSave={(v) => mut.mutate({ title: v || undefined })}
-        />
-      </FieldRow>
-
-      {/* Funil */}
-      <FieldRow label="Funil">
-        <InlineSelect
-          value={lead.pipelineId}
-          options={pipelineOptions}
-          placeholder="Selecione o funil"
-          onSave={(pipelineId) => {
-            const pipeline = pipelines.find((p) => p.id === pipelineId);
-            const firstStage = (pipeline?.stages ?? []).slice().sort((a, b) => a.position - b.position)[0];
-            if (firstStage) {
-              moveLead(leadId, firstStage.id).then((updated) => {
-                qc.setQueryData<Lead>(['lead', leadId], updated);
-                qc.invalidateQueries({ queryKey: ['leads'] });
-              });
-            }
-          }}
-        />
-      </FieldRow>
-
-      {/* Etapa */}
-      <FieldRow label="Etapa">
-        <InlineSelect
-          value={lead.stageId}
-          options={stageOptions}
-          placeholder="Selecione a etapa"
-          onSave={(stageId) => {
-            moveLead(leadId, stageId).then((updated) => {
-              qc.setQueryData<Lead>(['lead', leadId], updated);
-              qc.invalidateQueries({ queryKey: ['leads'] });
-            });
-          }}
         />
       </FieldRow>
 
@@ -390,41 +379,17 @@ function NegocioTab({ leadId }: { leadId: string }) {
         />
       </FieldRow>
 
-      {/* Notas */}
-      <FieldRow label="Notas">
-        <InlineEdit
-          value={lead.notes ?? ''}
-          placeholder="Adicionar notas..."
-          onSave={(v) => mut.mutate({ notes: v })}
+      {/* Produtos e Serviços */}
+      <div className="py-2.5">
+        <FieldLabel>Produtos e serviços</FieldLabel>
+        <ProductSelector
+          value={currentProductNames}
+          onChange={handleProductsChange}
         />
-      </FieldRow>
-
-      {/* Score */}
-      <FieldRow label="Score (0–100)">
-        <div className="flex items-center gap-2 flex-wrap">
-          <InlineEdit
-            value={lead.score != null ? String(lead.score) : ''}
-            placeholder="0–100"
-            type="number"
-            onSave={(v) => {
-              const n = parseInt(v, 10);
-              if (Number.isFinite(n) && n >= 0 && n <= 100) scoreMut.mutate(n);
-            }}
-          />
-          <button
-            onClick={() => recalcMut.mutate()}
-            disabled={recalcMut.isPending}
-            className="flex items-center gap-1 text-xs px-2 py-1 rounded-md border disabled:opacity-50"
-            style={{ color: 'var(--ink-3)', borderColor: 'var(--panel-border)' }}
-          >
-            <RefreshCw className={`w-3 h-3 ${recalcMut.isPending ? 'animate-spin' : ''}`} />
-            Recalcular
-          </button>
-        </div>
-      </FieldRow>
+      </div>
 
       {/* Arquivar */}
-      <div className="pt-3">
+      <div className="pt-3" style={{ borderTop: '1px solid var(--panel-border)' }}>
         <button
           onClick={() => archiveMut.mutate()}
           disabled={archiveMut.isPending}
@@ -439,6 +404,75 @@ function NegocioTab({ leadId }: { leadId: string }) {
           {lead.archivedAt ? 'Desarquivar negócio' : 'Arquivar negócio'}
         </button>
       </div>
+    </div>
+  );
+}
+
+/* ── Funil Tab ─────────────────────────────────────────── */
+
+function FunilTab({ leadId }: { leadId: string }) {
+  const qc = useQueryClient();
+
+  const { data: lead, isLoading } = useQuery({
+    queryKey: ['lead', leadId],
+    queryFn: () => getLead(leadId),
+  });
+
+  const { data: pipelines = [] } = useQuery<Pipeline[]>({
+    queryKey: ['pipelines'],
+    queryFn: listPipelines,
+  });
+
+  if (isLoading || !lead) {
+    return (
+      <div className="flex justify-center py-8">
+        <Loader2 className="w-5 h-5 animate-spin" style={{ color: 'var(--ink-3)' }} />
+      </div>
+    );
+  }
+
+  const selectedPipeline = pipelines.find((p) => p.id === lead.pipelineId) ?? null;
+  const stages = (selectedPipeline?.stages ?? []).slice().sort((a, b) => a.position - b.position);
+  const pipelineOptions = pipelines.map((p) => ({ value: p.id, label: p.name }));
+  const stageOptions = stages.map((s) => ({ value: s.id, label: s.name }));
+
+  const handlePipelineChange = (pipelineId: string) => {
+    const pipeline = pipelines.find((p) => p.id === pipelineId);
+    const firstStage = (pipeline?.stages ?? []).slice().sort((a, b) => a.position - b.position)[0];
+    if (firstStage) {
+      moveLead(leadId, firstStage.id).then((updated) => {
+        qc.setQueryData<Lead>(['lead', leadId], updated);
+        qc.invalidateQueries({ queryKey: ['leads'] });
+      });
+    }
+  };
+
+  const handleStageChange = (stageId: string) => {
+    moveLead(leadId, stageId).then((updated) => {
+      qc.setQueryData<Lead>(['lead', leadId], updated);
+      qc.invalidateQueries({ queryKey: ['leads'] });
+    });
+  };
+
+  return (
+    <div className="px-4 pb-4">
+      <FieldRow label="Funil">
+        <InlineSelect
+          value={lead.pipelineId}
+          options={pipelineOptions}
+          placeholder="Selecione o funil"
+          onSave={handlePipelineChange}
+        />
+      </FieldRow>
+
+      <FieldRow label="Etapa">
+        <InlineSelect
+          value={lead.stageId}
+          options={stageOptions}
+          placeholder="Selecione a etapa"
+          onSave={handleStageChange}
+        />
+      </FieldRow>
     </div>
   );
 }
@@ -843,7 +877,7 @@ interface Props {
 }
 
 export default function InboxDataTab({ leadId }: Props) {
-  const [activeTab, setActiveTab] = useState<'negocio' | 'contato'>('negocio');
+  const [activeTab, setActiveTab] = useState<'negocio' | 'funil' | 'contato'>('negocio');
 
   const { data: lead } = useQuery({
     queryKey: ['lead', leadId],
@@ -855,6 +889,7 @@ export default function InboxDataTab({ leadId }: Props) {
 
   const tabs = [
     { id: 'negocio' as const, label: 'Negócio', icon: Briefcase },
+    { id: 'funil' as const, label: 'Funil', icon: Layers },
     { id: 'contato' as const, label: contactLabel, icon: isCompany ? Briefcase : UserIcon },
   ];
 
@@ -885,6 +920,7 @@ export default function InboxDataTab({ leadId }: Props) {
       {/* Tab content */}
       <div className="flex-1 overflow-y-auto">
         {activeTab === 'negocio' && <NegocioTab leadId={leadId} />}
+        {activeTab === 'funil' && <FunilTab leadId={leadId} />}
         {activeTab === 'contato' && lead?.contactId && <PessoaTab contactId={lead.contactId} />}
         {activeTab === 'contato' && lead?.companyId && !lead.contactId && <EmpresaTab companyId={lead.companyId} />}
         {activeTab === 'contato' && !lead?.contactId && !lead?.companyId && (
