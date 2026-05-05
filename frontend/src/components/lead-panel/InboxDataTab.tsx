@@ -322,7 +322,7 @@ function NegocioTab({ leadId }: { leadId: string }) {
       </div>
 
       {/* Title */}
-      <FieldRow label={isCompany ? 'Nome da empresa' : 'Nome'}>
+      <FieldRow label="Nome do negócio">
         <InlineEdit
           value={lead.title ?? ''}
           placeholder={lead.contact?.name ?? lead.company?.name ?? 'Sem título'}
