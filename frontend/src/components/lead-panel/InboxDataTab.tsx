@@ -19,7 +19,7 @@ import type { Lead, Contact, Company, Pipeline } from '@/types/api';
 
 function FieldLabel({ children }: { children: React.ReactNode }) {
   return (
-    <div className="text-[10px] font-semibold uppercase tracking-wider mb-1" style={{ color: 'var(--ink-3)' }}>
+    <div className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: 'var(--ink-3)', minWidth: 108, flexShrink: 0 }}>
       {children}
     </div>
   );
@@ -27,9 +27,9 @@ function FieldLabel({ children }: { children: React.ReactNode }) {
 
 function FieldRow({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="py-2.5" style={{ borderBottom: '1px solid var(--panel-border)' }}>
+    <div className="flex items-center gap-2 py-1.5" style={{ borderBottom: '1px solid var(--panel-border)' }}>
       <FieldLabel>{label}</FieldLabel>
-      {children}
+      <div className="flex-1 min-w-0">{children}</div>
     </div>
   );
 }
@@ -116,11 +116,9 @@ function InlineSelect({
     <div ref={ref} className="relative">
       <button
         onClick={() => setOpen((v) => !v)}
-        className="text-sm text-left w-full flex items-center justify-between gap-1 group px-2 py-1.5 rounded-md transition-colors"
+        className="text-sm text-left w-full flex items-center gap-1 group"
         style={{
           color: label ? 'var(--ink-1)' : 'var(--ink-3)',
-          background: open ? 'var(--surface-hover, rgba(255,255,255,0.06))' : 'transparent',
-          border: '1px solid var(--panel-border)',
           fontStyle: label ? 'normal' : 'italic',
         }}
       >
@@ -389,10 +387,10 @@ function NegocioTab({ leadId }: { leadId: string }) {
   };
 
   return (
-    <div className="px-4 pb-4">
+    <div className="px-3 pb-3">
       {/* Status */}
-      <div className="py-3" style={{ borderBottom: '1px solid var(--panel-border)' }}>
-        <FieldLabel>Status</FieldLabel>
+      <div className="py-2" style={{ borderBottom: '1px solid var(--panel-border)' }}>
+        <div className="text-[9px] font-semibold uppercase tracking-wider mb-1.5" style={{ color: 'var(--ink-3)' }}>Status</div>
         <StatusToggle lead={lead} />
         {lead.status === 'lost' && lead.lossReason && (
           <p className="text-xs mt-1.5" style={{ color: '#f87171' }}>Motivo: {lead.lossReason}</p>
@@ -482,8 +480,8 @@ function NegocioTab({ leadId }: { leadId: string }) {
       </FieldRow>
 
       {/* Produtos e Serviços */}
-      <div className="py-2.5">
-        <FieldLabel>Produtos e serviços</FieldLabel>
+      <div className="py-1.5" style={{ borderBottom: '1px solid var(--panel-border)' }}>
+        <div className="text-[9px] font-semibold uppercase tracking-wider mb-1" style={{ color: 'var(--ink-3)' }}>Produtos e serviços</div>
         <ProductSelector
           value={currentProductNames}
           onChange={handleProductsChange}
@@ -491,7 +489,7 @@ function NegocioTab({ leadId }: { leadId: string }) {
       </div>
 
       {/* Arquivar */}
-      <div className="pt-3" style={{ borderTop: '1px solid var(--panel-border)' }}>
+      <div className="pt-2">
         <button
           onClick={() => archiveMut.mutate()}
           disabled={archiveMut.isPending}
