@@ -7,3 +7,8 @@ coverage/
 package-lock.json
 *.sql
 uploads/
+
+# Local dev artifacts
+.frontend.log
+.frontend.pid
+.overclock-app/
