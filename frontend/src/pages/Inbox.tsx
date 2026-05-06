@@ -748,7 +748,7 @@ function ChatView({ item, onQualify, onArchive, isArchived }: {
                   message={m}
                   isOut={m.direction === 'outbound'}
                   channelId={channelId}
-                  onDelete={(msg) => deleteMut.mutate(msg)}
+                  onDelete={(msg: Message) => deleteMut.mutate(msg)}
                 />
               ))
             )}
