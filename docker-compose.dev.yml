@@ -6,7 +6,6 @@ services:
     environment:
       DATABASE_URL: postgresql://flowcrm:flowcrm@db:5432/flowcrm
       REDIS_URL: redis://redis:6379
-      EVOLUTION_API_URL: http://evolution-api:8080
       META_APP_SECRET: change-me-in-prod
       META_VERIFY_TOKEN: change-me-in-prod
       JWT_SECRET: dev-secret-change-in-prod
@@ -56,15 +55,6 @@ services:
       retries: 5
     restart: unless-stopped
 
-  evolution-api:
-    image: atendai/evolution-api:latest
-    environment:
-      AUTHENTICATION_API_KEY: dev-evolution-key
-      DATABASE_ENABLED: 'false'
-      AUTHENTICATION_EXPOSE_IN_FETCH_INSTANCES: 'true'
-    ports:
-      - "8082:8080"
-    restart: unless-stopped
 
 volumes:
   flowcrm_db:
