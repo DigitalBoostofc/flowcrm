@@ -313,6 +313,10 @@ export class ConversationsService {
     await this.repo.update(id, { fromAvatarUrl: url });
   }
 
+  async updateFromName(id: string, name: string): Promise<void> {
+    await this.repo.update(id, { fromName: name });
+  }
+
   async setInboxTag(id: string, inboxTagId: string | null): Promise<{ id: string; inboxTagId: string | null }> {
     const workspaceId = this.tenant.requireWorkspaceId();
     const result = await this.repo.update({ id, workspaceId }, { inboxTagId });

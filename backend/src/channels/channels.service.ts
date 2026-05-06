@@ -227,7 +227,7 @@ export class ChannelsService {
         channelType: 'uazapi',
         externalMessageId,
         from,
-        fromName: msg?.senderName ?? msg?.pushName ?? '',
+        fromName: fromMe ? null : (msg?.senderName ?? msg?.pushName ?? null),
         body,
         receivedAt,
         messageType: mediaType ?? 'text',
