@@ -182,10 +182,11 @@ export class UazapiWebhookController {
         return { ok: true };
       }
 
-      const fromName: string =
-        msg?.senderName ?? msg?.pushName ??
-        payload?.senderName ?? payload?.pushName ??
-        payload?.chat?.name ?? '';
+      const fromName: string | null = fromMe
+        ? null
+        : (msg?.senderName ?? msg?.pushName ??
+           payload?.senderName ?? payload?.pushName ??
+           payload?.chat?.name ?? null);
 
       const externalMessageId: string =
         msg?.messageid ?? msg?.key?.id ??

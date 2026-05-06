@@ -15,7 +15,7 @@ interface InboundEvent {
   phoneNumberId?: string;
   externalMessageId: string;
   from: string;
-  fromName?: string;
+  fromName?: string | null;
   body: string;
   receivedAt: Date;
   messageType?: string;
@@ -47,8 +47,22 @@ export class InboundListener {
           evt.channelType,
           evt.from,
           channel.workspaceId,
-          evt.fromName,
+          evt.fromName ?? undefined,
         );
+
+        if (channel.type === 'uazapi' && evt.channelConfigId) {
+          const needName = !conv.fromName;
+          const needAvatar = !conv.fromAvatarUrl;
+          if (needName || needAvatar) {
+            this.uazapi.getChatDetails(evt.channelConfigId, evt.from)
+              .then(({ name, image }) => {
+                if (name && needName) this.conversations.updateFromName(conv.id, name);
+                if (image && needAvatar) this.conversations.updateFromAvatar(conv.id, image);
+              })
+              .catch(() => { /* ignore */ });
+          }
+        }
+
         const saved = await this.messages.saveWebhookOutbound({
           conversationId: conv.id,
           externalMessageId: evt.externalMessageId,
@@ -96,7 +110,7 @@ export class InboundListener {
       evt.channelType,
       evt.from,
       channel.workspaceId,
-      evt.fromName,
+      evt.fromName ?? undefined,
     );
 
     // Fetch WhatsApp profile picture in background when not yet saved
