@@ -659,10 +659,10 @@ function ChatView({ item, onQualify, onArchive, isArchived }: {
         className="flex items-center gap-3 px-5 py-3.5 flex-shrink-0"
         style={{ borderBottom: '1px solid var(--edge)', background: 'var(--surface)' }}
       >
-        <Avatar name={item.contactName} url={item.contactAvatarUrl} size={36} />
+        <Avatar name={item.contactName ?? item.fromName} url={item.contactAvatarUrl ?? item.fromAvatarUrl} size={36} />
         <div className="flex-1 min-w-0">
           <div className="text-sm font-semibold" style={{ color: 'var(--ink-1)' }}>
-            {item.contactName ?? 'Desconhecido'}
+            {item.contactName ?? item.fromName ?? item.externalId ?? 'Desconhecido'}
           </div>
           {phone && (
             <div className="flex items-center gap-1 text-xs" style={{ color: 'var(--ink-3)' }}>
