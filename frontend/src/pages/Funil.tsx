@@ -495,7 +495,7 @@ function EtapasFunilModal({
 
           {tab === 'etiquetas' && (
             <div className="max-w-md">
-              <LabelsManager pipelineId={pipeline.id} />
+              <LabelsManager />
             </div>
           )}
 
