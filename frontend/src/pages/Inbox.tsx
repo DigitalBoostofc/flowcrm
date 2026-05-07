@@ -85,7 +85,7 @@ function InboxTagPicker({
   const assignMut = useMutation({
     mutationFn: (tagId: string | null) => setConversationInboxTag(conversationId, tagId),
     onSuccess: (_, tagId) => {
-      qc.setQueryData<{ pages: InboxPage[]; pageParams: unknown[] }>(['inbox'], (prev) => {
+      qc.setQueriesData<{ pages: InboxPage[]; pageParams: unknown[] }>({ queryKey: ['inbox'] }, (prev) => {
         if (!prev) return prev;
         const tag = tags.find((t) => t.id === tagId);
         return {
@@ -1001,7 +1001,7 @@ export default function Inbox() {
   function handleSelect(item: InboxItem) {
     setSelectedId(item.id);
     if (item.unread) {
-      qc.setQueryData<{ pages: InboxPage[]; pageParams: unknown[] }>(['inbox'], (prev) => {
+      qc.setQueryData<{ pages: InboxPage[]; pageParams: unknown[] }>(['inbox', { filter: apiFilter, tagId: tagFilter }], (prev) => {
         if (!prev) return prev;
         return {
           ...prev,
