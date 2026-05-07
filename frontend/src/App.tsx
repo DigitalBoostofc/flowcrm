@@ -1,5 +1,7 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
-import { lazy, Suspense, useEffect } from 'react';
+import { Suspense, useEffect } from 'react';
+import lazyWithRetry from '@/lib/lazyWithRetry';
+import ErrorBoundary from '@/components/ui/ErrorBoundary';
 import Login from '@/pages/Login';
 import Signup from '@/pages/Signup';
 import Termos from '@/pages/legal/Termos';
@@ -24,24 +26,24 @@ import { Loader2 } from 'lucide-react';
 
 // Code-splitting por rota: cada page vira um chunk próprio carregado on-demand.
 // Reduz o bundle inicial — login/signup/legal não puxam o peso do app autenticado.
-const Inicio = lazy(() => import('@/pages/Inicio'));
-const Pessoas = lazy(() => import('@/pages/Pessoas'));
-const Negocios = lazy(() => import('@/pages/Negocios'));
-const Funil = lazy(() => import('@/pages/Funil'));
-const Settings = lazy(() => import('@/pages/Settings'));
-const Analytics = lazy(() => import('@/pages/Analytics'));
-const Tasks = lazy(() => import('@/pages/Tasks'));
-const Companies = lazy(() => import('@/pages/Companies'));
-const Inbox = lazy(() => import('@/pages/Inbox'));
-const Calendario = lazy(() => import('@/pages/Calendario'));
-const Perfil = lazy(() => import('@/pages/Perfil'));
-const Admin = lazy(() => import('@/pages/Admin'));
-const Assinar = lazy(() => import('@/pages/Assinar'));
-const BillingSuccess = lazy(() => import('@/pages/BillingSuccess'));
-const BillingCancel = lazy(() => import('@/pages/BillingCancel'));
-const NotFound = lazy(() => import('@/pages/NotFound'));
-const WidgetPage = lazy(() => import('@/pages/WidgetPage'));
-const AgendaMobile = lazy(() => import('@/pages/AgendaMobile'));
+const Inicio = lazyWithRetry(() => import('@/pages/Inicio'));
+const Pessoas = lazyWithRetry(() => import('@/pages/Pessoas'));
+const Negocios = lazyWithRetry(() => import('@/pages/Negocios'));
+const Funil = lazyWithRetry(() => import('@/pages/Funil'));
+const Settings = lazyWithRetry(() => import('@/pages/Settings'));
+const Analytics = lazyWithRetry(() => import('@/pages/Analytics'));
+const Tasks = lazyWithRetry(() => import('@/pages/Tasks'));
+const Companies = lazyWithRetry(() => import('@/pages/Companies'));
+const Inbox = lazyWithRetry(() => import('@/pages/Inbox'));
+const Calendario = lazyWithRetry(() => import('@/pages/Calendario'));
+const Perfil = lazyWithRetry(() => import('@/pages/Perfil'));
+const Admin = lazyWithRetry(() => import('@/pages/Admin'));
+const Assinar = lazyWithRetry(() => import('@/pages/Assinar'));
+const BillingSuccess = lazyWithRetry(() => import('@/pages/BillingSuccess'));
+const BillingCancel = lazyWithRetry(() => import('@/pages/BillingCancel'));
+const NotFound = lazyWithRetry(() => import('@/pages/NotFound'));
+const WidgetPage = lazyWithRetry(() => import('@/pages/WidgetPage'));
+const AgendaMobile = lazyWithRetry(() => import('@/pages/AgendaMobile'));
 
 function PageFallback() {
   return (
@@ -87,27 +89,29 @@ function AuthedLayout() {
       <ImpersonationBanner />
       <ConnectionBanner />
       <BroadcastBanner />
-      <Suspense fallback={<PageFallback />}>
-        <Routes>
-          <Route index element={<Navigate to="/funil" replace />} />
-          <Route path="inicio" element={<Inicio />} />
-          <Route path="pessoas" element={<Pessoas />} />
-          <Route path="negocios" element={<Negocios />} />
-          <Route path="funil" element={<Funil />} />
-          <Route path="tasks" element={<GatedTasks />} />
-          <Route path="inbox" element={<GatedInbox />} />
-          <Route path="companies" element={<Companies />} />
-          <Route path="analytics" element={<GatedAnalytics />} />
-          <Route path="calendario" element={<Calendario />} />
-          <Route path="settings" element={<Settings />} />
-          <Route path="perfil" element={<Perfil />} />
-          <Route path="admin" element={<Admin />} />
-          <Route path="assinar" element={<Assinar />} />
-          <Route path="billing/success" element={<BillingSuccess />} />
-          <Route path="billing/cancel" element={<BillingCancel />} />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </Suspense>
+      <ErrorBoundary>
+        <Suspense fallback={<PageFallback />}>
+          <Routes>
+            <Route index element={<Navigate to="/funil" replace />} />
+            <Route path="inicio" element={<Inicio />} />
+            <Route path="pessoas" element={<Pessoas />} />
+            <Route path="negocios" element={<Negocios />} />
+            <Route path="funil" element={<Funil />} />
+            <Route path="tasks" element={<GatedTasks />} />
+            <Route path="inbox" element={<GatedInbox />} />
+            <Route path="companies" element={<Companies />} />
+            <Route path="analytics" element={<GatedAnalytics />} />
+            <Route path="calendario" element={<Calendario />} />
+            <Route path="settings" element={<Settings />} />
+            <Route path="perfil" element={<Perfil />} />
+            <Route path="admin" element={<Admin />} />
+            <Route path="assinar" element={<Assinar />} />
+            <Route path="billing/success" element={<BillingSuccess />} />
+            <Route path="billing/cancel" element={<BillingCancel />} />
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </Suspense>
+      </ErrorBoundary>
     </AppShell>
   );
 }
