@@ -149,6 +149,28 @@ export class MessagesService {
     return this.repo.save(msg);
   }
 
+  async updateOutboundResult(
+    messageId: string,
+    data: { externalMessageId: string; status: MessageStatus },
+  ): Promise<Message> {
+    const workspaceId = this.tenant.requireWorkspaceId();
+    // UPDATE only if the row still holds the fallback id; if webhook already claimed it, this is a no-op.
+    await this.repo
+      .createQueryBuilder()
+      .update(Message)
+      .set({ externalMessageId: data.externalMessageId, status: data.status })
+      .where('id = :id', { id: messageId })
+      .andWhere('"workspaceId" = :wsId', { wsId: workspaceId })
+      .andWhere('"externalMessageId" LIKE :fallback', { fallback: 'uza-%' })
+      .execute();
+    return this.repo.findOneOrFail({ where: { id: messageId, workspaceId } });
+  }
+
+  async markOutboundFailed(messageId: string): Promise<void> {
+    const workspaceId = this.tenant.requireWorkspaceId();
+    await this.repo.update({ id: messageId, workspaceId }, { status: 'failed' });
+  }
+
   async updateStatus(externalMessageId: string, status: MessageStatus): Promise<void> {
     await this.repo.update({ externalMessageId }, { status });
   }
