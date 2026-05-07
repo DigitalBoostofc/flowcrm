@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
-import { Sparkles, RefreshCw, ChevronDown, ChevronUp, X } from 'lucide-react';
+import { Sparkles, RefreshCw, ChevronDown, ChevronUp, X, Copy, Check } from 'lucide-react';
 import { summarizeConversation, type ConversationSummary } from '@/api/ai';
 import { useFeatures } from '@/hooks/useFeatures';
 
@@ -14,6 +14,7 @@ export default function ConversationSummaryButton({ conversationId }: Props) {
   const [collapsed, setCollapsed] = useState(false);
   const [result, setResult] = useState<ConversationSummary | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
 
   const mutation = useMutation({
     mutationFn: () => summarizeConversation(conversationId),
@@ -31,6 +32,27 @@ export default function ConversationSummaryButton({ conversationId }: Props) {
       setOpen(true);
     },
   });
+
+  const handleCopy = async () => {
+    if (!result?.summary) return;
+    try {
+      await navigator.clipboard.writeText(result.summary);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // fallback: select text in a temporary textarea
+      const textarea = document.createElement('textarea');
+      textarea.value = result.summary;
+      textarea.style.position = 'fixed';
+      textarea.style.opacity = '0';
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textarea);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
 
   if (!features.has('ai_assist')) return null;
 
@@ -95,8 +117,20 @@ export default function ConversationSummaryButton({ conversationId }: Props) {
           {!error && result && (
             <>
               <div className="whitespace-pre-wrap break-words">{result.summary}</div>
-              <div className="mt-2 text-[10px]" style={{ color: 'var(--ink-3)' }}>
-                {result.cached ? 'Em cache' : `IA · ${result.tokensUsed} tokens`} · {result.model}
+              <div className="mt-2 flex items-center justify-between gap-2">
+                <span className="text-[10px]" style={{ color: 'var(--ink-3)' }}>
+                  {result.cached ? 'Em cache' : `IA · ${result.tokensUsed} tokens`} · {result.model}
+                </span>
+                <button
+                  type="button"
+                  onClick={handleCopy}
+                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium border transition-colors hover:bg-[var(--surface)]"
+                  style={{ color: 'var(--ink-2)', borderColor: 'var(--edge)' }}
+                  title="Copiar resumo"
+                >
+                  {copied ? <Check size={10} className="text-green-600" /> : <Copy size={10} />}
+                  <span>{copied ? 'Copiado' : 'Copiar'}</span>
+                </button>
               </div>
             </>
           )}
