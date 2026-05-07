@@ -34,3 +34,11 @@ export async function addLabelToLead(leadId: string, labelId: string): Promise<v
 export async function removeLabelFromLead(leadId: string, labelId: string): Promise<void> {
   await api.delete(`/labels/leads/${leadId}/${labelId}`);
 }
+
+export async function addLabelToConversation(conversationId: string, labelId: string): Promise<void> {
+  await api.post(`/labels/conversations/${conversationId}/${labelId}`);
+}
+
+export async function removeLabelFromConversation(conversationId: string, labelId: string): Promise<void> {
+  await api.delete(`/labels/conversations/${conversationId}/${labelId}`);
+}

@@ -3,8 +3,8 @@ import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from '@tansta
 
 import {
   MessageCircle, Send, Search, Phone, Loader2, Sparkles,
-  Paperclip, Mic, MicOff, File, Video, Tag, Plus,
-  Archive, ArchiveRestore, X, Check, Trash2,
+  Paperclip, Mic, MicOff, File, Video, Tag,
+  Archive, ArchiveRestore, X, Check,
 } from 'lucide-react';
 import ConversationSummaryButton from '@/components/lead-panel/ConversationSummary';
 import MessageBubble from '@/components/inbox/MessageBubble';
@@ -19,10 +19,7 @@ import { listChannels } from '@/api/channels';
 import { listPipelines } from '@/api/pipelines';
 import { getLead } from '@/api/leads';
 import { listWorkspaceMembers } from '@/api/users';
-import {
-  listInboxTags, createInboxTag, deleteInboxTag, setConversationInboxTag,
-  type InboxTag,
-} from '@/api/inbox-tags';
+import { listLabels, addLabelToConversation, removeLabelFromConversation } from '@/api/labels';
 import { useAuthStore } from '@/store/auth.store';
 import { api } from '@/api/client';
 import { useWs } from '@/hooks/useWebSocket';
@@ -53,75 +50,56 @@ function formatFileSize(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-/* ── Predefined tag colors ────────────────────────────── */
-const TAG_COLORS = [
-  '#6366f1', '#8b5cf6', '#ec4899', '#ef4444', '#f97316',
-  '#eab308', '#22c55e', '#14b8a6', '#06b6d4', '#3b82f6',
-];
+/* ── ConversationLabelPicker ──────────────────────────── */
 
-/* ── InboxTagPicker ───────────────────────────────────── */
-
-function InboxTagPicker({
+function ConversationLabelPicker({
   conversationId,
-  currentTagId,
+  currentLabels,
   onClose,
 }: {
   conversationId: string;
-  currentTagId: string | null;
+  currentLabels: { id: string; name: string; color: string }[];
   onClose: () => void;
 }) {
   const qc = useQueryClient();
-  const [creating, setCreating] = useState(false);
-  const [newName, setNewName] = useState('');
-  const [newColor, setNewColor] = useState(TAG_COLORS[0]);
   const ref = useRef<HTMLDivElement>(null);
+  const currentIds = new Set(currentLabels.map((l) => l.id));
 
-  const { data: tags = [] } = useQuery({
-    queryKey: ['inbox-tags'],
-    queryFn: listInboxTags,
+  const { data: labels = [] } = useQuery({
+    queryKey: ['labels', 'workspace'],
+    queryFn: () => listLabels(),
   });
 
-  const assignMut = useMutation({
-    mutationFn: (tagId: string | null) => setConversationInboxTag(conversationId, tagId),
-    onSuccess: (_, tagId) => {
+  const toggleMut = useMutation({
+    mutationFn: async ({ labelId, add }: { labelId: string; add: boolean }) => {
+      if (add) {
+        await addLabelToConversation(conversationId, labelId);
+      } else {
+        await removeLabelFromConversation(conversationId, labelId);
+      }
+      return { labelId, add };
+    },
+    onSuccess: ({ labelId, add }) => {
+      const label = labels.find((l) => l.id === labelId);
       qc.setQueriesData<{ pages: InboxPage[]; pageParams: unknown[] }>({ queryKey: ['inbox'] }, (prev) => {
         if (!prev) return prev;
-        const tag = tags.find((t) => t.id === tagId);
         return {
           ...prev,
           pages: prev.pages.map((p) => ({
             ...p,
-            items: p.items.map((i) =>
-              i.id === conversationId
-                ? { ...i, inboxTagId: tagId, inboxTagName: tag?.name ?? null, inboxTagColor: tag?.color ?? null }
-                : i,
-            ),
+            items: p.items.map((i) => {
+              if (i.id !== conversationId) return i;
+              const newLabels = add
+                ? [...i.labels, { id: labelId, name: label?.name ?? '', color: label?.color ?? '' }]
+                : i.labels.filter((l) => l.id !== labelId);
+              return { ...i, labels: newLabels };
+            }),
           })),
         };
       });
-      onClose();
     },
   });
 
-  const createMut = useMutation({
-    mutationFn: () => createInboxTag({ name: newName.trim(), color: newColor }),
-    onSuccess: (tag) => {
-      qc.invalidateQueries({ queryKey: ['inbox-tags'] });
-      assignMut.mutate(tag.id);
-      setCreating(false);
-      setNewName('');
-    },
-  });
-
-  const deleteMut = useMutation({
-    mutationFn: (id: string) => deleteInboxTag(id),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['inbox-tags'] });
-      qc.invalidateQueries({ queryKey: ['inbox'] });
-    },
-  });
-
-  // Close on outside click
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (ref.current && !ref.current.contains(e.target as Node)) onClose();
@@ -133,117 +111,37 @@ function InboxTagPicker({
   return (
     <div
       ref={ref}
-      className="absolute top-full left-0 mt-1 z-50 rounded-xl shadow-xl border overflow-hidden"
+      className="absolute top-full right-0 mt-1 z-50 rounded-xl shadow-xl border overflow-hidden"
       style={{ background: 'var(--surface-raised)', borderColor: 'var(--edge)', minWidth: 220 }}
       onClick={(e) => e.stopPropagation()}
     >
       <div className="px-3 py-2 border-b flex items-center gap-2" style={{ borderColor: 'var(--edge)' }}>
         <Tag className="w-3.5 h-3.5" style={{ color: 'var(--ink-3)' }} />
-        <span className="text-xs font-semibold" style={{ color: 'var(--ink-2)' }}>Etiqueta do atendimento</span>
+        <span className="text-xs font-semibold" style={{ color: 'var(--ink-2)' }}>Etiquetas da conversa</span>
       </div>
 
       <div className="py-1" style={{ maxHeight: 240, overflowY: 'auto' }}>
-        {/* Remove tag option */}
-        {currentTagId && (
-          <button
-            onClick={() => assignMut.mutate(null)}
-            className="w-full text-left px-3 py-2 text-xs flex items-center gap-2 hover:opacity-80"
-            style={{ color: 'var(--ink-3)' }}
-          >
-            <X className="w-3 h-3" />
-            Remover etiqueta
-          </button>
-        )}
-
-        {tags.map((tag) => (
-          <div
-            key={tag.id}
-            className="flex items-center gap-2 px-3 py-1.5 group"
-            style={{ borderBottom: '1px solid var(--edge)' }}
-          >
-            <button
-              onClick={() => assignMut.mutate(tag.id === currentTagId ? null : tag.id)}
-              className="flex items-center gap-2 flex-1 min-w-0"
-            >
-              <span
-                className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-                style={{ background: tag.color }}
-              />
-              <span
-                className="text-xs truncate"
-                style={{ color: tag.id === currentTagId ? 'var(--ink-1)' : 'var(--ink-2)', fontWeight: tag.id === currentTagId ? 600 : 400 }}
-              >
-                {tag.name}
-              </span>
-              {tag.id === currentTagId && <Check className="w-3 h-3 ml-auto flex-shrink-0" style={{ color: 'var(--brand-500)' }} />}
-            </button>
-            <button
-              onClick={() => { if (window.confirm(`Excluir etiqueta "${tag.name}"?`)) deleteMut.mutate(tag.id); }}
-              className="opacity-0 group-hover:opacity-60 hover:!opacity-100 p-0.5 rounded transition-opacity"
-              style={{ color: 'var(--ink-3)' }}
-            >
-              <Trash2 className="w-3 h-3" />
-            </button>
-          </div>
-        ))}
-
-        {tags.length === 0 && !creating && (
+        {labels.length === 0 && (
           <p className="px-3 py-3 text-xs text-center" style={{ color: 'var(--ink-3)' }}>
-            Nenhuma etiqueta criada ainda
+            Nenhuma etiqueta criada. Acesse Configurações → Etiquetas.
           </p>
         )}
+        {labels.map((label) => {
+          const isActive = currentIds.has(label.id);
+          return (
+            <button
+              key={label.id}
+              onClick={() => toggleMut.mutate({ labelId: label.id, add: !isActive })}
+              disabled={toggleMut.isPending}
+              className="w-full flex items-center gap-2 px-3 py-2 text-xs hover:opacity-80 transition-opacity disabled:opacity-50"
+            >
+              <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: label.color }} />
+              <span className="flex-1 text-left truncate" style={{ color: 'var(--ink-1)' }}>{label.name}</span>
+              {isActive && <Check className="w-3 h-3 flex-shrink-0" style={{ color: 'var(--brand-500)' }} />}
+            </button>
+          );
+        })}
       </div>
-
-      {/* Create new tag */}
-      {creating ? (
-        <div className="px-3 py-2 border-t space-y-2" style={{ borderColor: 'var(--edge)' }}>
-          <input
-            autoFocus
-            value={newName}
-            onChange={(e) => setNewName(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter' && newName.trim()) createMut.mutate(); if (e.key === 'Escape') setCreating(false); }}
-            placeholder="Nome da etiqueta..."
-            className="w-full px-2 py-1.5 rounded-lg text-xs outline-none"
-            style={{ background: 'var(--surface)', border: '1px solid var(--edge)', color: 'var(--ink-1)' }}
-          />
-          <div className="flex flex-wrap gap-1.5">
-            {TAG_COLORS.map((c) => (
-              <button
-                key={c}
-                onClick={() => setNewColor(c)}
-                className="w-4 h-4 rounded-full transition-all"
-                style={{ background: c, outline: newColor === c ? `2px solid ${c}` : 'none', outlineOffset: 2 }}
-              />
-            ))}
-          </div>
-          <div className="flex gap-1">
-            <button
-              onClick={() => { if (newName.trim()) createMut.mutate(); }}
-              disabled={!newName.trim() || createMut.isPending}
-              className="flex-1 py-1.5 rounded-lg text-xs font-semibold text-white disabled:opacity-50"
-              style={{ background: 'var(--brand-500)' }}
-            >
-              {createMut.isPending ? 'Criando…' : 'Criar'}
-            </button>
-            <button
-              onClick={() => { setCreating(false); setNewName(''); }}
-              className="px-3 py-1.5 rounded-lg text-xs"
-              style={{ color: 'var(--ink-2)', background: 'var(--surface-hover)' }}
-            >
-              Cancelar
-            </button>
-          </div>
-        </div>
-      ) : (
-        <button
-          onClick={() => setCreating(true)}
-          className="w-full flex items-center gap-2 px-3 py-2 text-xs border-t"
-          style={{ color: 'var(--brand-500)', borderColor: 'var(--edge)' }}
-        >
-          <Plus className="w-3.5 h-3.5" />
-          Nova etiqueta
-        </button>
-      )}
     </div>
   );
 }
@@ -348,7 +246,6 @@ function ConvItem({ item, selected, onClick, onArchive, isArchived }: {
 }) {
   const pending = item.pendingClassification;
   const ch = channelMeta(item.channelType);
-  const [showTagPicker, setShowTagPicker] = useState(false);
   const [hovered, setHovered] = useState(false);
 
   return (
@@ -366,40 +263,30 @@ function ConvItem({ item, selected, onClick, onArchive, isArchived }: {
       <Avatar name={item.contactName ?? item.fromName} url={item.contactAvatarUrl ?? item.fromAvatarUrl} size={36} />
 
       <div className="flex-1 min-w-0">
+        {item.labels.length > 0 && (
+          <div className="flex flex-wrap gap-1 mb-0.5">
+            {item.labels.map((label) => (
+              <span
+                key={label.id}
+                className="flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-semibold"
+                style={{ background: label.color + '22', color: label.color, border: `1px solid ${label.color}55` }}
+              >
+                <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: label.color }} />
+                {label.name}
+              </span>
+            ))}
+          </div>
+        )}
         <div className="flex items-center justify-between gap-2">
           <span className="text-sm font-medium truncate" style={{ color: 'var(--ink-1)' }}>
             {item.contactName ?? item.fromName ?? item.externalId ?? 'Desconhecido'}
           </span>
           <span className="text-[10px] flex-shrink-0 flex items-center gap-1.5" style={{ color: 'var(--ink-3)' }}>
-            {/* Channel badge — clicking opens the tag picker */}
-            <span className="relative">
-              <button
-                title="Etiqueta de atendimento"
-                onClick={(e) => { e.stopPropagation(); setShowTagPicker((v) => !v); }}
-                className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-full font-semibold border transition-opacity hover:opacity-80"
-                style={
-                  item.inboxTagId && item.inboxTagColor
-                    ? { background: item.inboxTagColor + '22', color: item.inboxTagColor, borderColor: item.inboxTagColor + '55', fontSize: 9 }
-                    : { background: ch.bg, color: ch.fg, borderColor: ch.border, fontSize: 9 }
-                }
-              >
-                {item.inboxTagId && item.inboxTagName ? (
-                  <>
-                    <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: item.inboxTagColor ?? undefined }} />
-                    {item.inboxTagName}
-                  </>
-                ) : (
-                  ch.shortLabel
-                )}
-              </button>
-
-              {showTagPicker && (
-                <InboxTagPicker
-                  conversationId={item.id}
-                  currentTagId={item.inboxTagId}
-                  onClose={() => setShowTagPicker(false)}
-                />
-              )}
+            <span
+              className="px-1.5 py-0.5 rounded-full font-semibold border"
+              style={{ background: ch.bg, color: ch.fg, borderColor: ch.border, fontSize: 9 }}
+            >
+              {ch.shortLabel}
             </span>
             {timeAgo(item.lastMessageSentAt ?? item.updatedAt)}
           </span>
@@ -456,6 +343,7 @@ function ChatView({ item, onQualify, onArchive, isArchived }: {
 }) {
   const qc = useQueryClient();
   const [showQualifyModal, setShowQualifyModal] = useState(false);
+  const [showLabelPicker, setShowLabelPicker] = useState(false);
   const [body, setBody] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [showQuickReplies, setShowQuickReplies] = useState(false);
@@ -721,6 +609,20 @@ function ChatView({ item, onQualify, onArchive, isArchived }: {
                 {phone}
               </div>
             )}
+            {item.labels.length > 0 && (
+              <div className="flex flex-wrap gap-1 mt-1">
+                {item.labels.map((label) => (
+                  <span
+                    key={label.id}
+                    className="flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-semibold"
+                    style={{ background: label.color + '22', color: label.color, border: `1px solid ${label.color}55` }}
+                  >
+                    <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: label.color }} />
+                    {label.name}
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
           <div className="flex items-center gap-2">
             {item.pendingClassification ? (
@@ -743,6 +645,23 @@ function ChatView({ item, onQualify, onArchive, isArchived }: {
                 {item.unread ? 'Nova mensagem' : 'WhatsApp'}
               </div>
             )}
+            <div className="relative">
+              <button
+                onClick={() => setShowLabelPicker((v) => !v)}
+                title="Etiquetas da conversa"
+                className="p-1.5 rounded-lg hover:opacity-80 transition-opacity"
+                style={{ background: 'var(--surface-hover)', border: '1px solid var(--edge)', color: 'var(--ink-3)' }}
+              >
+                <Tag className="w-3.5 h-3.5" />
+              </button>
+              {showLabelPicker && (
+                <ConversationLabelPicker
+                  conversationId={item.id}
+                  currentLabels={item.labels}
+                  onClose={() => setShowLabelPicker(false)}
+                />
+              )}
+            </div>
             <button
               onClick={onArchive}
               title={isArchived ? 'Desarquivar conversa' : 'Arquivar conversa'}
@@ -932,8 +851,8 @@ export default function Inbox() {
   });
 
   const { data: allTags = [] } = useQuery({
-    queryKey: ['inbox-tags'],
-    queryFn: listInboxTags,
+    queryKey: ['labels', 'workspace'],
+    queryFn: () => listLabels(),
   });
 
   const apiFilter = tab === 'arquivadas' ? 'archived' : 'all';
