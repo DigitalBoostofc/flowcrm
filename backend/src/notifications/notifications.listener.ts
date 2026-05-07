@@ -67,6 +67,15 @@ export class NotificationsListener {
     this.gateway.emitToWorkspaceOwners(evt.workspaceId, 'channel.status.changed', evt);
   }
 
+  @OnEvent('message.status.updated')
+  onMessageStatusUpdated(evt: { externalMessageId: string; status: string; workspaceId?: string }) {
+    if (!evt.workspaceId) return;
+    this.gateway.emitToWorkspace(evt.workspaceId, 'message.status.updated', {
+      externalMessageId: evt.externalMessageId,
+      status: evt.status,
+    });
+  }
+
   @OnEvent('job.failed')
   onJobFailed(evt: { queue: string; jobId: string; error: string; workspaceId?: string }) {
     if (!evt.workspaceId) {

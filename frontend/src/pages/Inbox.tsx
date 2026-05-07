@@ -543,6 +543,22 @@ function ChatView({ item, onQualify, onArchive, onPin, onDeleteContact, isArchiv
     return () => { socket.off('message.received', handler); };
   }, [socket, item.id, qc]);
 
+  // Real-time ACK — atualiza status visual (check único/duplo/azul) sem refetch completo
+  useEffect(() => {
+    if (!socket) return;
+    const handler = (evt: { externalMessageId: string; status: string }) => {
+      qc.setQueryData<Message[]>(['messages', item.id], (prev = []) =>
+        prev.map(m =>
+          m.externalMessageId === evt.externalMessageId
+            ? { ...m, status: evt.status as Message['status'] }
+            : m
+        )
+      );
+    };
+    socket.on('message.status.updated', handler);
+    return () => { socket.off('message.status.updated', handler); };
+  }, [socket, item.id, qc]);
+
   // Reset state on conversation switch
   useEffect(() => { setBody(''); setSelectedFile(null); setShowQualifyModal(false); }, [item.id]);
 
