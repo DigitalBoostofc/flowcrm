@@ -2,15 +2,14 @@ import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 import {
-  MessageCircle, Send, Search, Phone, Loader2, Sparkles, Activity,
-  FileText, Paperclip, Mic, MicOff, File, Video, Tag, Plus,
+  MessageCircle, Send, Search, Phone, Loader2, Sparkles,
+  Paperclip, Mic, MicOff, File, Video, Tag, Plus,
   Archive, ArchiveRestore, X, Check, Trash2,
 } from 'lucide-react';
 import ConversationSummaryButton from '@/components/lead-panel/ConversationSummary';
-import LeadActivities from '@/components/lead-panel/LeadActivities';
-import InboxDataTab from '@/components/lead-panel/InboxDataTab';
 import MessageBubble from '@/components/inbox/MessageBubble';
 import QualifyModal from '@/components/inbox/QualifyModal';
+import RightSidebar from '@/components/inbox/RightSidebar';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { listInbox, markConversationRead, qualifyConversation, archiveConversation, type InboxItem, type InboxPage } from '@/api/conversations';
@@ -449,14 +448,6 @@ function ConvItem({ item, selected, onClick, onArchive, isArchived }: {
 
 /* ── ChatView ─────────────────────────────────────────── */
 
-type ChatTab = 'chat' | 'activities' | 'info';
-
-const CHAT_TABS: { id: ChatTab; label: string; icon: React.ElementType }[] = [
-  { id: 'chat', label: 'Chat', icon: MessageCircle },
-  { id: 'activities', label: 'Atividades', icon: Activity },
-  { id: 'info', label: 'Dados', icon: FileText },
-];
-
 function ChatView({ item, onQualify, onArchive, isArchived }: {
   item: InboxItem;
   onQualify: (payload: { name: string; type: 'person' | 'company'; pipelineId: string; stageId: string; assignedToId: string }) => Promise<void>;
@@ -464,7 +455,6 @@ function ChatView({ item, onQualify, onArchive, isArchived }: {
   isArchived?: boolean;
 }) {
   const qc = useQueryClient();
-  const [activeTab, setActiveTab] = useState<ChatTab>('chat');
   const [showQualifyModal, setShowQualifyModal] = useState(false);
   const [body, setBody] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -489,7 +479,6 @@ function ChatView({ item, onQualify, onArchive, isArchived }: {
   const { data: rawMessages = [], isLoading } = useQuery({
     queryKey: ['messages', item.id],
     queryFn: () => listMessages(item.id),
-    enabled: activeTab === 'chat',
     refetchInterval: 10000,
     refetchIntervalInBackground: false,
   });
@@ -498,10 +487,8 @@ function ChatView({ item, onQualify, onArchive, isArchived }: {
 
   // Auto-scroll on new messages
   useEffect(() => {
-    if (activeTab === 'chat') {
-      scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
-    }
-  }, [messages.length, activeTab]);
+    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
+  }, [messages.length]);
 
   // Real-time updates
   useEffect(() => {
@@ -514,8 +501,8 @@ function ChatView({ item, onQualify, onArchive, isArchived }: {
     return () => { socket.off('message.received', handler); };
   }, [socket, item.id, qc]);
 
-  // Reset tab on conversation switch
-  useEffect(() => { setActiveTab('chat'); setBody(''); setSelectedFile(null); setShowQualifyModal(false); }, [item.id]);
+  // Reset state on conversation switch
+  useEffect(() => { setBody(''); setSelectedFile(null); setShowQualifyModal(false); }, [item.id]);
 
   // Mark as read + sync full chat history when conversation opens
   useEffect(() => {
@@ -653,219 +640,188 @@ function ChatView({ item, onQualify, onArchive, isArchived }: {
   const canSend = (selectedFile || body.trim()) && channelId && !isSending && activeChannels.length > 0;
 
   return (
-    <div className="flex flex-col h-full">
-      {/* Header */}
-      <div
-        className="flex items-center gap-3 px-5 py-3.5 flex-shrink-0"
-        style={{ borderBottom: '1px solid var(--edge)', background: 'var(--surface)' }}
-      >
-        <Avatar name={item.contactName ?? item.fromName} url={item.contactAvatarUrl ?? item.fromAvatarUrl} size={36} />
-        <div className="flex-1 min-w-0">
-          <div className="text-sm font-semibold" style={{ color: 'var(--ink-1)' }}>
-            {item.contactName ?? item.fromName ?? item.externalId ?? 'Desconhecido'}
+    <div className="flex h-full">
+      {/* Main chat column */}
+      <div className="flex flex-col flex-1 min-w-0">
+        {/* Header */}
+        <div
+          className="flex items-center gap-3 px-5 py-3.5 flex-shrink-0"
+          style={{ borderBottom: '1px solid var(--edge)', background: 'var(--surface)' }}
+        >
+          <Avatar name={item.contactName ?? item.fromName} url={item.contactAvatarUrl ?? item.fromAvatarUrl} size={36} />
+          <div className="flex-1 min-w-0">
+            <div className="text-sm font-semibold" style={{ color: 'var(--ink-1)' }}>
+              {item.contactName ?? item.fromName ?? item.externalId ?? 'Desconhecido'}
+            </div>
+            {phone && (
+              <div className="flex items-center gap-1 text-xs" style={{ color: 'var(--ink-3)' }}>
+                <Phone className="w-3 h-3" strokeWidth={1.75} />
+                {phone}
+              </div>
+            )}
           </div>
-          {phone && (
-            <div className="flex items-center gap-1 text-xs" style={{ color: 'var(--ink-3)' }}>
-              <Phone className="w-3 h-3" strokeWidth={1.75} />
-              {phone}
-            </div>
-          )}
-        </div>
-        <div className="flex items-center gap-2">
-          {item.pendingClassification ? (
-            <button
-              onClick={() => setShowQualifyModal(true)}
-              className="flex items-center gap-1 text-[10px] font-semibold px-2.5 py-1 rounded-full transition-opacity hover:opacity-80"
-              style={{ background: 'rgba(245,158,11,0.15)', color: '#f59e0b', border: '1px solid rgba(245,158,11,0.3)' }}
-            >
-              <Sparkles className="w-2.5 h-2.5" strokeWidth={2} />
-              Qualificar
-            </button>
-          ) : (
-            <div
-              className="text-[10px] font-medium px-2 py-0.5 rounded-full"
-              style={{
-                background: item.unread ? 'var(--success-bg)' : 'var(--surface-hover)',
-                color: item.unread ? 'var(--success)' : 'var(--ink-3)',
-              }}
-            >
-              {item.unread ? 'Nova mensagem' : 'WhatsApp'}
-            </div>
-          )}
-          <button
-            onClick={onArchive}
-            title={isArchived ? 'Desarquivar conversa' : 'Arquivar conversa'}
-            className="p-1.5 rounded-lg hover:opacity-80 transition-opacity"
-            style={{ background: 'var(--surface-hover)', border: '1px solid var(--edge)', color: 'var(--ink-3)' }}
-          >
-            {isArchived ? <ArchiveRestore className="w-3.5 h-3.5" /> : <Archive className="w-3.5 h-3.5" />}
-          </button>
-        </div>
-      </div>
-
-      {/* Tabs — only show Activities/Info when conversation is linked to a lead */}
-      <div
-        className="flex gap-1 px-3 py-2 flex-shrink-0"
-        style={{ borderBottom: '1px solid var(--edge)', background: 'var(--surface)' }}
-      >
-        {CHAT_TABS.filter(t => item.leadId || t.id === 'chat').map(({ id, label, icon: Icon }) => (
-          <button
-            key={id}
-            onClick={() => setActiveTab(id)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
-            style={
-              activeTab === id
-                ? { background: 'var(--panel-bg, var(--canvas))', color: 'var(--ink-1)', boxShadow: '0 1px 3px rgba(0,0,0,0.12)' }
-                : { color: 'var(--ink-3)' }
-            }
-          >
-            <Icon className="w-3.5 h-3.5" />
-            {label}
-          </button>
-        ))}
-      </div>
-
-      {/* Tab content */}
-      {activeTab === 'chat' && (
-        <>
-          <ConversationSummaryButton conversationId={item.id} />
-
-          {/* Messages area */}
-          <div ref={scrollRef} className="flex-1 overflow-y-auto px-5 py-4 space-y-2" style={{ background: 'var(--canvas)' }}>
-            {isLoading ? (
-              <div className="flex items-center justify-center h-full">
-                <Loader2 className="w-6 h-6 animate-spin" style={{ color: 'var(--ink-3)' }} />
-              </div>
-            ) : messages.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-full gap-2" style={{ color: 'var(--ink-3)' }}>
-                <MessageCircle className="w-8 h-8" strokeWidth={1.5} />
-                <p className="text-sm">Nenhuma mensagem ainda</p>
-              </div>
+          <div className="flex items-center gap-2">
+            {item.pendingClassification ? (
+              <button
+                onClick={() => setShowQualifyModal(true)}
+                className="flex items-center gap-1 text-[10px] font-semibold px-2.5 py-1 rounded-full transition-opacity hover:opacity-80"
+                style={{ background: 'rgba(245,158,11,0.15)', color: '#f59e0b', border: '1px solid rgba(245,158,11,0.3)' }}
+              >
+                <Sparkles className="w-2.5 h-2.5" strokeWidth={2} />
+                Qualificar
+              </button>
             ) : (
-              messages.map(m => (
-                <MessageBubble
-                  key={m.id}
-                  message={m}
-                  isOut={m.direction === 'outbound'}
-                  channelId={channelId}
-                  onDelete={(msg: Message) => deleteMut.mutate(msg)}
-                />
-              ))
-            )}
-          </div>
-
-          {/* Composer */}
-          <div
-            className="flex-shrink-0 px-4 py-3 space-y-2 relative"
-            style={{ borderTop: '1px solid var(--edge)', background: 'var(--surface)' }}
-          >
-            {/* Quick replies popup */}
-            {showQuickReplies && (
-              <QuickRepliesPopup
-                search={quickReplySearch}
-                onSelect={handleQuickReplySelect}
-                onClose={() => setShowQuickReplies(false)}
-              />
-            )}
-
-            {isRecording && (
-              <div className="flex items-center gap-2 px-3 py-2 rounded-xl" style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)' }}>
-                <span className="w-2 h-2 rounded-full flex-shrink-0 animate-pulse" style={{ background: '#ef4444' }} />
-                <span className="text-xs font-medium" style={{ color: '#ef4444' }}>Gravando... Clique em parar para enviar.</span>
+              <div
+                className="text-[10px] font-medium px-2 py-0.5 rounded-full"
+                style={{
+                  background: item.unread ? 'var(--success-bg)' : 'var(--surface-hover)',
+                  color: item.unread ? 'var(--success)' : 'var(--ink-3)',
+                }}
+              >
+                {item.unread ? 'Nova mensagem' : 'WhatsApp'}
               </div>
             )}
-
-            {activeChannels.length === 0 && (
-              <p className="text-xs text-center" style={{ color: 'var(--warning)' }}>
-                Nenhum canal WhatsApp conectado. Vá em Configurações → Canais.
-              </p>
-            )}
-
-            {activeChannels.length > 1 && (
-              <select
-                value={channelId}
-                onChange={e => setChannelId(e.target.value)}
-                className="w-full text-xs rounded-lg px-2 py-1.5 outline-none"
-                style={{ background: 'var(--surface-hover)', border: '1px solid var(--edge)', color: 'var(--ink-2)' }}
-              >
-                {activeChannels.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-              </select>
-            )}
-
-            {selectedFile && (
-              <MediaUploadPreview file={selectedFile} onCancel={() => setSelectedFile(null)} />
-            )}
-
-            <div className="flex gap-2 items-end">
-              {/* File picker */}
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.zip"
-                className="hidden"
-                onChange={handleFileSelect}
-              />
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                disabled={activeChannels.length === 0 || isRecording}
-                title="Anexar arquivo"
-                className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 disabled:opacity-40 transition-opacity hover:opacity-80"
-                style={{ background: 'var(--surface-hover)', border: '1px solid var(--edge)', color: 'var(--ink-2)' }}
-              >
-                <Paperclip className="w-4 h-4" strokeWidth={1.75} />
-              </button>
-
-              <button
-                onClick={isRecording ? stopRecording : startRecording}
-                disabled={activeChannels.length === 0 || !!selectedFile}
-                title={isRecording ? 'Parar gravação' : 'Gravar áudio'}
-                className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 disabled:opacity-40 transition-all hover:opacity-80"
-                style={isRecording
-                  ? { background: '#ef4444', color: '#fff', border: 'none' }
-                  : { background: 'var(--surface-hover)', border: '1px solid var(--edge)', color: 'var(--ink-2)' }
-                }
-              >
-                {isRecording
-                  ? <MicOff className="w-4 h-4" strokeWidth={1.75} />
-                  : <Mic className="w-4 h-4" strokeWidth={1.75} />
-                }
-              </button>
-
-              <textarea
-                value={body}
-                onChange={e => handleBodyChange(e.target.value)}
-                onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
-                placeholder={selectedFile ? 'Legenda (opcional)...' : 'Digite uma mensagem... (/ para respostas rápidas)'}
-                rows={2}
-                className="flex-1 text-sm rounded-xl px-3 py-2 resize-none outline-none"
-                style={{ background: 'var(--surface-hover)', border: '1px solid var(--edge)', color: 'var(--ink-1)' }}
-                disabled={activeChannels.length === 0}
-              />
-
-              <button
-                onClick={handleSend}
-                disabled={!canSend}
-                className="w-10 h-10 rounded-xl flex items-center justify-center self-end disabled:opacity-40 transition-opacity flex-shrink-0"
-                style={{ background: 'var(--brand-500)', color: '#fff' }}
-              >
-                {isSending
-                  ? <Loader2 className="w-4 h-4 animate-spin" />
-                  : <Send className="w-4 h-4" strokeWidth={2} />
-                }
-              </button>
-            </div>
+            <button
+              onClick={onArchive}
+              title={isArchived ? 'Desarquivar conversa' : 'Arquivar conversa'}
+              className="p-1.5 rounded-lg hover:opacity-80 transition-opacity"
+              style={{ background: 'var(--surface-hover)', border: '1px solid var(--edge)', color: 'var(--ink-3)' }}
+            >
+              {isArchived ? <ArchiveRestore className="w-3.5 h-3.5" /> : <Archive className="w-3.5 h-3.5" />}
+            </button>
           </div>
-        </>
-      )}
-
-      {activeTab === 'activities' && item.leadId && (
-        <div className="flex-1 overflow-auto">
-          <LeadActivities leadId={item.leadId} />
         </div>
-      )}
 
-      {activeTab === 'info' && item.leadId && (
-        <InboxDataTab leadId={item.leadId} />
+        <ConversationSummaryButton conversationId={item.id} />
+
+        {/* Messages area */}
+        <div ref={scrollRef} className="flex-1 overflow-y-auto px-5 py-4 space-y-2" style={{ background: 'var(--canvas)' }}>
+          {isLoading ? (
+            <div className="flex items-center justify-center h-full">
+              <Loader2 className="w-6 h-6 animate-spin" style={{ color: 'var(--ink-3)' }} />
+            </div>
+          ) : messages.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-full gap-2" style={{ color: 'var(--ink-3)' }}>
+              <MessageCircle className="w-8 h-8" strokeWidth={1.5} />
+              <p className="text-sm">Nenhuma mensagem ainda</p>
+            </div>
+          ) : (
+            messages.map(m => (
+              <MessageBubble
+                key={m.id}
+                message={m}
+                isOut={m.direction === 'outbound'}
+                channelId={channelId}
+                onDelete={(msg: Message) => deleteMut.mutate(msg)}
+              />
+            ))
+          )}
+        </div>
+
+        {/* Composer */}
+        <div
+          className="flex-shrink-0 px-4 py-3 space-y-2 relative"
+          style={{ borderTop: '1px solid var(--edge)', background: 'var(--surface)' }}
+        >
+          {showQuickReplies && (
+            <QuickRepliesPopup
+              search={quickReplySearch}
+              onSelect={handleQuickReplySelect}
+              onClose={() => setShowQuickReplies(false)}
+            />
+          )}
+
+          {isRecording && (
+            <div className="flex items-center gap-2 px-3 py-2 rounded-xl" style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)' }}>
+              <span className="w-2 h-2 rounded-full flex-shrink-0 animate-pulse" style={{ background: '#ef4444' }} />
+              <span className="text-xs font-medium" style={{ color: '#ef4444' }}>Gravando... Clique em parar para enviar.</span>
+            </div>
+          )}
+
+          {activeChannels.length === 0 && (
+            <p className="text-xs text-center" style={{ color: 'var(--warning)' }}>
+              Nenhum canal WhatsApp conectado. Vá em Configurações → Canais.
+            </p>
+          )}
+
+          {activeChannels.length > 1 && (
+            <select
+              value={channelId}
+              onChange={e => setChannelId(e.target.value)}
+              className="w-full text-xs rounded-lg px-2 py-1.5 outline-none"
+              style={{ background: 'var(--surface-hover)', border: '1px solid var(--edge)', color: 'var(--ink-2)' }}
+            >
+              {activeChannels.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
+          )}
+
+          {selectedFile && (
+            <MediaUploadPreview file={selectedFile} onCancel={() => setSelectedFile(null)} />
+          )}
+
+          <div className="flex gap-2 items-end">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.zip"
+              className="hidden"
+              onChange={handleFileSelect}
+            />
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={activeChannels.length === 0 || isRecording}
+              title="Anexar arquivo"
+              className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 disabled:opacity-40 transition-opacity hover:opacity-80"
+              style={{ background: 'var(--surface-hover)', border: '1px solid var(--edge)', color: 'var(--ink-2)' }}
+            >
+              <Paperclip className="w-4 h-4" strokeWidth={1.75} />
+            </button>
+
+            <button
+              onClick={isRecording ? stopRecording : startRecording}
+              disabled={activeChannels.length === 0 || !!selectedFile}
+              title={isRecording ? 'Parar gravação' : 'Gravar áudio'}
+              className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 disabled:opacity-40 transition-all hover:opacity-80"
+              style={isRecording
+                ? { background: '#ef4444', color: '#fff', border: 'none' }
+                : { background: 'var(--surface-hover)', border: '1px solid var(--edge)', color: 'var(--ink-2)' }
+              }
+            >
+              {isRecording
+                ? <MicOff className="w-4 h-4" strokeWidth={1.75} />
+                : <Mic className="w-4 h-4" strokeWidth={1.75} />
+              }
+            </button>
+
+            <textarea
+              value={body}
+              onChange={e => handleBodyChange(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
+              placeholder={selectedFile ? 'Legenda (opcional)...' : 'Digite uma mensagem... (/ para respostas rápidas)'}
+              rows={2}
+              className="flex-1 text-sm rounded-xl px-3 py-2 resize-none outline-none"
+              style={{ background: 'var(--surface-hover)', border: '1px solid var(--edge)', color: 'var(--ink-1)' }}
+              disabled={activeChannels.length === 0}
+            />
+
+            <button
+              onClick={handleSend}
+              disabled={!canSend}
+              className="w-10 h-10 rounded-xl flex items-center justify-center self-end disabled:opacity-40 transition-opacity flex-shrink-0"
+              style={{ background: 'var(--brand-500)', color: '#fff' }}
+            >
+              {isSending
+                ? <Loader2 className="w-4 h-4 animate-spin" />
+                : <Send className="w-4 h-4" strokeWidth={2} />
+              }
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Right sidebar — Atividades / Dados */}
+      {item.leadId && (
+        <RightSidebar leadId={item.leadId} conversationId={item.id} />
       )}
 
       {showQualifyModal && (
