@@ -37,6 +37,32 @@ export class MessagesService {
 
   async saveWebhookOutbound(data: SaveInboundData): Promise<Message | null> {
     const workspaceId = this.tenant.requireWorkspaceId();
+
+    // Before inserting, try to claim an existing outbound row that was optimistically saved
+    // by the controller with a fallback externalMessageId (null or 'uza-*'). This prevents
+    // duplicates when the send-API response and the webhook use different field names for the ID.
+    const windowStart = new Date(data.sentAt.getTime() - 30_000);
+    const windowEnd = new Date(data.sentAt.getTime() + 30_000);
+
+    const claimed = await this.repo
+      .createQueryBuilder()
+      .update(Message)
+      .set({ externalMessageId: data.externalMessageId, status: 'sent' })
+      .where('"conversationId" = :convId', { convId: data.conversationId })
+      .andWhere('"workspaceId" = :wsId', { wsId: workspaceId })
+      .andWhere('direction = :dir', { dir: 'outbound' })
+      .andWhere('body = :body', { body: data.body })
+      .andWhere('"sentAt" BETWEEN :start AND :end', { start: windowStart, end: windowEnd })
+      .andWhere('("externalMessageId" IS NULL OR "externalMessageId" LIKE :fallback)', { fallback: 'uza-%' })
+      .returning('*')
+      .execute();
+
+    if ((claimed.affected ?? 0) > 0) {
+      return (claimed.raw?.[0] as Message) ?? null;
+    }
+
+    // No placeholder row found — do a regular deduped insert (handles genuine fromPhone sends
+    // and the case where the send-API already returned the correct ID).
     const result = await this.repo
       .createQueryBuilder()
       .insert()
@@ -58,6 +84,7 @@ export class MessagesService {
       .orIgnore()
       .returning('*')
       .execute();
+
     const row = result.raw?.[0];
     return row ? (row as Message) : null;
   }
