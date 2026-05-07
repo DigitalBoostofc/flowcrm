@@ -5,7 +5,8 @@ import * as crypto from 'crypto';
 import { ChannelsService } from '../channels.service';
 import { UazapiAdapter } from './uazapi.adapter';
 import { ApiTags } from '@nestjs/swagger';
-import type { MessageType } from '../../messages/entities/message.entity';
+import type { MessageStatus, MessageType } from '../../messages/entities/message.entity';
+import { MessagesService } from '../../messages/messages.service';
 
 function timingSafeStringEqual(a: string, b: string): boolean {
   if (typeof a !== 'string' || typeof b !== 'string') return false;
@@ -39,6 +40,18 @@ const IGNORED_TYPES = new Set([
   'readReceiptMessage', 'callLogMessage',
 ]);
 
+function mapUazapiStatus(raw: string): MessageStatus | null {
+  switch (raw?.toLowerCase()) {
+    case 'sent': return 'sent';
+    case 'delivered': return 'delivered';
+    case 'read': return 'read';
+    case 'failed':
+    case 'canceled': return 'failed';
+    case 'queued': return 'pending';
+    default: return null;
+  }
+}
+
 // Placeholder de body para tipos especiais sem texto
 const BODY_PLACEHOLDER: Record<string, string> = {
   location: '[Localização]',
@@ -59,6 +72,7 @@ export class UazapiWebhookController {
     private channels: ChannelsService,
     private events: EventEmitter2,
     private uazapi: UazapiAdapter,
+    private messagesService: MessagesService,
   ) {}
 
   @Post(':channelConfigId/:secret')
@@ -105,6 +119,32 @@ export class UazapiWebhookController {
       }
       this.events.emit('channel.status.changed', { channelConfigId, status, workspaceId: channel.workspaceId });
       this.logger.log(`Canal ${channelConfigId} → ${status}`);
+      return { ok: true };
+    }
+
+    if (eventType === 'messages_update' || eventType === 'status') {
+      const nested = payload?.message ?? payload?.data ?? null;
+      const msg: any = (nested?.messageid || nested?.status) ? nested : (payload ?? {});
+
+      const externalMessageId: string =
+        msg?.messageid ?? msg?.key?.id ??
+        payload?.messageid ?? '';
+
+      const rawStatus: string = msg?.status ?? payload?.status ?? '';
+      const status = mapUazapiStatus(rawStatus);
+
+      if (externalMessageId && status) {
+        await this.messagesService.updateStatus(externalMessageId, status);
+        this.events.emit('message.status.updated', {
+          channelConfigId,
+          workspaceId: channel.workspaceId,
+          externalMessageId,
+          status,
+        });
+        this.logger.log(`ACK ${externalMessageId} → ${status}`);
+      } else {
+        this.logger.debug(`messages_update sem campos úteis: msgid=${externalMessageId || 'none'} rawStatus=${rawStatus || 'none'}`);
+      }
       return { ok: true };
     }
 

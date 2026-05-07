@@ -85,7 +85,7 @@ export class UazapiAdapter implements ChannelAdapter {
       {
         url: webhookUrl,
         enabled: true,
-        events: ['messages', 'qrcode', 'connection'],
+        events: ['messages', 'messages_update', 'qrcode', 'connection'],
         excludeMessages: ['wasSentByApi', 'isGroupYes'],
       },
       { headers: this.instanceHeaders(token), timeout: 20000 },
