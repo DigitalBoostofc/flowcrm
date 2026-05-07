@@ -4,6 +4,7 @@ export interface Label {
   id: string;
   name: string;
   color: string;
+  position: number;
   createdAt: string;
 }
 
@@ -17,7 +18,7 @@ export async function createLabel(data: { name: string; color: string }): Promis
   return res.data;
 }
 
-export async function updateLabel(id: string, data: Partial<{ name: string; color: string }>): Promise<Label> {
+export async function updateLabel(id: string, data: Partial<{ name: string; color: string; position: number }>): Promise<Label> {
   const res = await api.patch<Label>(`/labels/${id}`, data);
   return res.data;
 }
