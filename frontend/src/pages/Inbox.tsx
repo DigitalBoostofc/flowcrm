@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 import {
@@ -296,15 +297,37 @@ function ConvMenu({
   const [showLabelPicker, setShowLabelPicker] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const portalRef = useRef<HTMLDivElement>(null);
+  const [coords, setCoords] = useState<{ top: number; left: number } | null>(null);
 
   useEffect(() => {
     onOpenChange?.(open);
   }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
+    if (!open) { setCoords(null); return; }
+    if (triggerRef.current) {
+      const rect = triggerRef.current.getBoundingClientRect();
+      setCoords({ top: rect.bottom + 4, left: rect.left });
+    }
+  }, [open]);
+
+  // Close on any scroll (capture phase catches inner containers)
+  useEffect(() => {
+    if (!open) return;
+    const close = () => setOpen(false);
+    window.addEventListener('scroll', close, true);
+    return () => window.removeEventListener('scroll', close, true);
+  }, [open]);
+
+  useEffect(() => {
     if (!open) return;
     function handleOutside(e: MouseEvent) {
-      if (!menuRef.current?.contains(e.target as Node)) setOpen(false);
+      const target = e.target as Node;
+      if (!menuRef.current?.contains(target) && !portalRef.current?.contains(target)) {
+        setOpen(false);
+      }
     }
     document.addEventListener('mousedown', handleOutside);
     return () => document.removeEventListener('mousedown', handleOutside);
@@ -313,6 +336,7 @@ function ConvMenu({
   return (
     <div ref={menuRef} className="relative" onClick={(e) => e.stopPropagation()}>
       <button
+        ref={triggerRef}
         onClick={() => setOpen((v) => !v)}
         title="Mais opções"
         className="p-1.5 rounded-lg transition-opacity hover:opacity-80"
@@ -321,10 +345,19 @@ function ConvMenu({
         <MoreVertical className="w-3.5 h-3.5" />
       </button>
 
-      {open && (
+      {open && coords && createPortal(
         <div
-          className="absolute left-0 top-full mt-1 z-50 min-w-[180px] rounded-xl py-1 shadow-lg"
-          style={{ background: 'var(--surface-raised)', border: '1px solid var(--edge)' }}
+          ref={portalRef}
+          style={{
+            position: 'fixed',
+            top: coords.top,
+            left: coords.left,
+            zIndex: 9999,
+            background: 'var(--surface-raised)',
+            border: '1px solid var(--edge)',
+          }}
+          className="min-w-[180px] rounded-xl py-1 shadow-lg"
+          onClick={(e) => e.stopPropagation()}
         >
           <button
             onClick={() => { setShowLabelPicker(true); setOpen(false); }}
@@ -363,7 +396,8 @@ function ConvMenu({
               </button>
             </>
           )}
-        </div>
+        </div>,
+        document.body
       )}
 
       {showLabelPicker && (
