@@ -96,7 +96,7 @@ function LabelForm({ label, onSave, onCancel }: {
 
 export default function LabelsManager() {
   const qc = useQueryClient();
-  const queryKey = ['labels'];
+  const queryKey = ['labels'] as const;
   const { data: labels = [] } = useQuery({
     queryKey,
     queryFn: listLabels,
@@ -105,20 +105,19 @@ export default function LabelsManager() {
   const [editing, setEditing] = useState<Label | null>(null);
 
   const createMut = useMutation({
-    mutationFn: (data: { name: string; color: string }) =>
-      createLabel(data),
+    mutationFn: (data: { name: string; color: string }) => createLabel(data),
     onSuccess: () => { qc.invalidateQueries({ queryKey }); setCreating(false); },
   });
 
   const updateMut = useMutation({
     mutationFn: ({ id, ...data }: { id: string; name: string; color: string }) =>
       updateLabel(id, data),
-    onSuccess: () => { qc.invalidateQueries({ queryKey }); setEditing(null); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['labels'] }); setEditing(null); },
   });
 
   const deleteMut = useMutation({
     mutationFn: deleteLabel,
-    onSuccess: () => qc.invalidateQueries({ queryKey }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['labels'] }),
   });
 
   return (
