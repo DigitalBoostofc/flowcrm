@@ -36,7 +36,7 @@ describe('MessagesService.saveWebhookOutbound', () => {
   const mockRepo = { createQueryBuilder: jest.fn() };
 
   beforeEach(async () => {
-    jest.clearAllMocks();
+    jest.resetAllMocks();
     mockTenant.requireWorkspaceId = jest.fn().mockReturnValue(WS_ID);
     const module: TestingModule = await Test.createTestingModule({
       providers: [
