@@ -6,12 +6,11 @@ import { listLabels, addLabelToLead, removeLabelFromLead, type Label } from '@/a
 interface Props {
   leadId: string;
   leadLabels: Label[];
-  pipelineId?: string;
   onClose: () => void;
   anchorRef: React.RefObject<HTMLElement | null>;
 }
 
-export default function LabelPicker({ leadId, leadLabels, pipelineId, onClose, anchorRef }: Props) {
+export default function LabelPicker({ leadId, leadLabels, onClose, anchorRef }: Props) {
   const qc = useQueryClient();
   const panelRef = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState({ top: 0, left: 0 });
@@ -19,8 +18,8 @@ export default function LabelPicker({ leadId, leadLabels, pipelineId, onClose, a
   const leadLabelIds = new Set(leadLabels.map(l => l.id));
 
   const { data: allLabels = [] } = useQuery({
-    queryKey: ['labels', pipelineId ?? 'workspace'],
-    queryFn: () => listLabels(pipelineId),
+    queryKey: ['labels'],
+    queryFn: listLabels,
   });
 
   const filtered = allLabels.filter(l =>

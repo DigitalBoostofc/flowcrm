@@ -94,19 +94,19 @@ function LabelForm({ label, onSave, onCancel }: {
   );
 }
 
-export default function LabelsManager({ pipelineId }: { pipelineId?: string }) {
+export default function LabelsManager() {
   const qc = useQueryClient();
-  const queryKey = ['labels', pipelineId ?? 'workspace'];
+  const queryKey = ['labels'];
   const { data: labels = [] } = useQuery({
     queryKey,
-    queryFn: () => listLabels(pipelineId),
+    queryFn: listLabels,
   });
   const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState<Label | null>(null);
 
   const createMut = useMutation({
     mutationFn: (data: { name: string; color: string }) =>
-      createLabel({ ...data, pipelineId }),
+      createLabel(data),
     onSuccess: () => { qc.invalidateQueries({ queryKey }); setCreating(false); },
   });
 
@@ -152,7 +152,7 @@ export default function LabelsManager({ pipelineId }: { pipelineId?: string }) {
 
       {labels.length === 0 && !creating && (
         <p className="text-xs text-center py-4" style={{ color: 'var(--ink-3)' }}>
-          Nenhuma etiqueta ainda. Crie a primeira etiqueta deste funil.
+          Nenhuma etiqueta ainda. Crie a primeira etiqueta.
         </p>
       )}
 
