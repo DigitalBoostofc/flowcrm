@@ -58,10 +58,12 @@ function ConversationLabelPicker({
   conversationId,
   currentLabels,
   onClose,
+  anchorRect,
 }: {
   conversationId: string;
   currentLabels: { id: string; name: string; color: string }[];
   onClose: () => void;
+  anchorRect?: DOMRect | null;
 }) {
   const qc = useQueryClient();
   const ref = useRef<HTMLDivElement>(null);
@@ -110,11 +112,39 @@ function ConversationLabelPicker({
     return () => document.removeEventListener('mousedown', handler);
   }, [onClose]);
 
-  return (
+  useEffect(() => {
+    if (!anchorRect) return;
+    const close = () => onClose();
+    window.addEventListener('scroll', close, true);
+    return () => window.removeEventListener('scroll', close, true);
+  }, [anchorRect, onClose]);
+
+  const content = (
     <div
       ref={ref}
-      className="absolute top-full right-0 mt-1 z-50 rounded-xl shadow-xl border overflow-hidden"
-      style={{ background: 'var(--surface-raised)', borderColor: 'var(--edge)', minWidth: 220 }}
+      className="rounded-xl shadow-xl border overflow-hidden"
+      style={
+        anchorRect
+          ? {
+              position: 'fixed',
+              top: anchorRect.bottom + 4,
+              left: anchorRect.left,
+              zIndex: 9999,
+              background: 'var(--surface-raised)',
+              borderColor: 'var(--edge)',
+              minWidth: 220,
+            }
+          : {
+              position: 'absolute' as const,
+              top: '100%',
+              right: 0,
+              marginTop: 4,
+              zIndex: 50,
+              background: 'var(--surface-raised)',
+              borderColor: 'var(--edge)',
+              minWidth: 220,
+            }
+      }
       onClick={(e) => e.stopPropagation()}
     >
       <div className="px-3 py-2 border-b flex items-center gap-2" style={{ borderColor: 'var(--edge)' }}>
@@ -146,6 +176,11 @@ function ConversationLabelPicker({
       </div>
     </div>
   );
+
+  if (anchorRect) {
+    return createPortal(content, document.body);
+  }
+  return content;
 }
 
 /* ── QuickRepliesPopup ────────────────────────────────── */
@@ -295,6 +330,7 @@ function ConvMenu({
 }) {
   const [open, setOpen] = useState(false);
   const [showLabelPicker, setShowLabelPicker] = useState(false);
+  const [pickerAnchor, setPickerAnchor] = useState<DOMRect | null>(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -360,7 +396,12 @@ function ConvMenu({
           onClick={(e) => e.stopPropagation()}
         >
           <button
-            onClick={() => { setShowLabelPicker(true); setOpen(false); }}
+            onClick={() => {
+              const rect = triggerRef.current?.getBoundingClientRect() ?? null;
+              setPickerAnchor(rect);
+              setShowLabelPicker(true);
+              setOpen(false);
+            }}
             className="w-full flex items-center gap-2 px-3 py-2 text-xs text-left transition-opacity hover:opacity-70"
             style={{ color: 'var(--ink-2)' }}
           >
@@ -404,7 +445,8 @@ function ConvMenu({
         <ConversationLabelPicker
           conversationId={item.id}
           currentLabels={item.labels}
-          onClose={() => setShowLabelPicker(false)}
+          onClose={() => { setShowLabelPicker(false); setPickerAnchor(null); }}
+          anchorRect={pickerAnchor}
         />
       )}
 
