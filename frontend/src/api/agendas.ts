@@ -29,3 +29,11 @@ export async function updateAgenda(id: string, dto: { name?: string; ownerId?: s
 export async function deleteAgenda(id: string): Promise<void> {
   await api.delete(`/agendas/${id}`);
 }
+
+export async function createAppointment(agendaId: string, dto: {
+  title: string; startAt: string; endAt: string;
+  leadId?: string; contactId?: string; description?: string; notes?: string;
+}): Promise<unknown> {
+  const res = await api.post(`/agendas/${agendaId}/appointments`, dto);
+  return res.data;
+}
