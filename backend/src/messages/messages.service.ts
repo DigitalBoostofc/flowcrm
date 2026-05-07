@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Message, MessageStatus, MessageType } from './entities/message.entity';
@@ -30,6 +30,8 @@ export interface SaveOutboundData {
 
 @Injectable()
 export class MessagesService {
+  private readonly logger = new Logger(MessagesService.name);
+
   constructor(
     @InjectRepository(Message) private repo: Repository<Message>,
     private readonly tenant: TenantContext,
@@ -44,20 +46,32 @@ export class MessagesService {
     const windowStart = new Date(data.sentAt.getTime() - 30_000);
     const windowEnd = new Date(data.sentAt.getTime() + 30_000);
 
-    const claimed = await this.repo
+    const hasBody = data.body && data.body.length > 0;
+    const dedupQb = this.repo
       .createQueryBuilder()
       .update(Message)
       .set({ externalMessageId: data.externalMessageId, status: 'sent' })
       .where('"conversationId" = :convId', { convId: data.conversationId })
       .andWhere('"workspaceId" = :wsId', { wsId: workspaceId })
       .andWhere('direction = :dir', { dir: 'outbound' })
-      .andWhere('body = :body', { body: data.body })
       .andWhere('"sentAt" BETWEEN :start AND :end', { start: windowStart, end: windowEnd })
-      .andWhere('("externalMessageId" IS NULL OR "externalMessageId" LIKE :fallback)', { fallback: 'uza-%' })
-      .returning('*')
-      .execute();
+      .andWhere('("externalMessageId" IS NULL OR "externalMessageId" LIKE :fallback)', { fallback: 'uza-%' });
+
+    if (!hasBody && data.mediaUrl) {
+      dedupQb.andWhere('(body = :body AND "mediaUrl" = :mediaUrl)', {
+        body: data.body ?? '',
+        mediaUrl: data.mediaUrl,
+      });
+    } else {
+      dedupQb.andWhere('body = :body', { body: data.body });
+    }
+
+    const claimed = await dedupQb.returning('*').execute();
 
     if ((claimed.affected ?? 0) > 0) {
+      this.logger.warn(
+        `[dedup] outbound deduplicado: conversationId=${data.conversationId} body="${data.body?.slice(0, 50)}" externalId=${data.externalMessageId}`,
+      );
       return (claimed.raw?.[0] as Message) ?? null;
     }
 
