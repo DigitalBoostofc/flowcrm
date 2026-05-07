@@ -283,17 +283,23 @@ function ConvMenu({
   onArchive,
   onPin,
   onDeleteContact,
+  onOpenChange,
 }: {
   item: InboxItem;
   isArchived?: boolean;
   onArchive: () => void;
   onPin: () => void;
   onDeleteContact: () => void;
+  onOpenChange?: (open: boolean) => void;
 }) {
   const [open, setOpen] = useState(false);
   const [showLabelPicker, setShowLabelPicker] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    onOpenChange?.(open);
+  }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!open) return;
@@ -317,7 +323,7 @@ function ConvMenu({
 
       {open && (
         <div
-          className="absolute right-0 top-full mt-1 z-50 min-w-[180px] rounded-xl py-1 shadow-lg"
+          className="absolute left-0 top-full mt-1 z-50 min-w-[180px] rounded-xl py-1 shadow-lg"
           style={{ background: 'var(--surface-raised)', border: '1px solid var(--edge)' }}
         >
           <button
@@ -392,6 +398,7 @@ function ConvItem({ item, selected, onClick, onArchive, onPin, onDeleteContact, 
   const pending = item.pendingClassification;
   const ch = channelMeta(item.channelType);
   const [hovered, setHovered] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   return (
     <div
@@ -470,8 +477,8 @@ function ConvItem({ item, selected, onClick, onArchive, onPin, onDeleteContact, 
         </div>
       </div>
 
-      {/* Actions menu — shows on hover */}
-      {hovered && (
+      {/* Actions menu — stays mounted while open to prevent dropdown dismissal on mouse-leave */}
+      {(hovered || menuOpen) && (
         <div className="absolute right-2 top-1/2 -translate-y-1/2">
           <ConvMenu
             item={item}
@@ -479,6 +486,7 @@ function ConvItem({ item, selected, onClick, onArchive, onPin, onDeleteContact, 
             onArchive={onArchive}
             onPin={onPin}
             onDeleteContact={onDeleteContact}
+            onOpenChange={setMenuOpen}
           />
         </div>
       )}
