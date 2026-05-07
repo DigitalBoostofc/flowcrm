@@ -8,7 +8,6 @@ import { ContactsService } from '../contacts/contacts.service';
 import { LeadsService } from '../leads/leads.service';
 import { PipelinesService } from '../pipelines/pipelines.service';
 import { CompaniesService } from '../companies/companies.service';
-import { InboxTag } from '../inbox-tags/entities/inbox-tag.entity';
 
 export interface InboxItem {
   id: string;
@@ -29,9 +28,7 @@ export interface InboxItem {
   updatedAt: Date;
   pendingClassification: boolean;
   assignedToName: string | null;
-  inboxTagId: string | null;
-  inboxTagName: string | null;
-  inboxTagColor: string | null;
+  labels: { id: string; name: string; color: string }[];
 }
 
 export interface InboxPage {
@@ -52,7 +49,6 @@ export interface InboxQuery {
 export class ConversationsService {
   constructor(
     @InjectRepository(Conversation) private repo: Repository<Conversation>,
-    @InjectRepository(InboxTag) private tagRepo: Repository<InboxTag>,
     private readonly tenant: TenantContext,
     private readonly contacts: ContactsService,
     private readonly leads: LeadsService,
@@ -180,10 +176,10 @@ export class ConversationsService {
       extraConditions.push(`c."archivedAt" IS NULL`);
     }
 
-    // Tag filter
+    // Label filter
     if (query.tagId) {
       params.push(query.tagId);
-      extraConditions.push(`c."inboxTagId" = $${params.length}`);
+      extraConditions.push(`EXISTS (SELECT 1 FROM conversation_labels cl WHERE cl."conversationId" = c.id AND cl."labelId" = $${params.length})`);
     }
 
     const whereClause = `c."workspaceId" = $1${extraConditions.length ? ' AND ' + extraConditions.join(' AND ') : ''}`;
@@ -217,14 +213,14 @@ export class ConversationsService {
         lm.direction                                                AS "lastMessageDirection",
         lm."sentAt"                                                 AS "lastMessageSentAt",
         u.name                                                      AS "assignedToName",
-        it.id                                                       AS "inboxTagId",
-        it.name                                                     AS "inboxTagName",
-        it.color                                                    AS "inboxTagColor"
+        (SELECT json_agg(json_build_object('id', lb.id, 'name', lb.name, 'color', lb.color))
+         FROM conversation_labels cl
+         JOIN labels lb ON lb.id = cl."labelId"
+         WHERE cl."conversationId" = c.id)                         AS labels
       FROM conversations c
       LEFT JOIN leads l        ON l.id = c."leadId"
       LEFT JOIN users u        ON u.id = l."assignedToId"
       LEFT JOIN contacts contact ON contact.id = l."contactId"
-      LEFT JOIN inbox_tags it  ON it.id = c."inboxTagId"
       LEFT JOIN LATERAL (
         SELECT body, direction, "sentAt"
         FROM messages
@@ -256,9 +252,7 @@ export class ConversationsService {
       updatedAt: r.updatedAt,
       pendingClassification: !r.leadId,
       assignedToName: r.assignedToName ?? null,
-      inboxTagId: r.inboxTagId ?? null,
-      inboxTagName: r.inboxTagName ?? null,
-      inboxTagColor: r.inboxTagColor ?? null,
+      labels: r.labels ?? [],
     }));
 
     return { items, total, page, pageSize };
@@ -273,19 +267,10 @@ export class ConversationsService {
   }
 
   // Called by InboundListener when a new message arrives on an archived conversation.
-  // Unarchives it and assigns (or creates) a "Novo negócio" tag.
   async unarchiveOnNewMessage(conversationId: string, workspaceId: string): Promise<void> {
     const conv = await this.repo.findOne({ where: { id: conversationId, workspaceId } });
     if (!conv?.archivedAt) return;
-
-    // Find or create "Novo negócio" tag for this workspace
-    let tag = await this.tagRepo.findOne({ where: { workspaceId, name: 'Novo negócio' } });
-    if (!tag) {
-      tag = this.tagRepo.create({ workspaceId, name: 'Novo negócio', color: '#22c55e', position: 0 });
-      tag = await this.tagRepo.save(tag);
-    }
-
-    await this.repo.update({ id: conversationId, workspaceId }, { archivedAt: null, inboxTagId: tag.id });
+    await this.repo.update({ id: conversationId, workspaceId }, { archivedAt: null });
   }
 
   static computeUnread(
@@ -315,12 +300,5 @@ export class ConversationsService {
 
   async updateFromName(id: string, name: string): Promise<void> {
     await this.repo.update(id, { fromName: name });
-  }
-
-  async setInboxTag(id: string, inboxTagId: string | null): Promise<{ id: string; inboxTagId: string | null }> {
-    const workspaceId = this.tenant.requireWorkspaceId();
-    const result = await this.repo.update({ id, workspaceId }, { inboxTagId });
-    if (!result.affected) throw new NotFoundException('Conversa não encontrada');
-    return { id, inboxTagId };
   }
 }

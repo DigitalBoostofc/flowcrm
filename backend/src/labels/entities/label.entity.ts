@@ -1,8 +1,9 @@
 import {
   Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn,
-  ManyToMany, JoinTable, Index,
+  ManyToMany, Index,
 } from 'typeorm';
 import { Lead } from '../../leads/entities/lead.entity';
+import { Conversation } from '../../conversations/entities/conversation.entity';
 
 @Entity('labels')
 export class Label {
@@ -13,18 +14,20 @@ export class Label {
   @Index()
   workspaceId: string;
 
-  @Column({ type: 'uuid', nullable: true })
-  @Index()
-  pipelineId: string | null;
-
   @Column({ type: 'varchar', length: 100, default: '' })
   name: string;
 
   @Column({ type: 'varchar', length: 20 })
   color: string;
 
+  @Column({ type: 'int', default: 0 })
+  position: number;
+
   @ManyToMany(() => Lead, (lead) => lead.labels)
   leads: Lead[];
+
+  @ManyToMany(() => Conversation, (conv) => conv.labels)
+  conversations: Conversation[];
 
   @CreateDateColumn()
   createdAt: Date;

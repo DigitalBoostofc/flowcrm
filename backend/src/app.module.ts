@@ -59,7 +59,6 @@ import { AppCacheModule } from './common/cache/cache.module';
 import { OutboundModule } from './messaging/outbound/outbound.module';
 import { AiModule } from './ai/ai.module';
 import { QuickRepliesModule } from './quick-replies/quick-replies.module';
-import { InboxTagsModule } from './inbox-tags/inbox-tags.module';
 
 @Module({
   imports: [
@@ -155,7 +154,6 @@ import { InboxTagsModule } from './inbox-tags/inbox-tags.module';
     OutboundModule,
     AiModule,
     QuickRepliesModule,
-    InboxTagsModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },
