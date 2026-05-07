@@ -51,3 +51,7 @@ Qualquer alteração em código que envolva **Inbox** ou **integração uazapi**
 **Não invente nomes nem confie em memória/intuição.** uazapGO tem campos não-óbvios (ex: resposta de envio retorna `messageid`, não `id` ou `key.id`; em mensagens outbound `senderName`/`pushName` é o nome do nosso perfil Business, não do destinatário).
 
 Como buscar no spec (~17k linhas): `grep -n "<termo>" docs/uazapi-openapi-spec.yaml` para localizar; depois ler o trecho com Read tool.
+
+## Overclock orchestration
+
+When using `mcp__overclock__pane_spawn`, **always omit the `cwd` parameter** unless the user explicitly asks for a worktree. Default cwd keeps panes in the same workspace as the orchestrator.
