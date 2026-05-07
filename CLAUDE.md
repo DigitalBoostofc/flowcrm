@@ -43,3 +43,11 @@ git log --oneline origin/master..HEAD
 - Postgres: porta `5433`
 - Redis: porta `6380`
 - WhatsApp: uazapGO (API externa)
+
+## API uazapi — consulta obrigatória ao spec
+
+Qualquer alteração em código que envolva **Inbox** ou **integração uazapi** (`backend/src/channels/uazapi/`, webhook handlers, adapter, mensagens outbound/inbound) DEVE consultar `docs/uazapi-openapi-spec.yaml` antes de implementar — confirmar nomes de campos, estrutura de payload, schemas de resposta.
+
+**Não invente nomes nem confie em memória/intuição.** uazapGO tem campos não-óbvios (ex: resposta de envio retorna `messageid`, não `id` ou `key.id`; em mensagens outbound `senderName`/`pushName` é o nome do nosso perfil Business, não do destinatário).
+
+Como buscar no spec (~17k linhas): `grep -n "<termo>" docs/uazapi-openapi-spec.yaml` para localizar; depois ler o trecho com Read tool.
