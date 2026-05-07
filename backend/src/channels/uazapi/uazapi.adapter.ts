@@ -136,7 +136,7 @@ export class UazapiAdapter implements ChannelAdapter {
           { headers: this.instanceHeaders(token), timeout: 30000 },
         );
         return {
-          externalMessageId: res.data?.id ?? res.data?.key?.id ?? `uza-${Date.now()}`,
+          externalMessageId: res.data?.messageid ?? res.data?.key?.id ?? `uza-${Date.now()}`,
           status: 'sent',
         };
       }
@@ -148,7 +148,7 @@ export class UazapiAdapter implements ChannelAdapter {
         { headers: this.instanceHeaders(token), timeout: 15000 },
       );
       return {
-        externalMessageId: res.data?.id ?? res.data?.key?.id ?? `uza-${Date.now()}`,
+        externalMessageId: res.data?.messageid ?? res.data?.key?.id ?? `uza-${Date.now()}`,
         status: 'sent',
       };
     } catch (err: any) {
