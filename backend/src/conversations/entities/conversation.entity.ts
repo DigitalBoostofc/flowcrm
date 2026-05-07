@@ -1,7 +1,10 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, OneToMany, CreateDateColumn, UpdateDateColumn, JoinColumn, Index } from 'typeorm';
+import {
+  Entity, PrimaryGeneratedColumn, Column, ManyToOne, OneToMany, ManyToMany,
+  JoinTable, CreateDateColumn, UpdateDateColumn, JoinColumn, Index,
+} from 'typeorm';
 import { Lead } from '../../leads/entities/lead.entity';
 import { Message } from '../../messages/entities/message.entity';
-import { InboxTag } from '../../inbox-tags/entities/inbox-tag.entity';
+import { Label } from '../../labels/entities/label.entity';
 
 @Entity('conversations')
 export class Conversation {
@@ -37,12 +40,13 @@ export class Conversation {
   @Column({ type: 'timestamptz', nullable: true })
   lastReadAt: Date | null;
 
-  @ManyToOne(() => InboxTag, { nullable: true, eager: false, onDelete: 'SET NULL' })
-  @JoinColumn({ name: 'inboxTagId' })
-  inboxTag: InboxTag | null;
-
-  @Column({ type: 'uuid', nullable: true })
-  inboxTagId: string | null;
+  @ManyToMany(() => Label, (label) => label.conversations)
+  @JoinTable({
+    name: 'conversation_labels',
+    joinColumn: { name: 'conversationId', referencedColumnName: 'id' },
+    inverseJoinColumn: { name: 'labelId', referencedColumnName: 'id' },
+  })
+  labels: Label[];
 
   @Column({ type: 'timestamptz', nullable: true })
   archivedAt: Date | null;
