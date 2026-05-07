@@ -1,8 +1,9 @@
-import { useState, useRef, useMemo } from 'react';
+import { useState, useRef, useMemo, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   FileText, Phone, MessageSquare, Users, MapPin, FileCheck,
   Clock, User as UserIcon, X, Check, CheckCircle2, Paperclip,
+  CalendarPlus,
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -10,6 +11,7 @@ import { listTasks, createTask } from '@/api/tasks';
 import { getLeadActivities } from '@/api/lead-activities';
 import { getLead } from '@/api/leads';
 import { listUsers } from '@/api/users';
+import { listAgendas, createAppointment } from '@/api/agendas';
 import { useAuthStore } from '@/store/auth.store';
 import type { ActivityType, Task } from '@/types/api';
 
@@ -61,9 +63,12 @@ export default function LeadActivities({ leadId }: Props) {
     return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
   });
   const [attachments, setAttachments] = useState<{ name: string; url: string }[]>([]);
+  const [saveToAgenda, setSaveToAgenda] = useState(false);
+  const [selectedAgendaId, setSelectedAgendaId] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { data: users = [] } = useQuery({ queryKey: ['users'], queryFn: listUsers });
+  const { data: agendas = [] } = useQuery({ queryKey: ['agendas'], queryFn: listAgendas });
   const { data: lead } = useQuery({ queryKey: ['lead', leadId], queryFn: () => getLead(leadId), staleTime: 60_000 });
 
   const { data: legacyActivities = [] } = useQuery({
@@ -121,11 +126,33 @@ export default function LeadActivities({ leadId }: Props) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['tasks'] });
       qc.invalidateQueries({ queryKey: ['tasks', { targetId: leadId }] });
+
+      if (saveToAgenda && selectedAgendaId) {
+        const descSnapshot = description.trim();
+        const iso = date && time ? new Date(`${date}T${time}:00`) : new Date();
+        const startAt = iso.toISOString();
+        const endAt = new Date(iso.getTime() + 60 * 60 * 1000).toISOString();
+        const title = descSnapshot.slice(0, 100) || `${TYPE_LABEL[activeType] ?? 'Atividade'}`;
+        createAppointment(selectedAgendaId, {
+          title,
+          startAt,
+          endAt,
+          leadId,
+          description: descSnapshot || undefined,
+        }).catch(() => {});
+      }
+
       setDescription('');
       setLocation('');
       setAttachments([]);
     },
   });
+
+  useEffect(() => {
+    if (saveToAgenda && agendas.length === 1 && !selectedAgendaId) {
+      setSelectedAgendaId(agendas[0].id);
+    }
+  }, [saveToAgenda, agendas, selectedAgendaId]);
 
   const toggleResponsible = (id: string) =>
     setResponsibleIds((prev) => prev.includes(id) ? prev.filter((p) => p !== id) : [...prev, id]);
@@ -244,6 +271,32 @@ export default function LeadActivities({ leadId }: Props) {
               </button>
             )}
           </div>
+        </div>
+
+        {/* Salvar na agenda */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <label className="flex items-center gap-1.5 text-xs text-slate-400 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={saveToAgenda}
+              onChange={(e) => setSaveToAgenda(e.target.checked)}
+              className="rounded border-slate-500 text-brand-500 focus:ring-brand-500 bg-slate-700"
+            />
+            <CalendarPlus className="w-3.5 h-3.5" />
+            Salvar na agenda
+          </label>
+          {saveToAgenda && (
+            <select
+              value={selectedAgendaId}
+              onChange={(e) => setSelectedAgendaId(e.target.value)}
+              className="px-2 py-1 rounded-lg text-xs bg-slate-700/50 border border-slate-600 text-slate-200 outline-none"
+            >
+              <option value="">Selecione a agenda</option>
+              {agendas.map((a) => (
+                <option key={a.id} value={a.id}>{a.name}</option>
+              ))}
+            </select>
+          )}
         </div>
 
         {/* Footer da form */}
