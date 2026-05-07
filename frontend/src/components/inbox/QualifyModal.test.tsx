@@ -31,6 +31,7 @@ const mockItem: InboxItem = {
   lastMessageSentAt: new Date().toISOString(),
   unread: true,
   updatedAt: new Date().toISOString(),
+  pinnedAt: null,
   pendingClassification: true,
   assignedToName: null,
   labels: [],

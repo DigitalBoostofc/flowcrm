@@ -4,7 +4,7 @@ import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from '@tansta
 import {
   MessageCircle, Send, Search, Phone, Loader2, Sparkles,
   Paperclip, Mic, MicOff, File, Video, Tag,
-  Archive, ArchiveRestore, X, Check,
+  Archive, ArchiveRestore, X, Check, Pin, MoreVertical, Trash2,
 } from 'lucide-react';
 import ConversationSummaryButton from '@/components/lead-panel/ConversationSummary';
 import MessageBubble from '@/components/inbox/MessageBubble';
@@ -12,7 +12,8 @@ import QualifyModal from '@/components/inbox/QualifyModal';
 import RightSidebar from '@/components/inbox/RightSidebar';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { listInbox, markConversationRead, qualifyConversation, archiveConversation, type InboxItem, type InboxPage } from '@/api/conversations';
+import { listInbox, markConversationRead, qualifyConversation, archiveConversation, pinConversation, type InboxItem, type InboxPage } from '@/api/conversations';
+import { deleteContact } from '@/api/contacts';
 import { listMessages, sendMessage, sendMedia, deleteMessage } from '@/api/messages';
 import { listQuickReplies } from '@/api/quick-replies';
 import { listChannels } from '@/api/channels';
@@ -235,13 +236,157 @@ function MediaUploadPreview({ file, onCancel }: { file: File; onCancel: () => vo
   );
 }
 
+/* ── DeleteContactModal ───────────────────────────────── */
+
+function DeleteContactModal({ onConfirm, onCancel }: { onConfirm: () => void; onCancel: () => void }) {
+  return (
+    <div
+      className="fixed inset-0 z-[100] flex items-center justify-center"
+      style={{ background: 'rgba(0,0,0,0.4)' }}
+      onClick={onCancel}
+    >
+      <div
+        className="w-[400px] rounded-2xl p-6"
+        style={{ background: 'var(--surface-raised)', border: '1px solid var(--edge)' }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h3 className="text-sm font-semibold mb-2" style={{ color: 'var(--ink-1)' }}>Deletar contato</h3>
+        <p className="text-xs mb-5" style={{ color: 'var(--ink-2)' }}>
+          Tem certeza? Esta ação remove o contato e TODAS as conversas e negócios vinculados permanentemente.
+        </p>
+        <div className="flex gap-2 justify-end">
+          <button
+            onClick={onCancel}
+            className="px-3 py-1.5 rounded-lg text-xs transition-opacity hover:opacity-80"
+            style={{ border: '1px solid var(--edge)', color: 'var(--ink-2)', background: 'var(--surface-hover)' }}
+          >
+            Cancelar
+          </button>
+          <button
+            onClick={onConfirm}
+            className="px-3 py-1.5 rounded-lg text-xs text-white transition-opacity hover:opacity-80"
+            style={{ background: '#ef4444' }}
+          >
+            Deletar permanentemente
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── ConvMenu ─────────────────────────────────────────── */
+
+function ConvMenu({
+  item,
+  isArchived,
+  onArchive,
+  onPin,
+  onDeleteContact,
+}: {
+  item: InboxItem;
+  isArchived?: boolean;
+  onArchive: () => void;
+  onPin: () => void;
+  onDeleteContact: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [showLabelPicker, setShowLabelPicker] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    function handleOutside(e: MouseEvent) {
+      if (!menuRef.current?.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener('mousedown', handleOutside);
+    return () => document.removeEventListener('mousedown', handleOutside);
+  }, [open]);
+
+  return (
+    <div ref={menuRef} className="relative" onClick={(e) => e.stopPropagation()}>
+      <button
+        onClick={() => setOpen((v) => !v)}
+        title="Mais opções"
+        className="p-1.5 rounded-lg transition-opacity hover:opacity-80"
+        style={{ background: 'var(--surface-raised)', border: '1px solid var(--edge)', color: 'var(--ink-3)' }}
+      >
+        <MoreVertical className="w-3.5 h-3.5" />
+      </button>
+
+      {open && (
+        <div
+          className="absolute right-0 top-full mt-1 z-50 min-w-[180px] rounded-xl py-1 shadow-lg"
+          style={{ background: 'var(--surface-raised)', border: '1px solid var(--edge)' }}
+        >
+          <button
+            onClick={() => { setShowLabelPicker(true); setOpen(false); }}
+            className="w-full flex items-center gap-2 px-3 py-2 text-xs text-left transition-opacity hover:opacity-70"
+            style={{ color: 'var(--ink-2)' }}
+          >
+            <Tag className="w-3.5 h-3.5 flex-shrink-0" />
+            Adicionar etiqueta
+          </button>
+          <button
+            onClick={() => { onPin(); setOpen(false); }}
+            className="w-full flex items-center gap-2 px-3 py-2 text-xs text-left transition-opacity hover:opacity-70"
+            style={{ color: 'var(--ink-2)' }}
+          >
+            <Pin className="w-3.5 h-3.5 flex-shrink-0" />
+            {item.pinnedAt ? 'Desafixar conversa' : 'Fixar conversa'}
+          </button>
+          <button
+            onClick={() => { onArchive(); setOpen(false); }}
+            className="w-full flex items-center gap-2 px-3 py-2 text-xs text-left transition-opacity hover:opacity-70"
+            style={{ color: 'var(--ink-2)' }}
+          >
+            {isArchived ? <ArchiveRestore className="w-3.5 h-3.5 flex-shrink-0" /> : <Archive className="w-3.5 h-3.5 flex-shrink-0" />}
+            {isArchived ? 'Desarquivar' : 'Arquivar'}
+          </button>
+          {item.contactId && (
+            <>
+              <div style={{ height: 1, background: 'var(--edge)', margin: '2px 0' }} />
+              <button
+                onClick={() => { setShowDeleteModal(true); setOpen(false); }}
+                className="w-full flex items-center gap-2 px-3 py-2 text-xs text-left transition-opacity hover:opacity-70"
+                style={{ color: '#ef4444' }}
+              >
+                <Trash2 className="w-3.5 h-3.5 flex-shrink-0" />
+                Deletar contato
+              </button>
+            </>
+          )}
+        </div>
+      )}
+
+      {showLabelPicker && (
+        <ConversationLabelPicker
+          conversationId={item.id}
+          currentLabels={item.labels}
+          onClose={() => setShowLabelPicker(false)}
+        />
+      )}
+
+      {showDeleteModal && (
+        <DeleteContactModal
+          onConfirm={() => { setShowDeleteModal(false); onDeleteContact(); }}
+          onCancel={() => setShowDeleteModal(false)}
+        />
+      )}
+    </div>
+  );
+}
+
 /* ── ConvItem ─────────────────────────────────────────── */
 
-function ConvItem({ item, selected, onClick, onArchive, isArchived }: {
+function ConvItem({ item, selected, onClick, onArchive, onPin, onDeleteContact, isArchived }: {
   item: InboxItem;
   selected: boolean;
   onClick: () => void;
   onArchive: () => void;
+  onPin: () => void;
+  onDeleteContact: () => void;
   isArchived?: boolean;
 }) {
   const pending = item.pendingClassification;
@@ -260,7 +405,14 @@ function ConvItem({ item, selected, onClick, onArchive, isArchived }: {
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
-      <Avatar name={item.contactName ?? item.fromName} url={item.contactAvatarUrl ?? item.fromAvatarUrl} size={36} />
+      <div className="relative flex-shrink-0">
+        <Avatar name={item.contactName ?? item.fromName} url={item.contactAvatarUrl ?? item.fromAvatarUrl} size={36} />
+        {item.pinnedAt && (
+          <span className="absolute -top-1 -right-1 flex items-center justify-center w-3.5 h-3.5 rounded-full" style={{ background: 'var(--brand-500)' }}>
+            <Pin className="w-2 h-2 text-white" strokeWidth={2.5} />
+          </span>
+        )}
+      </div>
 
       <div className="flex-1 min-w-0">
         {item.labels.length > 0 && (
@@ -318,16 +470,17 @@ function ConvItem({ item, selected, onClick, onArchive, isArchived }: {
         </div>
       </div>
 
-      {/* Archive / Unarchive button — shows on hover */}
+      {/* Actions menu — shows on hover */}
       {hovered && (
-        <button
-          onClick={(e) => { e.stopPropagation(); onArchive(); }}
-          title={isArchived ? 'Desarquivar conversa' : 'Arquivar conversa'}
-          className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-lg transition-opacity opacity-0 group-hover:opacity-100"
-          style={{ background: 'var(--surface-raised)', border: '1px solid var(--edge)', color: 'var(--ink-3)' }}
-        >
-          {isArchived ? <ArchiveRestore className="w-3.5 h-3.5" /> : <Archive className="w-3.5 h-3.5" />}
-        </button>
+        <div className="absolute right-2 top-1/2 -translate-y-1/2">
+          <ConvMenu
+            item={item}
+            isArchived={isArchived}
+            onArchive={onArchive}
+            onPin={onPin}
+            onDeleteContact={onDeleteContact}
+          />
+        </div>
       )}
     </div>
   );
@@ -335,15 +488,16 @@ function ConvItem({ item, selected, onClick, onArchive, isArchived }: {
 
 /* ── ChatView ─────────────────────────────────────────── */
 
-function ChatView({ item, onQualify, onArchive, isArchived }: {
+function ChatView({ item, onQualify, onArchive, onPin, onDeleteContact, isArchived }: {
   item: InboxItem;
   onQualify: (payload: { name: string; type: 'person' | 'company'; pipelineId: string; stageId: string; assignedToId: string }) => Promise<void>;
   onArchive: () => void;
+  onPin: () => void;
+  onDeleteContact: () => void;
   isArchived?: boolean;
 }) {
   const qc = useQueryClient();
   const [showQualifyModal, setShowQualifyModal] = useState(false);
-  const [showLabelPicker, setShowLabelPicker] = useState(false);
   const [body, setBody] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [showQuickReplies, setShowQuickReplies] = useState(false);
@@ -645,31 +799,13 @@ function ChatView({ item, onQualify, onArchive, isArchived }: {
                 {item.unread ? 'Nova mensagem' : 'WhatsApp'}
               </div>
             )}
-            <div className="relative">
-              <button
-                onClick={() => setShowLabelPicker((v) => !v)}
-                title="Etiquetas da conversa"
-                className="p-1.5 rounded-lg hover:opacity-80 transition-opacity"
-                style={{ background: 'var(--surface-hover)', border: '1px solid var(--edge)', color: 'var(--ink-3)' }}
-              >
-                <Tag className="w-3.5 h-3.5" />
-              </button>
-              {showLabelPicker && (
-                <ConversationLabelPicker
-                  conversationId={item.id}
-                  currentLabels={item.labels}
-                  onClose={() => setShowLabelPicker(false)}
-                />
-              )}
-            </div>
-            <button
-              onClick={onArchive}
-              title={isArchived ? 'Desarquivar conversa' : 'Arquivar conversa'}
-              className="p-1.5 rounded-lg hover:opacity-80 transition-opacity"
-              style={{ background: 'var(--surface-hover)', border: '1px solid var(--edge)', color: 'var(--ink-3)' }}
-            >
-              {isArchived ? <ArchiveRestore className="w-3.5 h-3.5" /> : <Archive className="w-3.5 h-3.5" />}
-            </button>
+            <ConvMenu
+              item={item}
+              isArchived={isArchived}
+              onArchive={onArchive}
+              onPin={onPin}
+              onDeleteContact={onDeleteContact}
+            />
           </div>
         </div>
 
@@ -887,6 +1023,48 @@ export default function Inbox() {
     socket.on('message.received', handler);
     return () => { socket.off('message.received', handler); };
   }, [socket, qc]);
+
+  async function handlePin(item: InboxItem) {
+    const pinned = !item.pinnedAt;
+    qc.setQueryData<{ pages: InboxPage[]; pageParams: unknown[] }>(['inbox', { filter: apiFilter, tagId: tagFilter }], (prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        pages: prev.pages.map((p) => ({
+          ...p,
+          items: p.items.map((i) => (i.id === item.id ? { ...i, pinnedAt: pinned ? new Date().toISOString() : null } : i)),
+        })),
+      };
+    });
+    try {
+      await pinConversation(item.id, pinned);
+      qc.invalidateQueries({ queryKey: ['inbox'] });
+    } catch {
+      qc.invalidateQueries({ queryKey: ['inbox'] });
+    }
+  }
+
+  async function handleDeleteContact(item: InboxItem) {
+    if (!item.contactId) return;
+    const contactId = item.contactId;
+    qc.setQueryData<{ pages: InboxPage[]; pageParams: unknown[] }>(['inbox', { filter: apiFilter, tagId: tagFilter }], (prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        pages: prev.pages.map((p) => ({
+          ...p,
+          items: p.items.filter((i) => i.contactId !== contactId),
+        })),
+      };
+    });
+    if (selected?.contactId === contactId) setSelectedId(null);
+    try {
+      await deleteContact(contactId);
+      qc.invalidateQueries({ queryKey: ['inbox'] });
+    } catch {
+      qc.invalidateQueries({ queryKey: ['inbox'] });
+    }
+  }
 
   async function handleArchive(item: InboxItem, archive: boolean) {
     // Optimistically remove from current list
@@ -1127,6 +1305,8 @@ export default function Inbox() {
                   selected={item.id === selectedId}
                   onClick={() => handleSelect(item)}
                   onArchive={() => handleArchive(item, tab !== 'arquivadas')}
+                  onPin={() => handlePin(item)}
+                  onDeleteContact={() => handleDeleteContact(item)}
                   isArchived={tab === 'arquivadas'}
                 />
               ))}
@@ -1159,6 +1339,8 @@ export default function Inbox() {
             item={selected}
             onQualify={handleQualify}
             onArchive={() => handleArchive(selected, tab !== 'arquivadas')}
+            onPin={() => handlePin(selected)}
+            onDeleteContact={() => handleDeleteContact(selected)}
             isArchived={tab === 'arquivadas'}
           />
         ) : (
