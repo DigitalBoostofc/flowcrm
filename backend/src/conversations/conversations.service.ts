@@ -26,6 +26,7 @@ export interface InboxItem {
   lastMessageSentAt: Date | null;
   unread: boolean;
   updatedAt: Date;
+  pinnedAt: Date | null;
   pendingClassification: boolean;
   assignedToName: string | null;
   labels: { id: string; name: string; color: string }[];
@@ -204,6 +205,7 @@ export class ConversationsService {
         c."fromAvatarUrl",
         c."updatedAt",
         c."lastReadAt",
+        c."pinnedAt",
         contact.id                                                  AS "contactId",
         COALESCE(contact.name, l."externalName")                    AS "contactName",
         COALESCE(contact.whatsapp, contact.celular, contact.phone, l."externalPhone", c."externalId") AS "contactPhone",
@@ -229,7 +231,7 @@ export class ConversationsService {
         LIMIT 1
       ) lm ON true
       WHERE ${whereClause}
-      ORDER BY COALESCE(lm."sentAt", c."updatedAt") DESC, c.id DESC
+      ORDER BY c."pinnedAt" DESC NULLS LAST, COALESCE(lm."sentAt", c."updatedAt") DESC, c.id DESC
       LIMIT $${limitParam} OFFSET $${offsetParam}
     `, params);
 
@@ -250,12 +252,21 @@ export class ConversationsService {
       lastMessageSentAt: r.lastMessageSentAt,
       unread: ConversationsService.computeUnread(r.lastMessageDirection, r.lastMessageSentAt, r.lastReadAt),
       updatedAt: r.updatedAt,
+      pinnedAt: r.pinnedAt ?? null,
       pendingClassification: !r.leadId,
       assignedToName: r.assignedToName ?? null,
       labels: r.labels ?? [],
     }));
 
     return { items, total, page, pageSize };
+  }
+
+  async setPin(id: string, pinned: boolean): Promise<{ id: string; pinnedAt: Date | null }> {
+    const workspaceId = this.tenant.requireWorkspaceId();
+    const pinnedAt = pinned ? new Date() : null;
+    const result = await this.repo.update({ id, workspaceId }, { pinnedAt });
+    if (!result.affected) throw new NotFoundException('Conversa não encontrada');
+    return { id, pinnedAt };
   }
 
   async setArchived(id: string, archive: boolean): Promise<{ id: string; archivedAt: Date | null }> {

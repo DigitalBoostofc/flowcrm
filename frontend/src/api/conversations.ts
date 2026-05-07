@@ -18,6 +18,7 @@ export interface InboxItem {
   lastMessageSentAt: string | null;
   unread: boolean;
   updatedAt: string;
+  pinnedAt: string | null;
   pendingClassification: boolean;
   assignedToName: string | null;
   labels: { id: string; name: string; color: string }[];
@@ -42,6 +43,11 @@ export async function listInbox(params: {
 
 export async function archiveConversation(id: string, archive: boolean): Promise<{ id: string; archivedAt: string | null }> {
   const res = await api.patch<{ id: string; archivedAt: string | null }>(`/conversations/${id}/archive`, { archive });
+  return res.data;
+}
+
+export async function pinConversation(id: string, pinned: boolean): Promise<{ id: string; pinnedAt: string | null }> {
+  const res = await api.patch<{ id: string; pinnedAt: string | null }>(`/conversations/${id}/pin`, { pinned });
   return res.data;
 }
 

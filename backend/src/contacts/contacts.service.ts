@@ -72,8 +72,23 @@ export class ContactsService {
 
   async remove(id: string): Promise<void> {
     const workspaceId = this.tenant.requireWorkspaceId();
-    const result = await this.repo.softDelete({ id, workspaceId });
-    if (result.affected === 0) throw new NotFoundException('Contato não encontrado');
+    const contact = await this.repo.findOne({ where: { id, workspaceId }, withDeleted: true });
+    if (!contact) throw new NotFoundException('Contato não encontrado');
+
+    // Delete leads (cascades: conversations → messages, conversation_labels, lead_activities, automation_executions)
+    await this.repo.query(`DELETE FROM leads WHERE "contactId" = $1`, [id]);
+
+    // Delete unlinked conversations matching contact's phones (cascades: messages, conversation_labels)
+    const phones = [contact.phone, contact.whatsapp].filter(Boolean);
+    if (phones.length) {
+      await this.repo.query(
+        `DELETE FROM conversations WHERE "workspaceId" = $1 AND "externalId" = ANY($2) AND "leadId" IS NULL`,
+        [workspaceId, phones],
+      );
+    }
+
+    // Hard delete contact (cascades: contact_activities)
+    await this.repo.query(`DELETE FROM contacts WHERE id = $1 AND "workspaceId" = $2`, [id, workspaceId]);
   }
 
   async updateAvatar(id: string, file: { buffer: Buffer; mimetype: string; originalname: string; size: number }): Promise<Contact> {

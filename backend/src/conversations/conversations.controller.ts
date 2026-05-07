@@ -76,4 +76,12 @@ export class ConversationsController {
   ) {
     return this.service.setArchived(id, dto.archive);
   }
+
+  @Patch(':id/pin')
+  setPin(
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Body() dto: { pinned: boolean },
+  ) {
+    return this.service.setPin(id, dto.pinned);
+  }
 }

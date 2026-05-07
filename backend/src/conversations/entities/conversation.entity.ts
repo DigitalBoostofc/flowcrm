@@ -51,6 +51,9 @@ export class Conversation {
   @Column({ type: 'timestamptz', nullable: true })
   archivedAt: Date | null;
 
+  @Column({ type: 'timestamptz', nullable: true })
+  pinnedAt: Date | null;
+
   @CreateDateColumn()
   createdAt: Date;
 
