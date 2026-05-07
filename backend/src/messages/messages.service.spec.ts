@@ -31,9 +31,10 @@ function makeInsertQb(result: { raw: object[] }) {
   };
 }
 
+const mockRepo = { createQueryBuilder: jest.fn(), findOneOrFail: jest.fn(), update: jest.fn() };
+
 describe('MessagesService.saveWebhookOutbound', () => {
   let service: MessagesService;
-  const mockRepo = { createQueryBuilder: jest.fn() };
 
   beforeEach(async () => {
     jest.resetAllMocks();
@@ -103,5 +104,79 @@ describe('MessagesService.saveWebhookOutbound', () => {
     expect(result).toEqual(mockMsg);
     expect(updateQb.execute).toHaveBeenCalledTimes(1);
     expect(insertQb.execute).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('MessagesService.updateOutboundResult', () => {
+  let service: MessagesService;
+
+  beforeEach(async () => {
+    jest.resetAllMocks();
+    mockTenant.requireWorkspaceId = jest.fn().mockReturnValue(WS_ID);
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        MessagesService,
+        { provide: getRepositoryToken(Message), useValue: mockRepo },
+        { provide: TenantContext, useValue: mockTenant },
+      ],
+    }).compile();
+    service = module.get<MessagesService>(MessagesService);
+  });
+
+  it('Cenário 1 — placeholder uza-*: UPDATE aplica messageid real e retorna linha', async () => {
+    const realId = 'real-ext-123';
+    const stored = { id: 'msg-uuid', externalMessageId: realId, status: 'sent' };
+    const updateQb = makeUpdateQb({ affected: 1, raw: [stored] });
+
+    mockRepo.createQueryBuilder.mockReturnValueOnce(updateQb);
+    mockRepo.findOneOrFail.mockResolvedValueOnce(stored);
+
+    const result = await service.updateOutboundResult('msg-uuid', { externalMessageId: realId, status: 'sent' });
+
+    expect(updateQb.execute).toHaveBeenCalledTimes(1);
+    expect(updateQb.set).toHaveBeenCalledWith({ externalMessageId: realId, status: 'sent' });
+    expect(result).toEqual(stored);
+  });
+
+  it('Cenário 2 — webhook claimed antes: UPDATE é no-op, retorna linha existente', async () => {
+    const realId = 'real-ext-456';
+    const stored = { id: 'msg-uuid', externalMessageId: realId, status: 'sent' };
+    const updateQb = makeUpdateQb({ affected: 0, raw: [] });
+
+    mockRepo.createQueryBuilder.mockReturnValueOnce(updateQb);
+    mockRepo.findOneOrFail.mockResolvedValueOnce(stored);
+
+    const result = await service.updateOutboundResult('msg-uuid', { externalMessageId: realId, status: 'sent' });
+
+    expect(updateQb.execute).toHaveBeenCalledTimes(1);
+    expect(result).toEqual(stored);
+  });
+});
+
+describe('MessagesService.markOutboundFailed', () => {
+  let service: MessagesService;
+
+  beforeEach(async () => {
+    jest.resetAllMocks();
+    mockTenant.requireWorkspaceId = jest.fn().mockReturnValue(WS_ID);
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        MessagesService,
+        { provide: getRepositoryToken(Message), useValue: mockRepo },
+        { provide: TenantContext, useValue: mockTenant },
+      ],
+    }).compile();
+    service = module.get<MessagesService>(MessagesService);
+  });
+
+  it('Cenário 1 — marca mensagem como failed', async () => {
+    mockRepo.update.mockResolvedValueOnce({ affected: 1 });
+
+    await service.markOutboundFailed('msg-uuid');
+
+    expect(mockRepo.update).toHaveBeenCalledWith(
+      { id: 'msg-uuid', workspaceId: WS_ID },
+      { status: 'failed' },
+    );
   });
 });

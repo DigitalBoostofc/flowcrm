@@ -1,3 +1,4 @@
+import { randomUUID } from 'crypto';
 import { Body, Controller, Delete, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
 import { MessagesService } from './messages.service';
 import { AudioTranscriptionService } from './audio-transcription.service';
@@ -33,44 +34,70 @@ export class MessagesController {
   @Post('send')
   async send(@Body() dto: SendMessageDto) {
     const conv = await this.conversationsService.findOne(dto.conversationId);
-    const result = await this.channelsService.send({
-      channelConfigId: dto.channelConfigId,
-      to: conv.externalId ?? '',
-      body: dto.body,
-    });
-    return this.messagesService.saveOutbound({
+
+    // INSERT placeholder before the HTTP send to close the webhook race window.
+    const fallbackId = `uza-${Date.now()}-${randomUUID().slice(0, 8)}`;
+    const placeholder = await this.messagesService.saveOutbound({
       conversationId: dto.conversationId,
       body: dto.body,
-      externalMessageId: result.externalMessageId,
-      status: result.status,
+      externalMessageId: fallbackId,
+      status: 'pending',
     });
+
+    try {
+      const result = await this.channelsService.send({
+        channelConfigId: dto.channelConfigId,
+        to: conv.externalId ?? '',
+        body: dto.body,
+      });
+      return await this.messagesService.updateOutboundResult(placeholder.id, {
+        externalMessageId: result.externalMessageId,
+        status: result.status,
+      });
+    } catch (err) {
+      await this.messagesService.markOutboundFailed(placeholder.id);
+      throw err;
+    }
   }
 
   @Post('send-media')
   async sendMedia(@Body() dto: SendMediaDto) {
     const conv = await this.conversationsService.findOne(dto.conversationId);
-    const result = await this.channelsService.send({
-      channelConfigId: dto.channelConfigId,
-      to: conv.externalId ?? '',
-      body: dto.mediaCaption ?? '',
-      mediaType: dto.mediaType,
-      mediaUrl: dto.mediaUrl,
-      base64: dto.base64,
-      mediaMimeType: dto.mediaMimeType,
-      mediaCaption: dto.mediaCaption,
-      mediaFileName: dto.mediaFileName,
-    });
-    return this.messagesService.saveOutbound({
+
+    // INSERT placeholder before the HTTP send to close the webhook race window.
+    const fallbackId = `uza-${Date.now()}-${randomUUID().slice(0, 8)}`;
+    const placeholder = await this.messagesService.saveOutbound({
       conversationId: dto.conversationId,
       body: dto.mediaCaption ?? '',
-      externalMessageId: result.externalMessageId,
-      status: result.status,
+      externalMessageId: fallbackId,
+      status: 'pending',
       type: dto.mediaType,
       mediaUrl: dto.mediaUrl,
       mediaMimeType: dto.mediaMimeType,
       mediaCaption: dto.mediaCaption,
       mediaFileName: dto.mediaFileName,
     });
+
+    try {
+      const result = await this.channelsService.send({
+        channelConfigId: dto.channelConfigId,
+        to: conv.externalId ?? '',
+        body: dto.mediaCaption ?? '',
+        mediaType: dto.mediaType,
+        mediaUrl: dto.mediaUrl,
+        base64: dto.base64,
+        mediaMimeType: dto.mediaMimeType,
+        mediaCaption: dto.mediaCaption,
+        mediaFileName: dto.mediaFileName,
+      });
+      return await this.messagesService.updateOutboundResult(placeholder.id, {
+        externalMessageId: result.externalMessageId,
+        status: result.status,
+      });
+    } catch (err) {
+      await this.messagesService.markOutboundFailed(placeholder.id);
+      throw err;
+    }
   }
 
   @Post('react')
