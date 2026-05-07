@@ -513,19 +513,47 @@ function ChatView({ item, onQualify, onArchive, isArchived }: {
       .catch(() => {});
   }, [item.id, channelId]);
 
-  // Send text mutation
+  // Send text mutation — optimistic update adds temp message immediately
   const sendMut = useMutation({
-    mutationFn: () => sendMessage({ conversationId: item.id, channelConfigId: channelId, body: body.trim() }),
-    onSuccess: () => {
+    mutationFn: (capturedBody: string) =>
+      sendMessage({ conversationId: item.id, channelConfigId: channelId, body: capturedBody }),
+    onMutate: async (capturedBody) => {
+      await qc.cancelQueries({ queryKey: ['messages', item.id] });
+      const prevMessages = qc.getQueryData<Message[]>(['messages', item.id]) ?? [];
+      const tempId = `temp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
       setBody('');
-      qc.invalidateQueries({ queryKey: ['messages', item.id] });
+      qc.setQueryData<Message[]>(['messages', item.id], [
+        ...prevMessages,
+        {
+          id: tempId,
+          conversationId: item.id,
+          body: capturedBody,
+          direction: 'outbound',
+          type: 'text',
+          status: 'pending',
+          sentAt: new Date().toISOString(),
+          createdAt: new Date().toISOString(),
+        },
+      ]);
+      return { tempId, prevMessages, capturedBody };
+    },
+    onSuccess: (realMsg, _vars, context) => {
+      qc.setQueryData<Message[]>(['messages', item.id], (prev = []) =>
+        prev.map((m) => (m.id === context!.tempId ? realMsg : m)),
+      );
       qc.invalidateQueries({ queryKey: ['inbox'] });
+    },
+    onError: (_err, _vars, context) => {
+      if (context) {
+        qc.setQueryData<Message[]>(['messages', item.id], context.prevMessages);
+        setBody(context.capturedBody);
+      }
     },
   });
 
-  // Send media mutation
+  // Send media mutation — optimistic update with local blob preview
   const sendMediaMut = useMutation({
-    mutationFn: async (file: File) => {
+    mutationFn: async ({ file, caption }: { file: File; caption: string }) => {
       const base64 = await new Promise<string>((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = () => resolve((reader.result as string).split(',')[1]);
@@ -539,14 +567,48 @@ function ChatView({ item, onQualify, onArchive, isArchived }: {
         base64,
         mediaMimeType: file.type,
         mediaFileName: file.name,
-        mediaCaption: body.trim() || undefined,
+        mediaCaption: caption || undefined,
       });
     },
-    onSuccess: () => {
+    onMutate: async ({ file, caption }) => {
+      await qc.cancelQueries({ queryKey: ['messages', item.id] });
+      const prevMessages = qc.getQueryData<Message[]>(['messages', item.id]) ?? [];
+      const tempId = `temp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      const previewUrl = URL.createObjectURL(file);
       setSelectedFile(null);
       setBody('');
-      qc.invalidateQueries({ queryKey: ['messages', item.id] });
+      qc.setQueryData<Message[]>(['messages', item.id], [
+        ...prevMessages,
+        {
+          id: tempId,
+          conversationId: item.id,
+          body: caption,
+          direction: 'outbound',
+          type: getMediaType(file.type),
+          status: 'pending',
+          sentAt: new Date().toISOString(),
+          createdAt: new Date().toISOString(),
+          mediaUrl: previewUrl,
+          mediaMimeType: file.type,
+          mediaCaption: caption || null,
+          mediaFileName: file.name,
+        },
+      ]);
+      return { tempId, prevMessages, caption, previewUrl };
+    },
+    onSuccess: (realMsg, _vars, context) => {
+      if (context?.previewUrl) URL.revokeObjectURL(context.previewUrl);
+      qc.setQueryData<Message[]>(['messages', item.id], (prev = []) =>
+        prev.map((m) => (m.id === context!.tempId ? realMsg : m)),
+      );
       qc.invalidateQueries({ queryKey: ['inbox'] });
+    },
+    onError: (_err, _vars, context) => {
+      if (context) {
+        if (context.previewUrl) URL.revokeObjectURL(context.previewUrl);
+        qc.setQueryData<Message[]>(['messages', item.id], context.prevMessages);
+        setBody(context.caption);
+      }
     },
   });
 
@@ -560,10 +622,10 @@ function ChatView({ item, onQualify, onArchive, isArchived }: {
   const handleSend = useCallback(() => {
     if (selectedFile) {
       if (!channelId || sendMediaMut.isPending) return;
-      sendMediaMut.mutate(selectedFile);
+      sendMediaMut.mutate({ file: selectedFile, caption: body.trim() });
     } else {
       if (!body.trim() || !channelId || sendMut.isPending) return;
-      sendMut.mutate();
+      sendMut.mutate(body.trim());
     }
   }, [body, channelId, selectedFile, sendMut, sendMediaMut]);
 

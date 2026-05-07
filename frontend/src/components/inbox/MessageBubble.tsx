@@ -155,6 +155,7 @@ export default function MessageBubble({ message, isOut, channelId, onDelete }: {
   function renderStatus() {
     if (!isOut) return null;
     const s = message.status;
+    if (s === 'pending') return <Loader2 className="w-3 h-3 animate-spin opacity-50" />;
     if (s === 'read') return <CheckCheck className="w-3 h-3" style={{ color: '#93c5fd' }} />;
     if (s === 'delivered') return <CheckCheck className="w-3 h-3 opacity-60" />;
     if (s === 'sent') return <Check className="w-3 h-3 opacity-60" />;
