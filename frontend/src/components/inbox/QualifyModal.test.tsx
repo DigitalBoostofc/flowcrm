@@ -33,9 +33,7 @@ const mockItem: InboxItem = {
   updatedAt: new Date().toISOString(),
   pendingClassification: true,
   assignedToName: null,
-  inboxTagId: null,
-  inboxTagName: null,
-  inboxTagColor: null,
+  labels: [],
 };
 
 const mockPipelines: Pipeline[] = [
